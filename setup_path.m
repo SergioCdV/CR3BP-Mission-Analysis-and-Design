@@ -9,7 +9,7 @@
 % This scripts provides the function to generate the needed search paths 
 
 function setup_path()
-    %Generate the search paths of the main subfolders of the AOMAT program
+    %Generate the search paths of the main subfolders of the program
     mainFolder = fileparts(which('setup_path'));
     folderSRC = strcat(mainFolder,'\src');
     folderExam = strcat(mainFolder,'\Examples');
