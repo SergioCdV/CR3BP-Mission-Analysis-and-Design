@@ -14,7 +14,6 @@
 
 %% Test values and constants
 %Set up search path 
-%setup_path();           %CURRENT TEST MUST BE IN THE MAIN FOLDER
 set_graphics();         %Set graphics style
 
 %Configuration space
