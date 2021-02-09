@@ -14,7 +14,6 @@
 
 %% General setup 
 format long;                                                %Set command window numerical format
-setup_path();                                               %Set up the search path
 set_graphics();                                             %Set up the graphical environment
 
 %% Initial conditions 
