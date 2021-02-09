@@ -7,15 +7,13 @@
 % projectile motion. Initial conditions, chosen randomly, are modified to
 % accomplish surpassing a certain height at a certain range. A second
 % scenary aims to target orbital motion from random initial conditions.
-% For more details on the topic, reference may be found in Wiesel and
-% Strogatz. 
 
 %% Scenario 1: surpassing height at known range, varying initial velocities 
 % Results: time can be fixed by dynamical constraints, and should not be corrected by brute force. Modifying the 
 % flight path angle and the velocity modulus seem unstable.
 
 %Constants 
-g = 1;      %Gravity acceleration, normalized units.
+g = 1;                          %Gravity acceleration, normalized units.
 
 % Initial conditions 
 [dt, x0, xf] = initial_conditions(); 
@@ -90,8 +88,8 @@ legend('Initial trayectory', 'Final trayectory', 'Target');
 %% Scenario 2: targeting orbital motion varying both location and speed (location should not matter)
 % Results: reparametrization needed. The parabolic flight equations do
 % not generate Keplerian motion. Curvature has to be taken into account.
-% Poor convergence due to selecting the final conditions kind of randomly.
-% The obtained curve is though parabolic. The main problem is also that the
+% Selecting the final conditions randomly result in poor convergence.
+% The obtained curve is though parabolic. Another main problem is that the
 % end time is unknown, and should be input as another
 % to-be-corrected-variable. It could be interesting to compute the STM
 % using the analytical expression for hyperbolic orbits.

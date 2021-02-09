@@ -124,7 +124,8 @@ function [xf, state] = SymAxis_scheme(mu, seed, n, tol)
     
     %Integrate the whole trayectory 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Disable crossing event
-    tspan = 0:dt:(2*dt*size(S,1));
+    tspan = 0:dt:(2*dt*size(S,1));                              %Integrate the orbit for a whole period
+    
     [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
     
     %Ouput corrected trajectory 
@@ -215,7 +216,7 @@ function [xf, state] = SymPlane_scheme(mu, seed, n, tol)
     
     %Integrate the whole trayectory 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Disable crossing event
-    tspan = 0:dt:(2*dt*size(S,1));
+    tspan = 0:dt:(2*dt*size(S,1));                              %Integrate the orbit for a whole orbit
     [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
     
     %Ouput corrected trajectory 
@@ -307,7 +308,7 @@ function [xf, state] = SymDouble_scheme(mu, seed, n, tol)
     
     %Integrate the whole trayectory 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Disable crossing event
-    tspan = 0:dt:(4*dt*size(S,1));
+    tspan = 0:dt:(4*dt*size(S,1));                              %Integrate the orbit for a whole period
     [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
     
     %Ouput corrected trajectory 
@@ -510,7 +511,7 @@ function [xf, state] = MSPeriodic_scheme(mu, seed, n, tol, varargin)
         C = [A B];
                 
         %Compute the correction 
-        ds0(:,iter) = C'*(C*C.')^(-1)*e;                        %Compute the variation (under-determined case)
+        ds0(:,iter) = C'*(C*C.')^(-1)*e;                %Compute the variation (under-determined case)
         
         %Convergence analysis 
         if (norm(e) <= tol)

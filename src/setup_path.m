@@ -10,7 +10,7 @@
 
 function setup_path()
     %Generate the search paths of the main subfolders of the AOMAT program
-    mainFolder = fileparts(which('README'));
+    mainFolder = fileparts(which('setup_path'));
     folderDyn = strcat(mainFolder,'\Dynamics');
     folderNum = strcat(mainFolder,'\Numerical methods');
     folderInv = strcat(mainFolder,'\Invariant objects');

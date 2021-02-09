@@ -7,12 +7,15 @@
 
 %% Test 1 %%
 % This scripts provides a test interface for the rest of the library
-% functions. Test 1 is concerned with basic reference systems
+% functions. 
+
+% Test 1 is concerned with basic reference systems
 % transformations and general analysis of a CR3BP phase space topology.
 
 %% Test values and constants
 %Set up search path 
-setup_path();
+%setup_path();           %CURRENT TEST MUST BE IN THE MAIN FOLDER
+set_graphics();         %Set graphics style
 
 %Configuration space
 x = -2:1e-2:2;          %Synodic x axis
@@ -21,47 +24,51 @@ z = 0;                  %Synodic plane
 [X,Y] = meshgrid(x,y);  %Configuration space grid
 
 %System characteristics
-mu = 0.01215;           %Mass parameter for the Earth-Moon system
+mu = 0.5;               %Mass parameter for the Earth-Moon system
 T = 24*3600;            %Synodic orbital period
 d = 300e3;              %Distance between primaries
 Vp = 27e3;              %Orbital velocity of the most massive primary
 
 %Reference frame transformations 
 epoch = 1;                               %Epoch at which computations are to be done
-n = 2*pi/T;                              %Synodic frequency
+n = 2*pi/T;                              %Synodic frequency/mean motion
 R = [cos(n*epoch); -sin(n*epoch); 0];    %Dimensional position vector
 V = [1; 0; 0];                           %Dimensional velocity vector
 direction = 0;                           %Conversion direction
 
 %Plotting parameters
-rho = 1000;             %Iso-potential lines density
+rho = 1000;                              %Iso-potential lines density
 
 %% Functions
 %System analysis and libration points 
-L = libration_points(mu); 
-C = jacobiHill_values(mu); 
-c = legendre_coefficients(mu, 1, L(end,1), 10);
+L = libration_points(mu);                               %Compute libration points
+C = JacobiHill_values(mu);                              %Compute the Jacobi-Hill values to open up the different energy realms
+c = legendre_coefficients(mu, 1, L(end,1), 10);         %Compute the Legendre coefficients around L1 up to order 10
 
 %Normalization procedure
-epoch = dimensionalizer(d, T, Vp, epoch, 'Epoch', 1);
-R = dimensionalizer(d, T, Vp, R, 'Position', 1);
-V = dimensionalizer(d, T, Vp, V, 'Velocity', 1);
+epoch = dimensionalizer(d, T, Vp, epoch, 'Epoch', 1);   %Normalize epoch
+R = dimensionalizer(d, T, Vp, R, 'Position', 1);        %Normalize position 
+V = dimensionalizer(d, T, Vp, V, 'Velocity', 1);        %Normalize velocity
 
 %Reference frames transformations  
-T = inertial2synodic(epoch, [R;V], direction); 
-R = inertial2synodic(epoch, R, direction);
-R = synodic2lagrange(mu, L(end,1), 1, R, 0); 
-R = synodic2lagrange(mu, L(end,1), 1, R, 1);
+S = inertial2synodic(epoch, [R;V], direction);          %Normalize state vector in the synodic frame
+R = inertial2synodic(epoch, R, direction);              %Transform position in the synodic frame
+R = synodic2lagrange(mu, L(end,1), 1, R, 0);            %Transform position in the libration point frame
+R = synodic2lagrange(mu, L(end,1), 1, R, 1);            %Transform position back to the synodic frame
 
-%Potential and zero-velocity curves computation
+%Potential and zero-velocity curves
+U = zeros(size(X,1), size(X,2));                        %Pseudo potential function allocation
+J = zeros(size(X,1), size(X,2));                        %Jacobi constant allocation
 for i = 1:size(X,1)
     for j = 1:size(X,2)
         r = [X(i,j); Y(i,j); z];
-        s = [r; zeros(3,1)];
+        s = [r; zeros(3,1)];                            %Zero velocity curves state vector
         U(i,j) = augmented_potential(mu,r);
         J(i,j) = jacobi_constant(mu,s);
     end
 end
+
+%% Plotting and results
 figure(1)
 contour(X,Y,U,rho); 
 xlabel('Synodic x coordinate'); 
@@ -84,6 +91,24 @@ hold off
 xlabel('Synodic x coordinate'); 
 ylabel('Synodic y coordinate');
 title('Zero velocity curves');
-legend('Zero-velocity curves', 'L_1', 'L_2', 'L_3', 'L_4', 'L_5', 'M_1', 'M_2'); 
+legend('Zero-velocity curves', '$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$', '$M_1$', '$M_2$'); 
 grid on 
 colorbar
+
+%% Auxiliary functions 
+function set_graphics()
+    %Set graphical properties
+    set(groot, 'defaultAxesTickLabelInterpreter', 'latex'); 
+    set(groot, 'defaultAxesFontSize', 11); 
+    set(groot, 'defaultAxesGridAlpha', 0.3); 
+    set(groot, 'defaultAxesLineWidth', 0.75);
+    set(groot, 'defaultAxesXMinorTick', 'on');
+    set(groot, 'defaultAxesYMinorTick', 'on');
+    set(groot, 'defaultFigureRenderer', 'painters');
+    set(groot, 'defaultLegendBox', 'on');
+    set(groot, 'defaultLegendInterpreter', 'latex');
+    set(groot, 'defaultLegendLocation', 'best');
+    set(groot, 'defaultLineLineWidth', 1); 
+    set(groot, 'defaultLineMarkerSize', 3);
+    set(groot, 'defaultTextInterpreter','latex');
+end

@@ -8,8 +8,6 @@
 % accomplish different final conditions in both amplitude and wave speed.
 % The file iteratively solves several 2 boundary problems by means of the
 % state transition matrix of the system, known analytically in this case.
-% For more details on the topic, reference may be found in Wiesel and
-% Strogatz. 
 
 %% Scenario 1: target final position and velocity varying the whole state vector. 
 % Results: convergence.

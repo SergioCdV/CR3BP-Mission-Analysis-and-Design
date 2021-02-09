@@ -4,7 +4,7 @@
 
 %% Description %%
 % This file provides a differential correction scheme to generate 
-% a free return trajectory for a Moon mission. Motion is confined 
+% a free return trajectory for a Earth-Moon mission. Motion is confined 
 % to the synodic plane, an CR3BP dynamics are used. Multiple 
 % shooting differential corrections are used.
 
@@ -28,13 +28,13 @@ T = 1/sqrt((muE+muM)/L^3);  %Earth-Moon synodic period
 V = L/T;                    %Normalizing velocity of the Earth-Moon system
 
 % Parking orbit elements
-rpe = 6371e3+he;            %Initial parking orbit radius 
+rpe = 6378e3+he;            %Initial parking orbit radius 
 
 % Circumlunar orbit elements
 rpl = 1738e3+hl;            %Periselenum altitude 
 
 % Initial anomaly on the parking orbit. Constrained dynamically by the synodic frame rotation at SOI crossing epoch
-gamma = deg2rad(90);
+gamma = deg2rad(180)*ones(1,3);
 
 %% Integration setup 
 % Time span
@@ -42,28 +42,31 @@ dt = 1e-3;                  %Time step
 tspan = 0:dt:100;           %Initial time span 
 
 % Set up integration
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,x)x_crossing(t,x));
+options = odeset('RelTol', 2.25e-10, 'AbsTol', 1e-10, 'Events', @(t,x)x_crossing(t,x));
 
 %% Bisection method to find the SOI entry angle to produce a free return trajectory
 % Set up method 
 tol = 1e-10; 
 
 % Initial guess and Earth ellipse transfer orbit elements
-beta(1) = deg2rad(90);                            %SOI entry angle maximum value 
+beta(1) = deg2rad(90);                           %SOI entry angle maximum value 
 beta(2) = deg2rad(0);                             %SOI entry angle minimum value               
 r1(1) = sqrt(Rsoi^2+L^2-2*Rsoi*L*cos(beta(1)));   %Earth ellipse radius at the SOI crossing 
 r1(2) = sqrt(Rsoi^2+L^2-2*Rsoi*L*cos(beta(2)));   %Earth ellipse radius at the SOI crossing 
 v0(1) = sqrt(2*muE*(1/rpe-1/(rpe+r1(1))));        %Initial orbital velocity maximum value
 v0(2) = sqrt(2*muE*(1/rpe-1/(rpe+r1(2))));        %Initial orbital velocity minimum value
 
+theta(1) = gamma(1)+asin(sin(beta(1))*(Rsoi/r1(1)));
+theta(2) = gamma(2)+asin(sin(beta(2))*(Rsoi/r1(2)));
+
 % Transfer orbit elements in the synodic frame
-R0 = [-mu-rpe/L*cos(gamma) -mu-rpe/L*cos(gamma); 
-      -rpe/L*sin(gamma) -rpe/L*sin(gamma)];          %Initial position in the CR3BP
-V0 = [v0(1)/V*sin(gamma) v0(2)/V*sin(gamma); 
-      v0(1)/V*cos(gamma) v0(2)/V*cos(gamma)];        %Initial velocity in the CR3BP
-Phi = [eye(m) eye(m)];                               %Initial STM 
-Phi = reshape(Phi, [m^2 2]);                         %Initial STM
-S0 = [R0; V0; Phi];                                  %Initial state in the CR3BP 
+R0 = [-mu+rpe/L*cos(theta(1)) -mu+rpe/L*cos(theta(2)); 
+          rpe/L*sin(theta(1))     rpe/L*sin(theta(2))];    %Initial position in the CR3BP
+V0 = [-v0(1)/V*sin(theta(1)) -v0(2)/V*sin(theta(2)); 
+       v0(1)/V*cos(theta(1))  v0(2)/V*cos(theta(2))];      %Initial velocity in the CR3BP
+Phi = [eye(m) eye(m)];                                     %Initial STM 
+Phi = reshape(Phi, [m^2 2]);                               %Initial STM
+S0 = [R0; V0; Phi];                                        %Initial state in the CR3BP 
 
 % Initial integration 
 [~, Smax] = ode113(@(t,x)dynamics(mu, t, x), tspan, S0(:,1), options);
@@ -72,9 +75,9 @@ S0 = [R0; V0; Phi];                                  %Initial state in the CR3BP
 % Bisection method 
 GoOn = true;        %Convergence flag
 iter = 1;           %Initial iteration
-iterMax = 500;      %Maximum number of iterations
+iterMax = 100;      %Maximum number of iterations
 
-while (GoOn) && (iter < iterMax)
+while (GoOn) && (iter < iterMax) && (abs(beta(1)-beta(2))/2 > tol)
     % New interval
     beta(3) = sum(beta(1:2))/2; 
     
@@ -85,13 +88,17 @@ while (GoOn) && (iter < iterMax)
     v0(1) = sqrt(2*muE*(1/rpe-1/(rpe+r1(1))));        %Initial orbital velocity maximum value
     v0(2) = sqrt(2*muE*(1/rpe-1/(rpe+r1(2))));        %Initial orbital velocity minimum value
     v0(3) = sqrt(2*muE*(1/rpe-1/(rpe+r1(3))));        %Initial orbital velocity minimum value
+    
+    theta(1) = gamma(1)+asin(sin(beta(1))*(Rsoi/r1(1)));
+    theta(2) = gamma(2)+asin(sin(beta(2))*(Rsoi/r1(2)));
+    theta(3) = gamma(3)+asin(sin(beta(3))*(Rsoi/r1(3)));
 
     % New transfer orbit elements in the synodic frame 
-    R0 = [-mu-rpe/L*cos(gamma) -mu-rpe/L*cos(gamma) -mu-rpe/L*cos(gamma); 
-             -rpe/L*sin(gamma) -rpe/L*sin(gamma) -rpe/L*sin(gamma)];        %Initial position in the CR3BP
-    V0 = [v0(1)/V*sin(gamma) v0(2)/V*sin(gamma) v0(3)/V*sin(gamma); 
-          v0(1)/V*cos(gamma) v0(2)/V*cos(gamma) v0(3)/V*cos(gamma)];        %Initial velocity in the CR3BP
-    Phi = [eye(m) eye(m) eye(m)];                                           %Initial STM 
+    R0 = [-mu+rpe/L*cos(theta(1)) -mu+rpe/L*cos(theta(2)) -mu+rpe/L*cos(theta(3)); 
+              rpe/L*sin(theta(1))     rpe/L*sin(theta(2))     rpe/L*sin(theta(3))];  %Initial position in the CR3BP
+    V0 = [-v0(1)/V*sin(theta(1)) -v0(2)/V*sin(theta(2)) -v0(3)/V*sin(theta(3)); 
+           v0(1)/V*cos(theta(1))  v0(2)/V*cos(theta(2))  v0(3)/V*cos(theta(3))];     %Initial velocity in the CR3BP
+    Phi = [eye(m) eye(m) eye(m)];                                                    %Initial STM 
     Phi = reshape(Phi, [m^2 3]);                                            %Initial STM
     S0 = [R0; V0; Phi];                                                     %Initial state in the CR3BP
 
@@ -101,7 +108,7 @@ while (GoOn) && (iter < iterMax)
     [t, Snew] = ode113(@(t,x)dynamics(mu, t, x), tspan, S0(:,3), options);
         
     % Convergence analysis 
-    if (abs(Snew(end,3)) <= tol)
+    if (abs(Snew(end,3)) == 0)
         GoOn = false;
     else
         % New root interval

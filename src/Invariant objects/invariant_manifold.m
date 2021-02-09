@@ -35,7 +35,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
     flagVar = false;             %No STM integration needed
     n = 6;                       %Phase space dimension
     epsilon = 1e-8;              %Displacement of the initial conditions  
-    T = size(r,1);               %Orbit period 
+    T = size(r,1);               %Orbit period in nondimensinal units
     
     %Integration tolerances
     RelTol = 2.25e-14; 
@@ -78,7 +78,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
         Phi = reshape(r(orbitT,n+1:end), [n n]);
         
         %Initial conditions of the manifold fiber
-        mV = Phi*mV0;                           %Pushed and propagate selected eigenvector
+        mV = Phi*mV0;                           %Pushed and propagate the selected eigenvector
         mV = mV/norm(mV);                       %Normalized propagated selected eigenvector
         M0(i,:) = orbitX0+epsilon*mV.';         %Manifold initial condition
     end

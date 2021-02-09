@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 30/09/20
-% File: jacobiHill_values.m 
+% File: JacobiHill_values.m 
 % Issue: 0 
 % Validated: 
 
@@ -16,7 +16,7 @@
 
 % New versions: 
 
-function [J] = jacobiHill_values(mu)
+function [J] = JacobiHill_values(mu)
     %Null velocity vector (definition of Jacobi-Hill critical value) 
     v = [0; 0; 0]; 
     

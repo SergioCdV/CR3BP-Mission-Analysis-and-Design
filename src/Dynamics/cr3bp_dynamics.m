@@ -21,7 +21,7 @@
 % Output: - dx, an n/n+n^2 x 1 size vector containing the time flow of the full
 %           dynamical model of the satellite.
 
-% Methods: classical Eule solid rigid equations.
+% Methods: classical Euler solid rigid equations.
 
 % New version:
 

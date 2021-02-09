@@ -7,36 +7,39 @@
 
 %% Test 2 %%
 % This scripts provides a test interface for the rest of the library
-% functions. Test 2 is concerned with differential correction algorithms validation.
+% functions. 
+
+% Test 2 is concerned with differential correction algorithms validation and the exploration of 
+% different families of orbits.
 
 %% Test values and constants
-%Initial conditions
-mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
-L = libration_points(mu);                                   %System libration points
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane
-Ax = 200e6;                                                 %Orbit amplitude in the synodic plane 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li
-gamma = L(end,Ln);                                          %Li distance to the second primary
-m = 1;                                                      %Number of periods to compute
-param1 = [-1 Az Ln gamma m];                                %Halo orbit parameters
-param2 = [Ax Az 0 pi/2 Ln gamma m];                         %Lyapunov orbit parameters
-
-%Correction parameters 
-maxIter = 50;      %Maximum allowed iterations
-tol = 1e-5;       %Tolerance 
-
-%% Functions
 %Set graphical environment 
 set_graphics(); 
 
+%Initial conditions
+mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
+L = libration_points(mu);                                   %System libration points
+Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 200e6;                                                 %Orbit amplitude in the synodic plane. Play with it! 
+Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
+Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
+Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
+gamma = L(end,Ln);                                          %Li distance to the second primary
+m = 1;                                                      %Number of periods to compute
+param1 = [-1 Az Ln gamma m];                                %Halo orbit parameters (-1 being for southern halo)
+param2 = [Ax Az 0 pi/2 Ln gamma m];                         %Lyapunov orbit parameters
+
+%Correction parameters 
+maxIter = 50;     %Maximum allowed iterations in the differential correction schemes
+tol = 1e-5;       %Tolerance 
+
+%% Functions
 %Compute seeds
-[halo_seed, haloT] = object_seed(mu, param1, 'Halo');
-lyapunov_seed = object_seed(mu, param2, 'Lyapunov');
-axial_seed = [1.1389 0 0 0 -0.2647 0.3659];
-vertical_seed = [1.0613 0 0 0 -1.9891 0.4740];
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];
+[halo_seed, haloT] = object_seed(mu, param1, 'Halo');       %Generate a halo orbit seed
+lyapunov_seed = object_seed(mu, param2, 'Lyapunov');        %Generate a Lyapunov orbit seed
+axial_seed = [1.1389 0 0 0 -0.2647 0.3659];                 %State vector of an axial orbit
+vertical_seed = [1.0613 0 0 0 -1.9891 0.4740];              %State vector of a vertical orbit
+butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a butterfly orbit
 
 %Lyapunov orbit
 [lyapunov_orbit, state(1)] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
@@ -44,7 +47,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];
 %Halo orbit
 [halo_orbit, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 15, haloT);
 
-%Distant Retrograde Orbit 
+%Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Double Symmetric', mu, halo_seed, maxIter, tol);
 
 %Axial Orbit

@@ -6,22 +6,21 @@
 % This file provides a differential correction scheme to generate 
 % periodic orbits in several non linear systems. Initial conditions, 
 % chosen randomly, are modified to generate periodic orbit of a desired 
-% period. For more details on the topic, reference may be found in Wiesel and
-% Strogatz. 
+% period.  
 
 %% Scenario 1: periodic orbits for the Duffing oscillator
 % Results: really slow convergence for the complete model... Integration of
-% the STM really adds computational effort. Convergence is achieved though for the 
+% the STM really adds computational effort. Convergence is achieved though for
 % most cases.
 
 % Set up integration
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+options = odeset('RelTol', 2.25e-10, 'AbsTol', 1e-22);
 
 % Augmented initial conditions 
 [dt, x0, param, T] = initial_conditions(); 
-Phi = eye(2);                       %Initial STM
+Phi = eye(2);                                   %Initial STM
 Phi = reshape(Phi, [4 1]);
-x0 = [x0; Phi];                     %Initial conditions
+x0 = [x0; Phi];                                 %Initial conditions
 
 % Generate initial trajectory 
 tspan = 0:dt:T; 
@@ -79,6 +78,7 @@ title('Differential correction results in the phase space');
 legend('Initial trayectory', 'Final trayectory');
 
 %% Scenario 2: periodic orbit in the Lorenz system 
+% Let's control the climate!
 % Results: the ordinary Newton method is singular. Initial conditions must
 % be refined, as sligth perturbations are quickly constrained to the
 % attractor.
@@ -102,7 +102,7 @@ s = x1;
 % Differential correction scheme 
 tol = 1e-5;         %Tolerance to stop the process
 iter = 1;           %Initial iteration
-maxIter = 200;       %Maximum number of iterations
+maxIter = 1;        %Maximum number of iterations
 GoOn = true;        %Convergence flag 
 
 % Preallocation
@@ -157,22 +157,24 @@ title('Differential correction results in the phase space');
 legend('Final state', 'Trayectory', 'Initial conditions');
 grid on
 
-%% Scenario 3: periodic orbits for the Lotka-Volterra model
-% Results: convergence.
+%% Scenario 3: desired periodic orbits for the Lotka-Volterra model (predator-prey)
+% How many predators should we introduce to constrain population growth as desired?
+% Results: no convergence. 
 
 % Set up integration
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+options = odeset('RelTol', 2.25e-10, 'AbsTol', 1e-10);
 
 % Augmented initial conditions 
 [dt, x0, param, T] = initial_conditions4(); 
-Phi = eye(2);                       %Initial STM
+Phi = eye(2);                                   %Initial STM
 Phi = reshape(Phi, [4 1]);
-x0 = [x0; Phi];                     %Initial conditions
+x0 = [x0; Phi];                                 %Initial conditions
 
-% Generate initial trajectory 
+% Generate initial trajectory
 tspan = 0:dt:T; 
 [~, x1] = ode113(@(t,x)volterra_dynamics(t, x, param), tspan, x0, options);
 s = x1;
+sf = [1.8 1.8];
 
 % Differential correction scheme 
 tol = 1e-5;         %Tolerance to stop the process
@@ -186,13 +188,14 @@ dx0 = zeros(2, maxIter);
 % Main computation
 while (GoOn) && (iter < maxIter)
     %Compute the error vector 
-    e = (s(end,1:2)-s(1,1:2)).'; 
+    e = [(s(end,1:2)-s(1,1:2)).'; (sf-s(end,1:2)).']; 
     
     %Evaluate the STM at the final state 
     STM = reshape(s(end,3:end), 2, 2); 
+    C = [(STM-eye(2)); STM];
     
     %Compute the needed correction 
-    dx0(:,iter) = (STM-eye(2))\e;
+    dx0(:,iter) = C.'*(C*C.')^(-1)*e;
     
     %Generate new trajectory 
     x0(1:2) = x0(1:2)-dx0(1:2,iter);                                           %New initial conditions
@@ -219,8 +222,8 @@ hold on
 plot(x1(:,1), x1(:,2), '-.r');
 plot(s(:,1), s(:,2), 'b');
 hold off 
-xlabel('Position'); 
-ylabel('Velocity');
+xlabel('Number of preys'); 
+ylabel('Number of predators');
 title('Differential correction results in the phase space'); 
 legend('Initial trayectory', 'Final trayectory');
 
@@ -343,13 +346,13 @@ function [dt, x, param, T] = initial_conditions4()
     dt = 1e-3;  %Time step
     
     %Dynamical parameters 
-    param = rand(4,1);
+    param = [2/3 4/3 1 1];
     
     %Orbit period
     T = 2*pi/(param(1)*param(3));
         
     %Select initial conditions 
-    x = rand(2,1);
+    x = [0.9; 0.9];
 end
 
 % Dynamics of the Duffing equation
@@ -427,25 +430,25 @@ end
 % Dynamics of the Lotka-Volterra system 
 function [ds] = volterra_dynamics(~, s, param)
     %Dynamical constants 
-    n = 2;              %Phase space dimension
-    alpha = param(1); 
+    n = 2;                                  %Phase space dimension
+    alpha = param(1);                       %Model parameters
     beta = param(2); 
     gamma = param(3); 
     delta = param(4); 
     
     %State variables
-    x = s(1);       %Number of preys
-    y = s(2);       %Number of predatos 
+    x = s(1);                               %Number of preys
+    y = s(2);                               %Number of predators
     
     %Variational equations
-    Phi = reshape(s(n+1:end), n, n);        %Initial STM 
-    J = [alpha -beta*x; gamma*y -delta];    %Jacobian of the system
-    Phi = J*Phi;                            %Variational equations
+    Phi = reshape(s(n+1:end), n, n);                         %Initial STM 
+    J = [alpha-beta*y -beta*x; delta*y (delta*x-gamma)];     %Jacobian of the system
+    Phi = J*Phi;                                             %Variational equations
     Phi = reshape(Phi, [n^2 1]);
     
     %Vector field
     ds = [x*(alpha-beta*y); 
-         -y*(gamma-delta*x);
+          y*(delta*x-gamma);
                        Phi];
     
 end
