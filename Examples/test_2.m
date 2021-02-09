@@ -48,7 +48,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 [halo_orbit, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 15, haloT);
 
 %Distant Retrograde Orbit (only for L2)
-[dro_orbit, state(3)] = differential_correction('Double Symmetric', mu, halo_seed, maxIter, tol);
+[dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %Axial Orbit
 [axial_orbit, state(4)] = differential_correction('Axis Symmetric', mu, axial_seed, maxIter, tol);
