@@ -8,7 +8,9 @@
 % to the synodic plane, an CR3BP dynamics are used. Multiple 
 % shooting differential corrections are used.
 
-% Results: convergence achieved.
+% Results: not working properly. Initial seed is correct but the differential correction schemes 
+% fails to achieve the requirements of both Earth and Moon orbits.
+% Reference to Pavlak Master Thesis, 2010
 
 %% Constants and set up
 % Initial conditions (to be input by the user) 
@@ -33,8 +35,9 @@ rpe = 6378e3+he;            %Initial parking orbit radius
 % Circumlunar orbit elements
 rpl = 1738e3+hl;            %Periselenum altitude 
 
-% Initial anomaly on the parking orbit. Constrained dynamically by the synodic frame rotation at SOI crossing epoch
-gamma = deg2rad(180)*ones(1,3);
+% Initial anomaly on the parking orbit at the departure. 
+% Constrained dynamically by the synodic frame rotation at SOI crossing epoch
+gamma = deg2rad(270)*ones(1,3);
 
 %% Integration setup 
 % Time span
@@ -42,14 +45,14 @@ dt = 1e-3;                  %Time step
 tspan = 0:dt:100;           %Initial time span 
 
 % Set up integration
-options = odeset('RelTol', 2.25e-10, 'AbsTol', 1e-10, 'Events', @(t,x)x_crossing(t,x));
+options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-14, 'Events', @(t,x)x_crossing(t,x));
 
 %% Bisection method to find the SOI entry angle to produce a free return trajectory
 % Set up method 
 tol = 1e-10; 
 
 % Initial guess and Earth ellipse transfer orbit elements
-beta(1) = deg2rad(90);                           %SOI entry angle maximum value 
+beta(1) = deg2rad(180);                           %SOI entry angle maximum value 
 beta(2) = deg2rad(0);                             %SOI entry angle minimum value               
 r1(1) = sqrt(Rsoi^2+L^2-2*Rsoi*L*cos(beta(1)));   %Earth ellipse radius at the SOI crossing 
 r1(2) = sqrt(Rsoi^2+L^2-2*Rsoi*L*cos(beta(2)));   %Earth ellipse radius at the SOI crossing 
@@ -125,41 +128,28 @@ end
 
 % Display results 
 if (GoOn)
-    disp('Convergence was not achieved.');
+    disp('Bisection algorithm convergence was not achieved.');
 else
-    disp('Convergence was achieved.');
+    disp('Bisection algorithm convergence was achieved.');
 end
 
 %% Differential correction scheme
-if (~GoOn)
-    TF = t(end);        %Semiperiod of the orbit
-    seed = Snew.';      %Initial conditions for the differential corrector
-    [S, state] = differential_corrector(mu, seed, n, tol, TF, rpe/L, rpl/L, alpha); 
-else
-    state = false;
-end
+TF = t(end);        %Semiperiod of the orbit
+seed = Snew.';      %Initial conditions for the differential corrector
+[S, state] = differential_corrector(mu, seed, n, tol, TF, rpe/L, rpl/L, alpha); 
 
 %% Results 
-% Convergence analysis
-if (state)
-    disp('Mission trajectory design state: converged.');
-else
-    disp('Mission trajectory design state: failure.');
-end
-
-if (state)
-    % Plotting
-    figure(1)
-    hold on
-    plot(Snew(:,1), Snew(:,2), '.-r');
-    plot(S.Trajectory(:,1), S.Trajectory(:,2), 'b');
-    hold off
-    title('Apollo program type mission trajectory'); 
-    xlabel('Normalized x coordinate');
-    ylabel('Normalized y coordinate');
-    legend('Initial converged guess', 'Final trajectory');
-    title('Mission trajectory');
-end
+% Plotting
+figure(1)
+hold on
+plot(Snew(:,1), Snew(:,2), '.-r');
+plot(S.Trajectory(:,1), S.Trajectory(:,2), 'b');
+hold off
+title('Apollo program type mission trajectory'); 
+xlabel('Normalized x coordinate');
+ylabel('Normalized y coordinate');
+legend('Initial converged guess', 'Final trajectory');
+title('Mission trajectory');
 
 %% Auxiliary function 
 % Orbit event: x-axis crossing
@@ -223,7 +213,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     dt = 1e-5;                      %Integration time step
     nodes = 2;                      %Number of relevant nodes
     Dt = T/nodes;                   %Time step
-    constraints = 4;                %Additional constraints to continuity
+    constraints = 4;                %Additional constraints to continuity of the trajectory
     
     %Prepare initial conditions
     internalSeed = zeros((m+1)*nodes-1,1);        %Preallocate internal patch points seeds 
@@ -238,7 +228,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     end    
     
     %Set up integration 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,x)x_crossing(t,x));            
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-14, 'Events', @(t,x)x_crossing(t,x));            
 
     %Set up differential correction scheme
     GoOn = true;        %Convergence flag
@@ -272,7 +262,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
                 B(1:m,1) = F(1:m);                                               %Dynamics matrix                
                 %Constraints on perigee altitude and fligth path angle
                 A(end-3,1:m) = 2*[S(end,1:2) 0 0];                               %Perigee altitude constraint
-                B(end-3,1) = 2*dot(S(end,1:2),S(end,3:4));                       %Perigee altitud constraint on time
+                B(end-3,1) = 2*dot(S(end,1:2),S(end,3:4));                       %Perigee altitude constraint on time
                 A(end-2,1:m) = [S(end,3:4) S(end,1:2)];                          %Fligth path angle constraint
                 B(end-2,1) = norm(S(end,3:4))^2+dot(S(end,1:2), F(3:4));         %Fligth path angle constraint on time                
             elseif (i == nodes)
@@ -290,9 +280,9 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
             %Compute the error 
             if (i == 1)
                 e(end-3) = norm(S(1,1:2))^2-rpe^2;
-                e(end-2) = dot(S(1,1:2).',S(1,3:4).')-sin(alpha);
+                e(end-2) = dot(S(1,1:2),S(1,3:4))-sin(alpha);
             elseif (i == nodes)
-                e(end-1) = norm(S(end,1:2).')^2-rpl^2;
+                e(end-1) = norm(S(end,1:2))^2-rpl^2;
                 e(end) = S(end,3);
             else
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
