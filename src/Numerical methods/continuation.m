@@ -25,13 +25,13 @@
 
 % New versions: 
 
-function [x, state] = continuation(x0, num, method, parameter, parameter_value, object, setup, varargin)
+function [x, state] = continuation(x0, num, method, parameter, parameter_value, object, object_period, setup)
     %Select method to continuate the initial solution
     switch (method)
         case 'SPC' 
-            [x, state] = SP_continuation(x0, num, parameter, parameter_value, object, setup, varargin);
+            [x, state] = SP_continuation(x0, num, parameter, parameter_value, object, object_period, setup);
         case 'PAC' 
-            [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, setup, varargin);
+            [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, object_period, setup);
         otherwise 
             disp('No valid option was selected.');
             x = [];
@@ -40,37 +40,36 @@ function [x, state] = continuation(x0, num, method, parameter, parameter_value, 
 end
 
 %% Auxiliary function 
-function [x, state] = SP_continuation(x0, num, parameter, parameter_value, object, setup, varargin)
+function [Output, state] = SP_continuation(x0, num, parameter, parameter_value, object, object_period, setup)
     switch (object)
         case 'Orbit'
             %Constants 
-            state_dim = 6;                          %Phase space dimension 
-            bifValue = 1;                           %Value of the Henon stability index to detect a bifurcation
-            mu = setup(1);                          %Reduce gravitational parameter of the system
-            n = setup(2);                           %Maximum number of iteratinos for the differential correction process 
-            tol = setup(3);                         %Tolerance for the differential correction method
-            ds = 1e-8;                              %Continuation step (will vary depending on the solution stability)   
-            GoOn = true;                            %Boolean to stop the continuation process
-            i = 1;                                  %Continuation iteration
-            Phi = eye(state_dim);                   %Initial STM 
-            Phi = reshape(Phi, [1 state_dim^2]);    %Reshape initial STM 
+            state_dim = 6;      %Phase space dimension 
+            nodes = 15;         %Number of nodes to correct the object
+            bifValue = 1;       %Value of the Henon stability index to detect a bifurcation
+            mu = setup(1);      %Reduce gravitational parameter of the system
+            n = setup(2);       %Maximum number of iterations for the differential correction process 
+            tol = setup(3);     %Tolerance for the differential correction method
+            ds = 1e-8;          %Continuation step (will vary depending on the solution stability)   
+            GoOn = true;        %Boolean to stop the continuation process
+            i = 1;              %Continuation iteration
             
             %Preallocate solution
-            step = [ds zeros(1,num-1)];             %Family continuation vector
-            state = zeros(1,num);                   %Preallocate convergence solution
-            x = zeros(num, state_dim+state_dim^2);  %Preallocate initial seeds
-            T = zeros(1,num);                       %Period of each orbit
-            s = zeros(1,num);                       %Stability index of each orbit
-            x(1,1:state_dim) = x0+step;             %Initial solution
-            x(1,state_dim+1:end) = Phi;             %Append initial STM
+            step = [ds zeros(1,state_dim-1)];           %Family continuation vector
+            state = zeros(1,num);                       %Preallocate convergence solution
+            X = zeros(num, state_dim);                  %Preallocate initial seeds
+            T = zeros(1,num);                           %Period of each orbit
+            s = zeros(1,num);                           %Stability index of each orbit
+            y = x0;                                     %Initial solution
+            y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions     
             
             %Main computation
-            while (i <= num) && (GoOn)
-                switch (parameter)
-                    case 'Energy'                      
+            switch (parameter)
+                case 'Energy'  
+                    while (i <= num) && (GoOn)
                         %Differential correction
-                        [Y, state(i)] = differential_correction('Periodic MS', mu, shiftdim(x(i,:)), n, tol, varargin);
-                        STM = reshape(Y.Trajectory(state_dim+1:end), state_dim, state_dim); 
+                        [Y, state(i)] = differential_correction('Periodic MS', mu, y, n, tol, nodes, object_period);
+                        STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
                         
                         %Study stability 
                         [s(i), stm_state] = henon_stability(STM); 
@@ -79,40 +78,51 @@ function [x, state] = SP_continuation(x0, num, parameter, parameter_value, objec
                         %Compute the energy of the solution 
                         C = jacobi_constant(mu, shiftdim(Y.Trajectory(end,1:state_dim)));
                         if (isnan(parameter_value))
-                            parameter_value = 10^15;
+                            par_error = 1;
                         else
                             par_error = abs(parameter_value-C);
                         end
                         
                         %Convergence and stability analysis
-                        if (stm_state) && (bif_flag) && (par_error > tol)   
-                            iter = iter+1;                                          %Update iteration value
-                            T(i) = Y.Period;                                        %Update the period vector
-                            x(i+1,1:state_dim) = Y.Trajectory(1,1:state_dim)+step;  %Update initial conditions
+                        if (stm_state) && (~bif_flag) && (par_error > tol)   
+                            T(i) = Y.Period;                              %Update the period vector
+                            X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
                             
                             %Modify the step depending on the proximity to a bifurcation
-                            step(1) = par_error*abs(bifValue-s(i))*step(1);
+                            step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
+                            
+                            %Update initial conditions
+                            y = Y.Trajectory(:,1:state_dim);
+                            y(1,:) = y(1,:)+step;     
+                            i = i+1;                                      %Update iteration value
                         else
-                            GoOn = false;                                           %Stop the process
+                            GoOn = false;                                 %Stop the process
                         end  
+                    end
+                     
+                    %Output         
+                    Output.Seeds = X;   
+                    Output.Period = T;
+                    Output.Stability = s;
                                            
-                    case 'Period'
-                end      
+            case 'Period'
+                Output = [];
+                state = false;
+            otherwise 
+                Output = []; 
+                state = false;     
             end
-            
-            %Output 
-            Output.Stability = s;        
-            Output.Seeds = x(:,1:state_dim);   
-            Output.Period = T;   
-            
+               
         case 'Torus'
+            Output = []; 
+            state = false;
         otherwise
-            x = []; 
+            Output = []; 
             state = false;
             disp('No valid object was selected'); 
             disp(' '); 
     end
 end
 
-function [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, setup, varargin) 
+function [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, object_period, setup) 
 end
