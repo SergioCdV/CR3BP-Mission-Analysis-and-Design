@@ -31,36 +31,34 @@ m = 1;                                                      %Number of periods t
 param = [-1 Az Ln gamma m];                                 %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
-dt = 1e-4;        %Time step to integrate converged trajectories
+dt = 1e-3;        %Time step to integrate converged trajectories
 maxIter = 50;     %Maximum allowed iterations in the differential correction schemes
 tol = 1e-5;       %Tolerance 
-num = 2;          %Number of orbits to continuate
+num = 5;          %Number of orbits to continuate
    
 %% Functions
 %Compute seed
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
-%Continuation method 
-[x, state] = continuation(halo_seed, num, 'SPC', 'Energy', NaN, 'Orbit', haloT, [mu maxIter tol]);
+%Continuation procedure 
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm
+object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+setup = [mu maxIter tol];                                   %General setup
 
-%Integration of the converged trajectories
-for i = 1:num+1
-    if (i == 1)
-        tspan = 0:dt:haloT;
-        [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, halo_seed(1,1:6), options);
-        Object(i,:,:) = S;
-    else
-        tspan = 0:dt:x.Period(i-1);
-        [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, shiftdim(x.Seeds(i-1,:)), options);
-        Object(i,:,:) = S;
-    end
-end
+[x, state] = continuation(num, method, algorithm, object, corrector, setup);
 
 %% Plotting
 figure(1) 
 hold on
+tspan = 0:dt:haloT;
+[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, halo_seed(1,1:6), options);
+plot3(S(:,1), S(:,2), S(:,3), 'k');
 for i = 1:num
-  plot3(shiftdim(Object(i,:,1)), shiftdim(Object(i,:,2)), shiftdim(Object(i,:,3)));
+  tspan = 0:dt:x.Period(i);
+  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, x.Seeds(i,:), options);
+  plot3(S(:,1), S(:,2), S(:,3));
 end
 hold off
 xlabel('Synodic normalized x coordinate');

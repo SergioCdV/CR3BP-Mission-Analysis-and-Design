@@ -25,13 +25,13 @@
 
 % New versions: 
 
-function [x, state] = continuation(x0, num, method, parameter, parameter_value, object, object_period, setup)
+function [x, state] = continuation(object_number, method, parametrization, Object, corrector, setup)
     %Select method to continuate the initial solution
     switch (method)
         case 'SPC' 
-            [x, state] = SP_continuation(x0, num, parameter, parameter_value, object, object_period, setup);
+            [x, state] = SP_continuation(object_number, parametrization, Object, corrector, setup);
         case 'PAC' 
-            [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, object_period, setup);
+            [x, state] = PA_continuation(object_number, parametrization, Object, setup);
         otherwise 
             disp('No valid option was selected.');
             x = [];
@@ -40,35 +40,45 @@ function [x, state] = continuation(x0, num, method, parameter, parameter_value, 
 end
 
 %% Auxiliary function 
-function [Output, state] = SP_continuation(x0, num, parameter, parameter_value, object, object_period, setup)
+function [Output, state] = SP_continuation(object_number, parametrization, Object, corrector, setup)
+    %Inputs 
+    object = Object{1};                                 %Type of object to continuate
+    seed = Object{2};                                   %Seed to continuate the object
+    
+    %Main procedure
     switch (object)
         case 'Orbit'
             %Constants 
-            state_dim = 6;      %Phase space dimension 
-            nodes = 15;         %Number of nodes to correct the object
-            bifValue = 1;       %Value of the Henon stability index to detect a bifurcation
-            mu = setup(1);      %Reduce gravitational parameter of the system
-            n = setup(2);       %Maximum number of iterations for the differential correction process 
-            tol = setup(3);     %Tolerance for the differential correction method
-            ds = 1e-8;          %Continuation step (will vary depending on the solution stability)   
-            GoOn = true;        %Boolean to stop the continuation process
-            i = 1;              %Continuation iteration
+            state_dim = 6;                              %Phase space dimension 
+            nodes = 15;                                 %Number of nodes to correct the object
+            bifValue = 1;                               %Value of the Henon stability index to detect a bifurcation
+            
+            parameter = parametrization{1};             %Parameter to continuate on the initial object
+            parameter_value = parametrization{2};       %Desired parameter value 
+            object_period = Object{3};                  %Orbit initial period
+            mu = setup(1);                              %Reduce gravitational parameter of the system
+            n = setup(2);                               %Maximum number of iterations for the differential correction process 
+            tol = setup(3);                             %Tolerance for the differential correction method
+            
+            ds = 1e-3;                                  %Continuation step (will vary depending on the solution stability)   
+            GoOn = true;                                %Boolean to stop the continuation process
+            i = 1;                                      %Continuation iteration
             
             %Preallocate solution
             step = [ds zeros(1,state_dim-1)];           %Family continuation vector
-            state = zeros(1,num);                       %Preallocate convergence solution
-            X = zeros(num, state_dim);                  %Preallocate initial seeds
-            T = zeros(1,num);                           %Period of each orbit
-            s = zeros(1,num);                           %Stability index of each orbit
-            y = x0;                                     %Initial solution
+            state = zeros(1,object_number);             %Preallocate convergence solution
+            X = zeros(object_number, state_dim);        %Preallocate initial seeds
+            T = zeros(1,object_number);                 %Period of each orbit
+            s = zeros(1,object_number);                 %Stability index of each orbit
+            y = seed;                                   %Initial solution
             y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions     
             
             %Main computation
             switch (parameter)
                 case 'Energy'  
-                    while (i <= num) && (GoOn)
+                    while (i <= object_number) && (GoOn)
                         %Differential correction
-                        [Y, state(i)] = differential_correction('Periodic MS', mu, y, n, tol, nodes, object_period);
+                        [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
                         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
                         
                         %Study stability 
@@ -89,7 +99,7 @@ function [Output, state] = SP_continuation(x0, num, parameter, parameter_value, 
                             X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
                             
                             %Modify the step depending on the proximity to a bifurcation
-                            step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
+                            %step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
                             
                             %Update initial conditions
                             y = Y.Trajectory(:,1:state_dim);
@@ -124,5 +134,5 @@ function [Output, state] = SP_continuation(x0, num, parameter, parameter_value, 
     end
 end
 
-function [x, state] = PA_continuation(x0, num, parameter, parameter_value, object, object_period, setup) 
+function [x, state] = PA_continuation(object_number, parametrization, Object, setup) 
 end
