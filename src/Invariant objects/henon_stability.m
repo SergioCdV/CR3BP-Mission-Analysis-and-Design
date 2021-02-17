@@ -18,10 +18,10 @@
 
 function [s, state] = henon_stability(STM)
     %Compute STM eigenspectrum 
-    [~, eigs, flag] = eig(STM);
+    [~, eig, flag] = eigs(STM);
             
     %Compute Henon Stability Index
-    uLambda = eigs(1);              %Greatest eigenvalue, corresponding to the unstable direction of the manifold
+    uLambda = eig(1);               %Greatest eigenvalue, corresponding to the unstable direction of the manifold
     sLambda = 1/uLambda;            %Reciprocal of the unstable eigenvalue, corresponding to the stable direction
     s = (1/2)*(sLambda+uLambda);    %Henon Stability Index
     
