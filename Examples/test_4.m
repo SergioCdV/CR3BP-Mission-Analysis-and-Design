@@ -31,10 +31,11 @@ m = 1;                                                      %Number of periods t
 param = [-1 Az Ln gamma m];                                 %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
-dt = 1e-3;        %Time step to integrate converged trajectories
-maxIter = 50;     %Maximum allowed iterations in the differential correction schemes
-tol = 1e-5;       %Tolerance 
-num = 5;          %Number of orbits to continuate
+dt = 1e-3;                  %Time step to integrate converged trajectories
+maxIter = 50;               %Maximum allowed iterations in the differential correction schemes
+tol = 1e-10;                %Tolerance 
+num = 15;                   %Number of orbits to continuate
+direction = -1;             %Direction to continuate (to the Earth)
    
 %% Functions
 %Compute seed
@@ -42,14 +43,22 @@ num = 5;          %Number of orbits to continuate
 
 %Continuation procedure 
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                %Type of SPC algorithm
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
 corrector = 'Plane Symmetric';                              %Differential corrector method
-setup = [mu maxIter tol];                                   %General setup
+setup = [mu maxIter tol direction];                         %General setup
 
 [x, state] = continuation(num, method, algorithm, object, corrector, setup);
 
-%% Plotting
+%% Plotting and results 
+%Detect bifurcations 
+for i = 1:num
+    if (x.Stability(i))
+        fprintf('Orbit %i bifurcated. Stability index of %i.\n', i, x.Stability(i));
+    end
+end
+
+%Plot results
 figure(1) 
 hold on
 tspan = 0:dt:haloT;

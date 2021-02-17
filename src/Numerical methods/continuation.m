@@ -23,7 +23,8 @@
 
 % Methods: single-parameter continuation as well as pseudo-arc length continuation.
 
-% New versions: 
+% New versions: correct bifucartion identification. Period continuation is
+% not working.
 
 function [x, state] = continuation(object_number, method, parametrization, Object, corrector, setup)
     %Select method to continuate the initial solution
@@ -42,8 +43,8 @@ end
 %% Auxiliary function 
 function [Output, state] = SP_continuation(object_number, parametrization, Object, corrector, setup)
     %Inputs 
-    object = Object{1};                                 %Type of object to continuate
-    seed = Object{2};                                   %Seed to continuate the object
+    object = Object{1};     %Type of object to continuate
+    seed = Object{2};       %Seed to continuate the object
     
     %Main procedure
     switch (object)
@@ -59,23 +60,27 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
             mu = setup(1);                              %Reduce gravitational parameter of the system
             n = setup(2);                               %Maximum number of iterations for the differential correction process 
             tol = setup(3);                             %Tolerance for the differential correction method
-            
-            ds = 1e-3;                                  %Continuation step (will vary depending on the solution stability)   
+            direction = setup(4);                       %Direction to continuate for
+  
             GoOn = true;                                %Boolean to stop the continuation process
             i = 1;                                      %Continuation iteration
             
             %Preallocate solution
-            step = [ds zeros(1,state_dim-1)];           %Family continuation vector
             state = zeros(1,object_number);             %Preallocate convergence solution
             X = zeros(object_number, state_dim);        %Preallocate initial seeds
             T = zeros(1,object_number);                 %Period of each orbit
             s = zeros(1,object_number);                 %Stability index of each orbit
             y = seed;                                   %Initial solution
-            y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions     
-            
+                
             %Main computation
             switch (parameter)
                 case 'Energy'  
+                    %Modify initial conditions 
+                    ds = direction*1e-3;                      %Continuation step (will vary depending on the solution stability)
+                    step = [ds zeros(1,state_dim-1)];         %Family continuation vector
+                    y(1,1:state_dim) = y(1,1:state_dim)+step; %Modify initial conditions 
+                    
+                    %Main loop
                     while (i <= object_number) && (GoOn)
                         %Differential correction
                         [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
@@ -115,9 +120,50 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                     Output.Period = T;
                     Output.Stability = s;
                                            
-            case 'Period'
-                Output = [];
-                state = false;
+                case 'Period'
+                    %Modify initial conditions 
+                    ds = 1e-3;                        %Continuation step (will vary depending on the solution stability)
+                    object_period = object_period+ds; %Modify initial conditions 
+                    
+                    %Main loop
+                    while (i <= object_number) && (GoOn)
+                        %Differential correction
+                        [Y, state(i)] = differential_correction('Periodic MS', mu, y, n, tol, nodes, object_period);
+                        STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
+                        
+                        %Study stability 
+                        [s(i), stm_state] = henon_stability(STM); 
+                        bif_flag = (abs(bifValue-s(i)) == 0);
+                        
+                        %Compute the energy of the solution 
+                        if (isnan(parameter_value))
+                            par_error = 1;
+                        else
+                            par_error = abs(parameter_value-object_period);
+                        end
+                        
+                        %Convergence and stability analysis
+                        if (stm_state) && (~bif_flag) && (par_error > tol)   
+                            T(i) = Y.Period;                              %Update the period vector
+                            X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+                            
+                            %Modify the step depending on the proximity to a bifurcation
+                            %step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
+                            
+                            %Update initial conditions
+                            y = Y.Trajectory(:,1:state_dim);                            
+                            object_period = object_period+ds;             %Update orbit period
+                            i = i+1;                                      %Update iteration value
+                        else
+                            GoOn = false;                                 %Stop the process
+                        end  
+                    end
+                     
+                    %Output         
+                    Output.Seeds = X;   
+                    Output.Period = T;
+                    Output.Stability = s;
+
             otherwise 
                 Output = []; 
                 state = false;     
@@ -126,6 +172,7 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
         case 'Torus'
             Output = []; 
             state = false;
+            
         otherwise
             Output = []; 
             state = false;
