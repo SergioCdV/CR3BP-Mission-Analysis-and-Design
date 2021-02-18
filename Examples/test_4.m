@@ -33,7 +33,8 @@ param = [-1 Az Ln gamma m];                                 %Halo orbit paramete
 %Correction parameters 
 dt = 1e-3;                  %Time step to integrate converged trajectories
 maxIter = 50;               %Maximum allowed iterations in the differential correction schemes
-tol = 1e-10;                %Tolerance 
+tol = 1e-10;                %Differential correction tolerance 
+Bif_tol = 1e-2;             %Bifucartion tolerance on the stability index
 num = 15;                   %Number of orbits to continuate
 direction = -1;             %Direction to continuate (to the Earth)
    
@@ -48,25 +49,18 @@ object = {'Orbit', halo_seed, haloT};                       %Object and characte
 corrector = 'Plane Symmetric';                              %Differential corrector method
 setup = [mu maxIter tol direction];                         %General setup
 
-[x, state] = continuation(num, method, algorithm, object, corrector, setup);
+[Results, state] = continuation(num, method, algorithm, object, corrector, setup);
 
 %% Plotting and results 
-%Detect bifurcations 
-for i = 1:num
-    if (x.Stability(i))
-        fprintf('Orbit %i bifurcated. Stability index of %i.\n', i, x.Stability(i));
-    end
-end
-
 %Plot results
-figure(1) 
+figure(2) 
 hold on
 tspan = 0:dt:haloT;
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, halo_seed(1,1:6), options);
 plot3(S(:,1), S(:,2), S(:,3), 'k');
 for i = 1:num
-  tspan = 0:dt:x.Period(i);
-  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, x.Seeds(i,:), options);
+  tspan = 0:dt:Results.Period(i);
+  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results.Seeds(i,:), options);
   plot3(S(:,1), S(:,2), S(:,3));
 end
 hold off

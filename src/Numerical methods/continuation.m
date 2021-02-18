@@ -23,8 +23,7 @@
 
 % Methods: single-parameter continuation as well as pseudo-arc length continuation.
 
-% New versions: correct bifucartion identification. Period continuation is
-% not working.
+% New versions: Period continuation is not working.
 
 function [x, state] = continuation(object_number, method, parametrization, Object, corrector, setup)
     %Select method to continuate the initial solution
@@ -69,7 +68,7 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
             state = zeros(1,object_number);             %Preallocate convergence solution
             X = zeros(object_number, state_dim);        %Preallocate initial seeds
             T = zeros(1,object_number);                 %Period of each orbit
-            s = zeros(1,object_number);                 %Stability index of each orbit
+            stability = zeros(1,object_number);         %Stability index of each orbit
             y = seed;                                   %Initial solution
                 
             %Main computation
@@ -87,8 +86,7 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
                         
                         %Study stability 
-                        [s(i), stm_state] = henon_stability(STM); 
-                        bif_flag = (abs(bifValue-s(i)) == 0);
+                        [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
                         
                         %Compute the energy of the solution 
                         C = jacobi_constant(mu, shiftdim(Y.Trajectory(end,1:state_dim)));
@@ -99,13 +97,10 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                         end
                         
                         %Convergence and stability analysis
-                        if (stm_state) && (~bif_flag) && (par_error > tol)   
+                        if (stm_state) && (par_error > tol)   
                             T(i) = Y.Period;                              %Update the period vector
                             X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
-                            
-                            %Modify the step depending on the proximity to a bifurcation
-                            %step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
-                            
+                                                        
                             %Update initial conditions
                             y = Y.Trajectory(:,1:state_dim);
                             y(1,:) = y(1,:)+step;     
@@ -118,11 +113,11 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                     %Output         
                     Output.Seeds = X;   
                     Output.Period = T;
-                    Output.Stability = s;
+                    Output.Stability = stability;
                                            
                 case 'Period'
                     %Modify initial conditions 
-                    ds = 1e-3;                        %Continuation step (will vary depending on the solution stability)
+                    ds = 1e-3;                        %Continuation step 
                     object_period = object_period+ds; %Modify initial conditions 
                     
                     %Main loop
@@ -132,8 +127,8 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
                         
                         %Study stability 
-                        [s(i), stm_state] = henon_stability(STM); 
-                        bif_flag = (abs(bifValue-s(i)) == 0);
+                        [stability(i), stm_state] = henon_stability(STM); 
+                        bif_flag = (abs(bifValue-stability(i)) == 0);
                         
                         %Compute the energy of the solution 
                         if (isnan(parameter_value))
@@ -162,7 +157,7 @@ function [Output, state] = SP_continuation(object_number, parametrization, Objec
                     %Output         
                     Output.Seeds = X;   
                     Output.Period = T;
-                    Output.Stability = s;
+                    Output.Stability = stability;
 
             otherwise 
                 Output = []; 

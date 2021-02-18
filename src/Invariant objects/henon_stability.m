@@ -11,24 +11,23 @@
 
 % Inputs: - state transition matrix STM, whose eigenvalues are to be analyzed.
 
-% Output: - the index s, containing information about close bifurcations
-%           around the solution associated with the STM.
+% Output: - the index s, containing information about close bifurcations around the solution associated with the STM.
 
 %New versions: use symplecticity to correct computational error.
 
 function [s, state] = henon_stability(STM)
     %Compute STM eigenspectrum 
     [~, eig, flag] = eigs(STM);
-            
-    %Compute Henon Stability Index
-    uLambda = eig(1);               %Greatest eigenvalue, corresponding to the unstable direction of the manifold
-    sLambda = 1/uLambda;            %Reciprocal of the unstable eigenvalue, corresponding to the stable direction
-    s = (1/2)*(sLambda+uLambda);    %Henon Stability Index
+               
+    %Henon stability indexes
+    s(1) = (1/2)*(eig(1,1)+eig(6,6));    %Sum of the reciprocal pair
+    s(2) = (1/2)*(eig(2,2)+eig(3,3));    %Sum of the neutrally stable pair
+    s(3) = (1/2)*(eig(4,4)+eig(5,5));    %Sum of the remaining pair
     
     %Sanity check 
     if (flag == 1)
-        state = false;              %Eigen-decomposition of the STM failed
+        state = false;      %Eigen-decomposition of the STM failed
     else
-        state = true;               %Eigen-decomposition of the SMT succeed
+        state = true;       %Eigen-decomposition of the SMT succeed
     end
 end
