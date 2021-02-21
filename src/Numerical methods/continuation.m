@@ -5,7 +5,7 @@
 % Issue: 0 
 % Validated: 
 
-%% Simple continuation %%
+%% Continuation %%
 % This function contains the algorithm to compute continuation methods for 
 % any general dynamical object. 
 
@@ -29,152 +29,152 @@ function [x, state] = continuation(object_number, method, parametrization, Objec
     %Select method to continuate the initial solution
     switch (method)
         case 'SPC' 
-            [x, state] = SP_continuation(object_number, parametrization, Object, corrector, setup);
+            switch (Object{1})
+                case 'Orbit'
+                    [x, state] = SP_Orbit_continuation(object_number, parametrization, Object, corrector, setup);
+                case 'Torus' 
+                    [x, state] = SP_Torus_continuation(object_number, parametrization, Object, corrector, setup);
+                otherwise 
+                    disp('No valid object was selected.')
+                    x = [];
+                    state = false;
+            end
         case 'PAC' 
-            [x, state] = PA_continuation(object_number, parametrization, Object, setup);
+            switch(Object{1})
+                case 'Orbit'
+                    [x, state] = SP_Orbit_continuation(object_number, parametrization, Object{2}, corrector, setup);
+                case 'Torus' 
+                    [x, state] = SP_Torus_continuation(object_number, parametrization, Object{2}, corrector, setup);
+                otherwise 
+                    disp('No valid object was selected.')
+                    x = [];
+                    state = false;
+            end
         otherwise 
-            disp('No valid option was selected.');
+            disp('No valid algorithm was selected.');
             x = [];
             state = false;
     end
 end
 
 %% Auxiliary function 
-function [Output, state] = SP_continuation(object_number, parametrization, Object, corrector, setup)
-    %Inputs 
-    object = Object{1};     %Type of object to continuate
-    seed = Object{2};       %Seed to continuate the object
-    
-    %Main procedure
-    switch (object)
-        case 'Orbit'
-            %Constants 
-            state_dim = 6;                              %Phase space dimension 
-            nodes = 15;                                 %Number of nodes to correct the object
-            bifValue = 1;                               %Value of the Henon stability index to detect a bifurcation
-            
-            parameter = parametrization{1};             %Parameter to continuate on the initial object
-            parameter_value = parametrization{2};       %Desired parameter value 
-            object_period = Object{3};                  %Orbit initial period
-            mu = setup(1);                              %Reduce gravitational parameter of the system
-            n = setup(2);                               %Maximum number of iterations for the differential correction process 
-            tol = setup(3);                             %Tolerance for the differential correction method
-            direction = setup(4);                       %Direction to continuate for
-  
-            GoOn = true;                                %Boolean to stop the continuation process
-            i = 1;                                      %Continuation iteration
-            
-            %Preallocate solution
-            state = zeros(1,object_number);             %Preallocate convergence solution
-            X = zeros(object_number, state_dim);        %Preallocate initial seeds
-            T = zeros(1,object_number);                 %Period of each orbit
-            stability = zeros(1,object_number);         %Stability index of each orbit
-            y = seed;                                   %Initial solution
-                
-            %Main computation
-            switch (parameter)
-                case 'Energy'  
-                    %Modify initial conditions 
-                    ds = direction*1e-3;                      %Continuation step (will vary depending on the solution stability)
-                    step = [ds zeros(1,state_dim-1)];         %Family continuation vector
-                    y(1,1:state_dim) = y(1,1:state_dim)+step; %Modify initial conditions 
-                    
-                    %Main loop
-                    while (i <= object_number) && (GoOn)
-                        %Differential correction
-                        [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
-                        STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
-                        
-                        %Study stability 
-                        [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
-                        
-                        %Compute the energy of the solution 
-                        C = jacobi_constant(mu, shiftdim(Y.Trajectory(end,1:state_dim)));
-                        if (isnan(parameter_value))
-                            par_error = 1;
-                        else
-                            par_error = abs(parameter_value-C);
-                        end
-                        
-                        %Convergence and stability analysis
-                        if (stm_state) && (par_error > tol)   
-                            T(i) = Y.Period;                              %Update the period vector
-                            X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
-                                                        
-                            %Update initial conditions
-                            y = Y.Trajectory(:,1:state_dim);
-                            y(1,:) = y(1,:)+step;     
-                            i = i+1;                                      %Update iteration value
-                        else
-                            GoOn = false;                                 %Stop the process
-                        end  
-                    end
-                     
-                    %Output         
-                    Output.Seeds = X;   
-                    Output.Period = T;
-                    Output.Stability = stability;
-                                           
-                case 'Period'
-                    %Modify initial conditions 
-                    ds = 1e-3;                        %Continuation step 
-                    object_period = object_period+ds; %Modify initial conditions 
-                    
-                    %Main loop
-                    while (i <= object_number) && (GoOn)
-                        %Differential correction
-                        [Y, state(i)] = differential_correction('Periodic MS', mu, y, n, tol, nodes, object_period);
-                        STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
-                        
-                        %Study stability 
-                        [stability(i), stm_state] = henon_stability(STM); 
-                        bif_flag = (abs(bifValue-stability(i)) == 0);
-                        
-                        %Compute the energy of the solution 
-                        if (isnan(parameter_value))
-                            par_error = 1;
-                        else
-                            par_error = abs(parameter_value-object_period);
-                        end
-                        
-                        %Convergence and stability analysis
-                        if (stm_state) && (~bif_flag) && (par_error > tol)   
-                            T(i) = Y.Period;                              %Update the period vector
-                            X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
-                            
-                            %Modify the step depending on the proximity to a bifurcation
-                            %step(1) = par_error * mod(abs(bifValue-s(i)), bifValue) * step(1);
-                            
-                            %Update initial conditions
-                            y = Y.Trajectory(:,1:state_dim);                            
-                            object_period = object_period+ds;             %Update orbit period
-                            i = i+1;                                      %Update iteration value
-                        else
-                            GoOn = false;                                 %Stop the process
-                        end  
-                    end
-                     
-                    %Output         
-                    Output.Seeds = X;   
-                    Output.Period = T;
-                    Output.Stability = stability;
+function [Output, state] = SP_Orbit_continuation(object_number, parametrization, Object, corrector, setup)
+    %Constants 
+    state_dim = 6;                              %Phase space dimension 
+    nodes = 15;                                 %Number of nodes to correct the object
 
-            otherwise 
-                Output = []; 
-                state = false;     
-            end
-               
-        case 'Torus'
-            Output = []; 
-            state = false;
+    parameter = parametrization{1};             %Parameter to continuate on the initial object
+    parameter_value = parametrization{2};       %Desired parameter value 
+    seed = Object{2};                           %Initial orbit seed
+    object_period = Object{3};                  %Orbit initial period
+    mu = setup(1);                              %Reduce gravitational parameter of the system
+    n = setup(2);                               %Maximum number of iterations for the differential correction process 
+    tol = setup(3);                             %Tolerance for the differential correction method
+    direction = setup(4);                       %Direction to continuate for
+
+    GoOn = true;                                %Boolean to stop the continuation process
+    i = 1;                                      %Continuation iteration
             
-        otherwise
-            Output = []; 
-            state = false;
-            disp('No valid object was selected'); 
-            disp(' '); 
+    %Preallocate solution
+    state = zeros(1,object_number);             %Preallocate convergence solution
+    X = zeros(object_number, state_dim);        %Preallocate initial seeds
+    T = zeros(1,object_number);                 %Period of each orbit
+    stability = zeros(1,object_number);         %Stability index of each orbit
+    y = seed;                                   %Initial solution
+                
+   %Main computation
+   switch (parameter)
+        case 'Energy'  
+           %Modify initial conditions 
+           ds = direction*1e-3;                      %Continuation step (will vary depending on the solution stability)
+           step = [ds zeros(1,state_dim-1)];         %Family continuation vector
+           y(1,1:state_dim) = y(1,1:state_dim)+step; %Modify initial conditions 
+
+           %Main loop
+           while (i <= object_number) && (GoOn)
+               %Differential correction
+               [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
+               STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
+
+               %Study stability 
+               [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
+
+               %Compute the energy of the solution 
+               C = jacobi_constant(mu, shiftdim(Y.Trajectory(end,1:state_dim)));
+               if (isnan(parameter_value))
+                   par_error = 1;
+               else
+                   par_error = abs(parameter_value-C);
+               end
+               
+               %Convergence and stability analysis
+               if (stm_state) && (par_error > tol)   
+                   T(i) = Y.Period;                              %Update the period vector
+                   X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+
+                   %Update initial conditions
+                   y = Y.Trajectory(:,1:state_dim);
+                   y(1,:) = y(1,:)+step;     
+                   i = i+1;                                      %Update iteration value
+               else
+                   GoOn = false;                                 %Stop the process
+               end  
+           end
+           
+        case 'Period'
+            %Modify initial conditions 
+            ds = 1e-3;                                          %Continuation step 
+            object_period = object_period+ds;                   %Modify initial conditions 
+            Cref = jacobi_constant(mu, seed(1,1:state_dim).');  %Reference Jacobi constant level
+
+            %Main loop
+            while (i <= object_number) && (GoOn)
+                %Differential correction
+                [Y, state(i)] = differential_correction('Jacobi Constant MS', mu, y, n, tol, nodes, object_period, Cref);
+                STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
+
+                %Study stability 
+                [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
+
+                %Compute the energy of the solution 
+                if (isnan(parameter_value))
+                    par_error = 1;
+                else
+                    par_error = abs(parameter_value-object_period);
+                end
+
+                %Convergence and stability analysis
+                if (stm_state) && (par_error > tol)   
+                    T(i) = Y.Period;                              %Update the period vector
+                    X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+
+                    %Update initial conditions
+                    y = Y.Trajectory(:,1:state_dim);                            
+                    object_period = object_period+ds;             %Update orbit period
+                    i = i+1;                                      %Update iteration value
+                else
+                    GoOn = false;                                 %Stop the process
+                end  
+            end
+            
+       otherwise
+           disp('Something wrong happened');
+           X = []; 
+           T = []; 
+           stability = [];
     end
+   
+    %Output         
+    Output.Seeds = X;   
+    Output.Period = T;
+    Output.Stability = stability;        
 end
 
-function [x, state] = PA_continuation(object_number, parametrization, Object, setup) 
+function [Output, state] = SP_Torus_continuation(object_number, parametrization, Object, corrector, setup)
+end
+
+function [x, state] = PA_Orbit_continuation(object_number, parametrization, Object, setup) 
+end
+
+function [x, state] = PA_Torus_continuation(object_number, parametrization, Object, setup) 
 end
