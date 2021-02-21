@@ -54,6 +54,7 @@ setup = [mu maxIter tol direction];                         %General setup
 %% Plotting and results 
 %Plot results
 figure(2) 
+view(3);
 hold on
 tspan = 0:dt:haloT;
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, halo_seed(1,1:6), options);
