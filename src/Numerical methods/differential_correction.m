@@ -472,7 +472,7 @@ function [xf, state] = MSPeriodic_scheme(mu, seed, n, tol, varargin)
     iter = 1;           %Initial iteration
     
     %Preallocation 
-    ds0 = zeros(m*nodes+1,maxIter);                       %Vector containing the initial conditions correction
+    ds0 = zeros(size(internalSeed,1),maxIter);            %Vector containing the initial conditions correction
     e = zeros(m*nodes,1);                                 %Error vector  
     A = zeros(m*nodes,m*nodes);                           %STM matrix
     B = zeros(m*nodes,1);                                 %Dynamics matrix
@@ -554,7 +554,7 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
         Cref = local_inputs{3};             %Reference Jacobi Constant level
         
         if (nodes < 2) 
-            disp('No valid inputs. Correction is about to finish.'); 
+            disp('Selected number of nodes is invalid. Correction is about to finish.'); 
             xf = []; 
             state = false;
             return;
@@ -583,16 +583,14 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
     constraints = 7;                %Additional constraints to continuity of the trajectory
     
     %Prepare initial conditions
-    internalSeed = zeros((m+1)*nodes-1,1);        %Preallocate internal patch points seeds 
+    internalSeed = zeros(m*nodes+1,1);        %Preallocate internal patch points seeds 
     
     %Divide the orbit into the internal nodes
     h = fix(size(seed,2)/nodes)-1;
     for i = 1:nodes
         internalSeed(m*(i-1)+1:m*i) = seed(1:m,(i-1)*h+1);
-        if (i ~= nodes)
-            internalSeed(end-(nodes-1)+i) = Dt;
-        end
     end    
+    internalSeed(end) = Dt;   
     
     %Set up integration 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-14); 
@@ -605,23 +603,19 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
     iter = 1;           %Initial iteration
     
     %Preallocation 
-    ds0 = zeros((m+1)*nodes-1,maxIter);                   %Vector containing the initial conditions correction
+    ds0 = zeros(size(internalSeed,1),maxIter);            %Vector containing the initial conditions correction
     e = zeros(m*(nodes-1)+constraints,1);                 %Error vector  
     A = zeros(m*(nodes-1)+constraints, m*nodes);          %STM matrix
-    B = zeros(m*(nodes-1)+constraints, nodes-1);          %Dynamics matrix
+    B = zeros(m*(nodes-1)+constraints, 1);                %Dynamics matrix
         
     %Main computation 
     while (GoOn) && (iter < maxIter)        
         for i = 1:nodes
             %Proceed with the integration
-            if (i ~= nodes)
-                tspan = 0:dt:internalSeed(end-(nodes-1)+i);  
-            else
-                tspan = 0:dt:Dt;
-            end
-            S0 = [shiftdim(internalSeed(m*(i-1)+1:m*i)); Phi];                   
-            [~, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, S0, options);    
-            F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');          %Vector field 
+            tspan = 0:dt:internalSeed(end);            
+            S0 = [shiftdim(internalSeed(m*(i-1)+1:m*i)); Phi];
+            [~, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, S0, options);
+            F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');          %Vector field
             
             %Build the covariance matrix                                         %Vector field matrix
             if (i == 1)
@@ -630,7 +624,8 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
                 A(1:m,m+1:2*m) = -eye(m);                                        %Propagation STM between arcs
                 B(1:m,1) = F(1:m);                                               %Dynamics matrix                
                 %Constraint on the Jacobi Constant
-                A(end,1:m) = jacobi_gradient(mu, S(end,1:m).').';                %Constraint matrix
+                dJ = jacobi_gradient(mu, S(end,1:m).').';                        %Gradient of the Jacobi Constant 
+                A(end,1) = dJ(1);                                                %Constraint matrix
                 B(end,1) = 0;                                                    %Dynamics matrix
             elseif (i == nodes)
                 %Constraints on periodicity
@@ -644,14 +639,16 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
                 %Continuity constraint
                 A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = reshape(S(end,m+1:end),[m m]);  %Subarc STM
                 A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                        %Propagation STM between arcs 
-                B(m*(i-1)+1:m*i,i) = F(1:m);                                     %Dynamics matrix
+                B(m*(i-1)+1:m*i,1) = F(1:m);                                     %Dynamics matrix
             end     
             
             %Compute the error 
             if (i == 1)
-                e(end) = jacobi_constant(mu, S(end,1:m).')-Cref;
+                e(1:m) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
+                e(end) = jacobi_constant(mu, S(1,1:m).')-Cref;
             elseif (i == nodes)
-                e(end-1) = S(end,3);
+                dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
+                e(end-m:end-1) = [dR(1:4); dR(6); internalSeed(2)];
             else
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
             end
@@ -660,8 +657,8 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
         %Full covariance matrix 
         C = [A B];
                 
-        %Compute the correction in the under-determined case
-        ds0(:,iter) = C'*(C*C')^(-1)*e;     
+        %Compute the correction
+        ds0(:,iter) = C\e;     
         
         %Convergence analysis 
         if (norm(e) <= tol)
@@ -673,7 +670,7 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
     end
     
     %Integrate the whole trayectory
-    tspan = sum(internalSeed(end-nodes:end));    
+    tspan = 0:dt:internalSeed(end);    
     seed = [shiftdim(internalSeed(1:m)); Phi];                  
     [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);  
     

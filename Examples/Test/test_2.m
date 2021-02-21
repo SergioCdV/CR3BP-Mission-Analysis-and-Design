@@ -46,7 +46,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Halo orbit (through several schemes)
 Cref = jacobi_constant(mu, halo_seed(1,1:6).');
-[~, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 2, haloT, Cref);
+[~, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 15, haloT, Cref);
 [~, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 15, haloT);
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
