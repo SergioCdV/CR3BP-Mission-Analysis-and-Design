@@ -26,17 +26,17 @@ Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param1 = [-1 Az Ln gamma m];                                %Halo orbit parameters (-1 being for southern halo)
-param2 = [Ax Az 0 pi/2 Ln gamma m];                         %Lyapunov orbit parameters
+param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
+param_lyap = [Ax Az 0 pi/2 Ln gamma m];                     %Lyapunov orbit parameters
 
 %Correction parameters 
 maxIter = 50;     %Maximum allowed iterations in the differential correction schemes
-tol = 1e-5;       %Tolerance 
+tol = 1e-10;      %Tolerance 
 
 %% Functions
 %Compute seeds
-[halo_seed, haloT] = object_seed(mu, param1, 'Halo');       %Generate a halo orbit seed
-lyapunov_seed = object_seed(mu, param2, 'Lyapunov');        %Generate a Lyapunov orbit seed
+[halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Generate a halo orbit seed
+lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
 axial_seed = [1.1389 0 0 0 -0.2647 0.3659];                 %State vector of an axial orbit
 vertical_seed = [1.0613 0 0 0 -1.9891 0.4740];              %State vector of a vertical orbit
 butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a butterfly orbit
@@ -46,9 +46,9 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Halo orbit (through several schemes)
 Cref = jacobi_constant(mu, halo_seed(1,1:6).');
-[~, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 15, haloT, Cref);
-[~, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 15, haloT);
-[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[halo_orbit1, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 7, haloT, Cref);
+[halo_orbit2, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 5, haloT);
+[halo_orbit3, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
