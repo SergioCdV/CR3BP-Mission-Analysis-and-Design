@@ -27,8 +27,8 @@ function [U] = augmented_potential(mu, r)
     z = r(3);               %Synodic z coordinate
     
     %Compute distance to the primaries
-    r1 = [x+mu; y; z];      %Position vector to the most massive primary    
-    r2 = [x-(1-mu); y; z];  %Position vector to the least massive primary
+    r1 = [x+mu2; y; z];     %Position vector to the most massive primary    
+    r2 = [x-mu1; y; z];     %Position vector to the least massive primary
     
     %Augmented potential function 
     U = (1/2)*(x^2+y^2)+(mu1/norm(r1))+(mu2/norm(r2));
