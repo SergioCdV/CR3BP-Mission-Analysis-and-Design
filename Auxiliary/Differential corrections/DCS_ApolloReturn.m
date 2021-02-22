@@ -102,8 +102,8 @@ while (GoOn) && (iter < iterMax) && (abs(beta(1)-beta(2))/2 > tol)
     V0 = [-v0(1)/V*sin(theta(1)) -v0(2)/V*sin(theta(2)) -v0(3)/V*sin(theta(3)); 
            v0(1)/V*cos(theta(1))  v0(2)/V*cos(theta(2))  v0(3)/V*cos(theta(3))];     %Initial velocity in the CR3BP
     Phi = [eye(m) eye(m) eye(m)];                                                    %Initial STM 
-    Phi = reshape(Phi, [m^2 3]);                                            %Initial STM
-    S0 = [R0; V0; Phi];                                                     %Initial state in the CR3BP
+    Phi = reshape(Phi, [m^2 3]);                                                     %Initial STM
+    S0 = [R0; V0; Phi];                                                              %Initial state in the CR3BP
 
     % Trajectory integration 
     [~, Smax] = ode113(@(t,x)dynamics(mu, t, x), tspan, S0(:,1), options);
@@ -136,7 +136,7 @@ end
 %% Differential correction scheme
 TF = t(end);        %Semiperiod of the orbit
 seed = Snew.';      %Initial conditions for the differential corrector
-[S, state] = differential_corrector(mu, seed, n, tol, TF, rpe/L, rpl/L, alpha); 
+[S, state] = differential_corrector(mu, seed, 10, tol, TF, rpe/L, rpl/L, alpha); 
 
 %% Results 
 % Plotting
@@ -211,9 +211,9 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     Phi = eye(m);                   %Initial STM  
     Phi = reshape(Phi, [m^2 1]);    %Initial STM 
     dt = 1e-5;                      %Integration time step
-    nodes = 2;                      %Number of relevant nodes
+    nodes = 15;                     %Number of relevant nodes
     Dt = T/nodes;                   %Time step
-    constraints = 4;                %Additional constraints to continuity of the trajectory
+    constraints = 5;                %Additional constraints to continuity of the trajectory
     
     %Prepare initial conditions
     internalSeed = zeros((m+1)*nodes-1,1);        %Preallocate internal patch points seeds 
@@ -228,15 +228,15 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     end    
     
     %Set up integration 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-14, 'Events', @(t,x)x_crossing(t,x));            
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,x)x_crossing(t,x));            
 
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
-    iter = 1;           %Initial iteration
+    GoOn = true;                                          %Convergence flag
+    maxIter = n;                                          %Maximum number of iterations   
+    iter = 1;                                             %Initial iteration
     
     %Preallocation 
-    ds0 = zeros((m+1)*nodes-1,maxIter);                   %Vector containing the initial conditions correction
+    ds0 = zeros(size(internalSeed,1),maxIter);            %Vector containing the initial conditions correction
     e = zeros(m*(nodes-1)+constraints,1);                 %Continuity error vector  
     A = zeros(m*(nodes-1)+constraints, m*nodes);          %STM matrix
     B = zeros(m*(nodes-1)+constraints, nodes-1);          %Dynamics matrix
@@ -255,37 +255,33 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
             F = dynamics(mu, 0, S(end,:).');                                     %Vector field 
             
             %Build the covariance matrix                                         %Vector field matrix
-            if (i == 1)
-                %Continuity constraint
-                A(1:m,1:m) = reshape(S(end,m+1:end),[m m]);                      %Subarc STM
-                A(1:m,m+1:2*m) = -eye(m);                                        %Propagation STM between arcs
-                B(1:m,1) = F(1:m);                                               %Dynamics matrix                
-                %Constraints on perigee altitude and fligth path angle
-                A(end-3,1:m) = 2*[S(end,1:2) 0 0];                               %Perigee altitude constraint
-                B(end-3,1) = 2*dot(S(end,1:2),S(end,3:4));                       %Perigee altitude constraint on time
-                A(end-2,1:m) = [S(end,3:4) S(end,1:2)];                          %Fligth path angle constraint
-                B(end-2,1) = norm(S(end,3:4))^2+dot(S(end,1:2), F(3:4));         %Fligth path angle constraint on time                
-            elseif (i == nodes)
+            if (i == nodes)
                 %Constraints on the periselenum altitude and transversal crossing conditions
                 STM = reshape(S(end,m+1:end),[m m]);                             %Subarc STM
-                A(end-1,end-m+1:end) = 2*[S(end,1:2) 0 0];                       %Periselenum altitude
-                A(end,end-m+1:end) = STM(3,:);                                   %Transversal x crossing
+                A(end-2,end-m+1:end) = 2*[S(end,1)+mu-1 S(end,2) 0 0];           %Periselenum altitude
+                A(end-1:end,end-m+1:end) = STM(2:3,:);                           %Transversal x crossing constraint matrix
             else
                 %Continuity constraint
                 A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = reshape(S(end,m+1:end),[m m]);  %Subarc STM
                 A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                        %Propagation STM between arcs 
                 B(m*(i-1)+1:m*i,i) = F(1:m);                                     %Dynamics matrix
+                if (i == 1)
+                    %Constraints on perigee altitude and fligth path angle
+                    A(end-4,1:m) = 2*[S(1,1)+mu S(1,2) 0 0];                     %Perigee altitude constraint
+                    A(end-3,1:m) = [S(1,3:4) S(1,1)+mu S(1,2)];                  %Fligth path angle constraint 
+                end
             end     
             
             %Compute the error 
-            if (i == 1)
-                e(end-3) = norm(S(1,1:2))^2-rpe^2;
-                e(end-2) = dot(S(1,1:2),S(1,3:4))-sin(alpha);
-            elseif (i == nodes)
-                e(end-1) = norm(S(end,1:2))^2-rpl^2;
-                e(end) = S(end,3);
+            if (i == nodes)
+                e(end-2) = norm([S(end,1)+mu-1 S(end,2)])^2-rpl^2;               %Periselenum constraint
+                e(end-1:end) = S(end,2:3);                                       %Transversal crossing constraint
             else
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
+                if (i == 1)
+                    e(end-4) = norm([S(end,1)+mu S(end,2)])^2-rpe^2;             %Perigee altitude constraint
+                    e(end-3) = dot(S(1,1:2),S(1,3:4))-sin(alpha);                %Fligth path angle constraint 
+                end
             end
         end
         
@@ -293,7 +289,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
         C = [A B];
                 
         %Compute the correction in the under-determined case
-        ds0(:,iter) = C'*(C*C')^(-1)*e;     
+        ds0(:,iter) = C\e;     
         
         %Convergence analysis 
         if (norm(e) <= tol)
