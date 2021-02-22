@@ -18,7 +18,7 @@
 
 % Outputs: - the array c, containing the Legendre coefficients.
 
-% New versions: 
+% New versions: review it.
 
 function [c] = legendre_coefficients(mu, point, gamma, order)
     %Preallocation 
