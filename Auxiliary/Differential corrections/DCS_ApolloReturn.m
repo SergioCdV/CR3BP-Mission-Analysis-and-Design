@@ -136,7 +136,7 @@ end
 %% Differential correction scheme
 TF = t(end);        %Semiperiod of the orbit
 seed = Snew.';      %Initial conditions for the differential corrector
-[S, state] = differential_corrector(mu, seed, 10, tol, TF, rpe/L, rpl/L, alpha); 
+[S, state] = differential_corrector(mu, seed, 50, tol, TF, rpe/L, rpl/L, alpha); 
 
 %% Results 
 % Plotting
@@ -211,7 +211,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     Phi = eye(m);                   %Initial STM  
     Phi = reshape(Phi, [m^2 1]);    %Initial STM 
     dt = 1e-5;                      %Integration time step
-    nodes = 15;                     %Number of relevant nodes
+    nodes = 5;                      %Number of relevant nodes
     Dt = T/nodes;                   %Time step
     constraints = 5;                %Additional constraints to continuity of the trajectory
     
@@ -279,8 +279,8 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
             else
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
                 if (i == 1)
-                    e(end-4) = norm([S(end,1)+mu S(end,2)])^2-rpe^2;             %Perigee altitude constraint
-                    e(end-3) = dot(S(1,1:2),S(1,3:4))-sin(alpha);                %Fligth path angle constraint 
+                    e(end-4) = norm([S(1,1)+mu S(1,2)])^2-rpe^2;                 %Perigee altitude constraint
+                    e(end-3) = dot([S(1,1)+mu S(1,2)],S(1,3:4))-sin(alpha);      %Fligth path angle constraint 
                 end
             end
         end
