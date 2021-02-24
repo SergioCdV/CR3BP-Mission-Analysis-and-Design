@@ -14,7 +14,7 @@
 
 %% Constants and set up
 % Initial conditions (to be input by the user) 
-he = 185e3;                 %Parking orbit altitude at perigee
+he = 200e3;                 %Parking orbit altitude at perigee
 hl = 169e3;                 %Periselenum altitude at periselenum
 alpha = 0;                  %Constraint on the initial fligth path angle
 
@@ -211,9 +211,9 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
     Phi = eye(m);                   %Initial STM  
     Phi = reshape(Phi, [m^2 1]);    %Initial STM 
     dt = 1e-5;                      %Integration time step
-    nodes = 5;                      %Number of relevant nodes
+    nodes = 5;                     %Number of relevant nodes
     Dt = T/nodes;                   %Time step
-    constraints = 5;                %Additional constraints to continuity of the trajectory
+    constraints = 4;                %Additional constraints to continuity of the trajectory
     
     %Prepare initial conditions
     internalSeed = zeros((m+1)*nodes-1,1);        %Preallocate internal patch points seeds 
@@ -268,7 +268,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
                 if (i == 1)
                     %Constraints on perigee altitude and fligth path angle
                     A(end-4,1:m) = 2*[S(1,1)+mu S(1,2) 0 0];                     %Perigee altitude constraint
-                    A(end-3,1:m) = [S(1,3:4) S(1,1)+mu S(1,2)];                  %Fligth path angle constraint 
+                    A(end-3,1:m) = [S(1,3:4)+mu S(1,1)+mu S(1,2)];               %Perigee altitude constraint
                 end
             end     
             
@@ -280,7 +280,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
                 if (i == 1)
                     e(end-4) = norm([S(1,1)+mu S(1,2)])^2-rpe^2;                 %Perigee altitude constraint
-                    e(end-3) = dot([S(1,1)+mu S(1,2)],S(1,3:4))-sin(alpha);      %Fligth path angle constraint 
+                    e(end-3) = dot([S(1,1)+mu S(1,2)], S(1,3:4))-sin(alpha);     %Flight path angle
                 end
             end
         end
@@ -289,7 +289,7 @@ function [xf, state] = differential_corrector(mu, seed, n, tol, T, rpe, rpl, alp
         C = [A B];
                 
         %Compute the correction in the under-determined case
-        ds0(:,iter) = C\e;     
+        ds0(:,iter) = C.'*(C*C.')^(-1)*e;     
         
         %Convergence analysis 
         if (norm(e) <= tol)
