@@ -88,7 +88,7 @@ function [xf, state] = SymAxis_scheme(mu, seed, n, tol)
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, ... 
                      'Events', @(t,s)x_crossing(t,s));          %Integration conditions and tolerances                     
     dt = 1e-3;                                                  %Time step
-    T = 1e3;                                                    %Initial orbit period
+    T = 2*pi;                                                   %Initial orbit period
     tspan = 0:dt:T;                                             %Integration time span
     direction = 1;                                              %Forward integration
     flagVar = true;                                             %Integrate variational equations
@@ -179,7 +179,7 @@ function [xf, state] = SymPlane_scheme(mu, seed, n, tol)
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, ... 
                      'Events', @(t,s)x_crossing(t,s));          %Integration conditions and tolerances                     
     dt = 1e-3;                                                  %Time step
-    T = 1e3;                                                    %Initial orbit period
+    T = 2*pi;                                                   %Initial orbit period
     tspan = 0:dt:T;                                             %Integration time span
     direction = 1;                                              %Forward integration
     flagVar = true;                                             %Integrate variational equations
@@ -230,6 +230,96 @@ function [xf, state] = SymPlane_scheme(mu, seed, n, tol)
     state = ~GoOn;
 end
 
+%Compute periodic orbits using the symmetry XZ-XY planes
+function [xf, state] = SymDoublePlane_scheme(mu, seed, n, tol)
+    %Constants 
+    m = 6;      %Phase space dimension 
+    
+    %Sanity check on initial conditions dimension
+    if (size(seed,2) == 6) || (size(seed,1) == 6)
+        %Restrict the seed to the initial conditions
+        if (size(seed,2) == 6)
+            if (size(seed,1) ~= 1)
+                seed = shiftdim(seed(1,:));
+            else
+                seed = seed.';
+            end
+        elseif (size(seed,1) == 6) 
+            if (size(seed,2) ~= 1)
+                seed = shiftdim(seed(:,1));
+            end
+        end
+    else
+        disp('No valid initial conditions.');
+        xf = []; 
+        state = false; 
+        return;
+    end
+    
+    %Ensure motion on the XY synodic plane
+    seed(2) = 0;    %Null Y coordinate 
+    seed(4) = 0;    %Null Vx 
+    seed(6) = 0;    %Null Vz
+    
+    %Augment initial conditions with the initial STM 
+    Phi = eye(m); 
+    Phi = reshape(Phi, [m^2 1]); 
+    seed(m+1:m+m^2) = Phi;
+    
+    %Set up integration 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, ... 
+                     'Events', @(t,s)x_crossing(t,s));          %Integration conditions and tolerances                     
+    dt = 1e-3;                                                  %Time step
+    T = 2*pi;                                                   %Initial orbit period
+    tspan = 0:dt:T;                                             %Integration time span
+    direction = 1;                                              %Forward integration
+    flagVar = true;                                             %Integrate variational equations
+    
+    %Set up differential correction scheme
+    GoOn = true;        %Convergence flag
+    maxIter = n;        %Maximum number of iterations   
+    iter = 1;           %Initial iteration
+    
+    %Preallocation 
+    ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+        
+    %Main computation 
+    while (GoOn) && (iter < maxIter)
+        %Proceed with the integration
+        [~, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
+        
+        %Compute error
+        e = [S(end,4); S(end,6)];   %Vx and Vz at the crossing must be 0
+        
+        %Compute the correction 
+        F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');         %Vector field at T/2
+        Phi = reshape(S(end,m+1:end), [m m]);                               %Build the monodromy matrix at T/2
+        A = [Phi(4,3) Phi(4,5); Phi(6,3) Phi(6,5)] ...
+            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,3) Phi(2,5)]);
+        ds0(:,iter) = A\e;                                                  %Compute the variation
+        
+        %Convergence analysis 
+        if (norm(e) <= tol)
+            GoOn = false;
+        else
+            seed(3) = seed(3)-ds0(1,iter);        %Update initial conditions
+            seed(5) = seed(5)-ds0(2,iter);        %Update initial conditions
+            iter = iter+1;                        %Update iteration
+        end       
+    end
+    
+    %Integrate the whole trayectory 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Disable crossing event
+    tspan = 0:dt:(2*dt*size(S,1));                              %Integrate the orbit for a whole orbit
+    [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
+    
+    %Ouput corrected trajectory 
+    xf.Trajectory = S;          %Trajectory
+    xf.Period = t(end);         %Orbit period
+    
+    %Ouput differential correction scheme convergence results
+    state = ~GoOn;
+end
 %Compute periodic orbits using the double X/XZ symmetry
 function [xf, state] = SymDouble_scheme(mu, seed, n, tol)
     %Constants 
@@ -270,7 +360,7 @@ function [xf, state] = SymDouble_scheme(mu, seed, n, tol)
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, ... 
                      'Events', @(t,s)x_crossing(t,s));          %Integration conditions and tolerances                     
     dt = 1e-3;                                                  %Time step
-    T = 1e3;                                                    %Initial orbit period
+    T = 2*pi;                                                   %Initial orbit period
     tspan = 0:dt:T;                                             %Integration time span
     direction = 1;                                              %Forward integration
     flagVar = true;                                             %Integrate variational equations
@@ -363,7 +453,7 @@ function [xf, state] = SymPlanar_scheme(mu, seed, n, tol)
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, ... 
                      'Events', @(t,s)x_crossing(t,s));          %Integration conditions and tolerances                     
     dt = 1e-3;                                                  %Time step
-    T = 1e3;                                                    %Initial orbit period
+    T = 2*pi;                                                   %Initial orbit period
     tspan = 0:dt:T;                                             %Integration time span
     direction = 1;                                              %Forward integration
     flagVar = true;                                             %Integrate variational equations
