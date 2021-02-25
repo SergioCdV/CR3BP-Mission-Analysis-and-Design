@@ -12,6 +12,8 @@
 % Test 2 is concerned with differential correction algorithms validation and the exploration of 
 % different families of orbits.
 
+% Credit to Grebow, 2006, for his initial seeds!
+
 %% Test values and constants
 %Set graphical environment 
 set_graphics(); 
@@ -46,8 +48,8 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Halo orbit (through several schemes)
 Cref = jacobi_constant(mu, halo_seed(1,1:6).');
-%[halo_orbit1, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 7, haloT, Cref);
-%[halo_orbit2, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 5, haloT);
+[halo_orbit1, state(2)] = differential_correction('Jacobi Constant Multiple Shooting', mu, halo_seed, maxIter, tol, 6, haloT, Cref);
+[halo_orbit2, state(2)] = differential_correction('Periodic Multiple Shooting', mu, halo_seed, maxIter, tol, 6, haloT);
 [halo_orbit3, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Distant Retrograde Orbit (only for L2)
@@ -80,7 +82,7 @@ title('Converged Lyapunov orbit');
 grid on;
 
 figure(3) 
-plot3(halo_orbit3.Trajectory(:,1), halo_orbit3.Trajectory(:,2), halo_orbit3.Trajectory(:,3));
+plot3(halo_orbit2.Trajectory(:,1), halo_orbit2.Trajectory(:,2), halo_orbit2.Trajectory(:,3));
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');
 zlabel('Synodic normalized z coordinate');

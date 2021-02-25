@@ -31,5 +31,5 @@ function [T] = jacobi_gradient(mu, state)
     dU1 = -mu1/norm(r1)^3*r1;           %Acceleration due to the first primary
     dU2 = -mu2/norm(r2)^3*r2;           %Accleration due to the second primary
     dU = [x; y; 0]-dU1-dU2;             %Augmented potential gradient
-    T = 2*[dU; v];                       %Jacobi Constant gradient vector 
+    T = 2*[dU; -v];                     %Jacobi Constant gradient vector 
 end
