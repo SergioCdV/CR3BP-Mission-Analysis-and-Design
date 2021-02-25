@@ -37,8 +37,8 @@ tol = 1e-10;      %Tolerance
 %Compute seeds
 [halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Generate a halo orbit seed
 lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
-axial_seed = [1.1389 0 0 0 -0.2647 0.3659];                 %State vector of an axial orbit
-vertical_seed = [1.0613 0 0 0 -1.9891 0.4740];              %State vector of a vertical orbit
+axial_seed = [0.8431 0 0 0 0.1874 0.4000];                  %State vector of an axial orbit
+vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             %State vector of a vertical orbit
 butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a butterfly orbit
 
 %Lyapunov orbit
@@ -46,8 +46,8 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Halo orbit (through several schemes)
 Cref = jacobi_constant(mu, halo_seed(1,1:6).');
-[halo_orbit1, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 7, haloT, Cref);
-[halo_orbit2, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 5, haloT);
+%[halo_orbit1, state(2)] = differential_correction('Jacobi Constant MS', mu, halo_seed, maxIter, tol, 7, haloT, Cref);
+%[halo_orbit2, state(2)] = differential_correction('Periodic MS', mu, halo_seed, maxIter, tol, 5, haloT);
 [halo_orbit3, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Distant Retrograde Orbit (only for L2)
@@ -57,7 +57,7 @@ Cref = jacobi_constant(mu, halo_seed(1,1:6).');
 [axial_orbit, state(4)] = differential_correction('Axis Symmetric', mu, axial_seed, maxIter, tol);
 
 %Vertical Orbit 
-[vertical_orbit, state(5)] = differential_correction('Axis Symmetric', mu, vertical_seed, maxIter, tol);
+[vertical_orbit, state(5)] = differential_correction('Double Plane Symmetric', mu, vertical_seed, maxIter, tol);
 
 %Butterfly Orbit
 [butterfly_orbit, state(6)] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol);
@@ -80,7 +80,7 @@ title('Converged Lyapunov orbit');
 grid on;
 
 figure(3) 
-plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
+plot3(halo_orbit3.Trajectory(:,1), halo_orbit3.Trajectory(:,2), halo_orbit3.Trajectory(:,3));
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');
 zlabel('Synodic normalized z coordinate');
