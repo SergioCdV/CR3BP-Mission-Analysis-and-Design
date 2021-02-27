@@ -29,7 +29,7 @@ Ln = 1;                                                     %Orbits around Li. P
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
-param_lyap = [Ax Az 0 pi/2 Ln gamma m];                     %Lyapunov orbit parameters
+param_lyap = [Ax Az 0 0 Ln gamma m];                        %Lyapunov orbit parameters
 
 %Correction parameters 
 maxIter = 50;     %Maximum allowed iterations in the differential correction schemes
@@ -48,9 +48,8 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Halo orbit (through several schemes)
 Cref = jacobi_constant(mu, halo_seed(1,1:6).');
-[halo_orbit1, state(2)] = differential_correction('Jacobi Constant Multiple Shooting', mu, halo_seed, maxIter, tol, 6, haloT, Cref);
-[halo_orbit2, state(2)] = differential_correction('Periodic Multiple Shooting', mu, halo_seed, maxIter, tol, 6, haloT);
-[halo_orbit3, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+%[halo_orbit1, state(2)] = differential_correction('Jacobi Constant Multiple Shooting', mu, halo_seed, maxIter, tol, 10, haloT, Cref);
+%[halo_orbit3, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);

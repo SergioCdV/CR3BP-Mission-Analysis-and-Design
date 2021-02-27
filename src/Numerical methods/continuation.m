@@ -23,7 +23,7 @@
 
 % Methods: single-parameter continuation as well as pseudo-arc length continuation.
 
-% New versions: Period continuation is not working.
+% New versions: .
 
 function [x, state] = continuation(object_number, method, parametrization, Object, corrector, setup)
     %Select method to continuate the initial solution
@@ -130,7 +130,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
             %Main loop
             while (i <= object_number) && (GoOn)
                 %Differential correction
-                [Y, state(i)] = differential_correction('Jacobi Constant MS', mu, y, n, tol, nodes, object_period, Cref);
+                [Y, state(i)] = differential_correction('JJacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
                 STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                 %Study stability 

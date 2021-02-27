@@ -18,26 +18,27 @@
 
 % Outputs: - the array c, containing the Legendre coefficients.
 
-% New versions: review it.
+% New versions: .
 
-function [c] = legendre_coefficients(mu, point, gamma, order)
+function [c] = legendre_coefficients(mu, L, gamma, order)
     %Preallocation 
     c = zeros(1, order);
     
     %Main computation 
-    if (point == 1)
+    if (L == 1)
         for i = 2:order
-           c(i) = (1/gamma^3)*(mu+(-1)^i*((1-mu)*gamma^(i+1))/(1+gamma)^(i+1));
+           c(i) = (1/gamma^3)*(mu+(-1)^i*((1-mu)*gamma^(i+1))/(1-gamma)^(i+1));
         end
-    elseif (point == 2)
+    elseif (L == 2)
         for i = 2:order
            c(i) = ((-1)^i/gamma^3)*(mu+((1-mu)*gamma^(i+1))/(1+gamma)^(i+1));
         end
-    elseif (point == 3)
+    elseif (L == 3)
         for i = 2:order
            c(i) = (1-mu+(-1)^i/gamma^3)*((mu*gamma^(i+1))/(1+gamma)^(i+1));
         end
     else
+        disp('No valid Lagrange point was selected.');
         c = [];
     end
 end
