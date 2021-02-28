@@ -61,7 +61,7 @@ end
 function [Output, state] = SP_Orbit_continuation(object_number, parametrization, Object, corrector, setup)
     %Constants 
     state_dim = 6;                              %Phase space dimension 
-    nodes = 15;                                 %Number of nodes to correct the object
+    nodes = 10;                                 %Number of nodes to correct the object
 
     parameter = parametrization{1};             %Parameter to continuate on the initial object
     parameter_value = parametrization{2};       %Desired parameter value 
@@ -123,14 +123,14 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
            
         case 'Period'
             %Modify initial conditions 
-            ds = 1e-3;                                          %Continuation step 
+            ds = 1e-1;                                          %Continuation step 
             object_period = object_period+ds;                   %Modify initial conditions 
             Cref = jacobi_constant(mu, seed(1,1:state_dim).');  %Reference Jacobi constant level
 
             %Main loop
             while (i <= object_number) && (GoOn)
                 %Differential correction
-                [Y, state(i)] = differential_correction('JJacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
+                [Y, state(i)] = differential_correction('Jacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
                 STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                 %Study stability 
@@ -158,7 +158,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
             end
             
        otherwise
-           disp('Something wrong happened');
+           disp('No valid parameter was selected.');
            X = []; 
            T = []; 
            stability = [];

@@ -28,15 +28,15 @@ Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [-1 Az Ln gamma m];                                 %Halo orbit parameters (-1 being for southern halo)
+param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
-dt = 1e-3;                  %Time step to integrate converged trajectories
-maxIter = 50;               %Maximum allowed iterations in the differential correction schemes
-tol = 1e-10;                %Differential correction tolerance 
-Bif_tol = 1e-2;             %Bifucartion tolerance on the stability index
-num = 15;                   %Number of orbits to continuate
-direction = -1;             %Direction to continuate (to the Earth)
+dt = 1e-3;                                                  %Time step to integrate converged trajectories
+maxIter = 50;                                               %Maximum allowed iterations in the differential correction schemes
+tol = 1e-10;                                                %Differential correction tolerance 
+Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
+num = 5;                                                    %Number of orbits to continuate
+direction = -1;                                             %Direction to continuate (to the Earth)
    
 %% Functions
 %Compute seed
@@ -49,19 +49,43 @@ object = {'Orbit', halo_seed, haloT};                       %Object and characte
 corrector = 'Plane Symmetric';                              %Differential corrector method
 setup = [mu maxIter tol direction];                         %General setup
 
-[Results, state] = continuation(num, method, algorithm, object, corrector, setup);
+[Results_energy, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
+
+%Continuation procedure 
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Period', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+corrector = ' ';                                            %Differential corrector method
+setup = [mu maxIter tol direction];                         %General setup
+
+[Results_period, state_period] = continuation(num, method, algorithm, object, corrector, setup);
 
 %% Plotting and results 
+%Plot results
+figure(1) 
+view(3);
+hold on
+plot3(halo_seed(:,1), halo_seed(:,2), halo_seed(:,3), 'k');
+for i = 1:num
+  tspan = 0:dt:Results_energy.Period(i);
+  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_energy.Seeds(i,:), options);
+  plot3(S(:,1), S(:,2), S(:,3));
+end
+hold off
+xlabel('Synodic normalized x coordinate');
+ylabel('Synodic normalized y coordinate');
+zlabel('Synodic normalized z coordinate');
+title('Converged family of orbits');
+grid on;
+
 %Plot results
 figure(2) 
 view(3);
 hold on
-tspan = 0:dt:haloT;
-[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, halo_seed(1,1:6), options);
-plot3(S(:,1), S(:,2), S(:,3), 'k');
+plot3(halo_seed(:,1), halo_seed(:,2), halo_seed(:,3), 'k');
 for i = 1:num
-  tspan = 0:dt:Results.Period(i);
-  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results.Seeds(i,:), options);
+  tspan = 0:dt:Results_period.Period(i);
+  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_period.Seeds(i,:), options);
   plot3(S(:,1), S(:,2), S(:,3));
 end
 hold off

@@ -677,7 +677,7 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
     dt = 1e-4;                      %Integration time step
     h = fix(size(seed,2)/nodes)-1;  %Temporal index step
     Dt = T/nodes;                   %Time step
-    constraints = 7;                %Additional constraints to continuity
+    constraints = 6;                %Additional constraints to continuity
         
     %Preallocate internal patch points seeds 
     internalSeed = zeros((m+1)*nodes-1,1);        
@@ -728,8 +728,9 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
             else
                 %Periodicity constraint
                 STM = reshape(S(end,m+1:end),[m, m]);                            %Subarc STM
-                A(m*(i-1)+1:m*i,end-m+1:end) = STM;                              %Constraint matrix
-                A(m*(i-1)+1:m*i,1:m) = -eye(m);                                  %Constraint matrix
+                A(end-m+1:end-1,end-m+1:end) = STM(1:5,:);                       %Constraint matrix
+                A(end-m+1:end-1,1:m-1) = -eye(m-1);                              %Constraint matrix          
+                %Jacobi Constant constraint
                 A(end,end-m+1:end) = -jacobi_gradient(mu, S(end,1:m).').';       %Constraint matrix
             end     
             
@@ -738,8 +739,8 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
             else
                 dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
-                e(end-m:end-1) = dR;                                                    %Periodicity constraint
-                e(end) = Cref-jacobi_constant(mu, S(end,1:m).');                        %Jacobi Constant constraint
+                e(end-m+1:end-1) = dR(1:5);                                              %Periodicity constraint
+                e(end) = Cref-jacobi_constant(mu, S(end,1:m).');                         %Jacobi Constant constraint
             end
         end
         
@@ -747,7 +748,7 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
         C = [A B];
                 
         %Compute the correction 
-        ds0(:,iter) = C\e;                              %Compute the variation (under-determined case)
+        ds0(:,iter) = C.'*(C*C.')^(-1)*e;                              %Compute the variation (under-determined case)
         
         %Convergence analysis 
         if (norm(e) <= tol)
