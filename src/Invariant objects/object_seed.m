@@ -260,4 +260,12 @@ function [seed, T] = torus_seed(mu, parameters)
     
     %Output seed
     seed = [x.' y.' z.' vx.' vy.' vz.'];    %Seed trajectory
+    
+    %Correct the orbit to generate a periodic one 
+    tol = 1e-10;            %Differential corrector scheme
+    algorithm = 'Planar';   %Differential corrector algorithm
+    n = 50;                 %Maximum number of iterations
+    
+    [seed, ~] = differential_correction(algorithm, mu, seed, n, tol); 
+    T = seed.Period;
 end
