@@ -123,7 +123,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
            
         case 'Period'
             %Modify initial conditions 
-            ds = direction*5e-1;                                %Continuation step 
+            ds = direction*1e-1;                                %Continuation step 
             object_period = object_period+ds;                   %Modify initial conditions 
             Cref = jacobi_constant(mu, seed(1,1:state_dim).');  %Reference Jacobi constant level
 

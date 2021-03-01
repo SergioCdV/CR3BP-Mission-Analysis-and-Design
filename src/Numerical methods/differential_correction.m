@@ -728,8 +728,8 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
             else
                 %Periodicity constraint
                 STM = reshape(S(end,m+1:end),[m, m]);                            %Subarc STM
-                A(end-m+1:end-1,end-m+1:end) = STM(1:5,:);                       %Constraint matrix
-                A(end-m+1:end-1,1:m-1) = -eye(m-1);                              %Constraint matrix          
+                A(end-m+1:end-1,end-m+1:end) = [STM(1:4,:); STM(1,:)];           %Constraint matrix
+                A(end-m+1:end-1,1:m) = -[eye(4) zeros(4,2); zeros(1,5) 1];       %Constraint matrix          
                 %Jacobi Constant constraint
                 A(end,end-m+1:end) = -jacobi_gradient(mu, S(end,1:m).').';       %Constraint matrix
             end     
@@ -739,8 +739,8 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
             else
                 dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
-                e(end-m+1:end-1) = dR(1:5);                                              %Periodicity constraint
-                e(end) = Cref-jacobi_constant(mu, S(end,1:m).');                         %Jacobi Constant constraint
+                e(end-m+1:end-1) = [dR(1:4); dR(6)];                                    %Periodicity constraint
+                e(end) = Cref-jacobi_constant(mu, S(end,1:m).');                        %Jacobi Constant constraint
             end
         end
         
