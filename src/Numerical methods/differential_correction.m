@@ -748,7 +748,7 @@ function [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin)
         C = [A B];
                 
         %Compute the correction 
-        ds0(:,iter) = C.'*(C*C.')^(-1)*e;                              %Compute the variation (under-determined case)
+        ds0(:,iter) = C.'*(C*C.')^(-1)*e;               %Compute the variation (under-determined case)
         
         %Convergence analysis 
         if (norm(e) <= tol)

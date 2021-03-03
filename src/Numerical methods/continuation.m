@@ -23,7 +23,7 @@
 
 % Methods: single-parameter continuation as well as pseudo-arc length continuation.
 
-% New versions: .
+% New versions: Remodel the SPC scheme into a switch-case type.
 
 function [x, state] = continuation(object_number, method, parametrization, Object, corrector, setup)
     %Select method to continuate the initial solution
@@ -117,20 +117,23 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
                    y(1,:) = y(1,:)+step;     
                    i = i+1;                                      %Update iteration value
                else
+                   i = i+1;                                      %Update iteration value
+                   %Correct the final desired orbit
+                   [Y, state(i)] = differential_correction('Jacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
+                   X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
                    GoOn = false;                                 %Stop the process
                end  
            end
            
         case 'Period'
             %Modify initial conditions 
-            ds = direction*1e-1;                                %Continuation step 
-            object_period = object_period+ds;                   %Modify initial conditions 
-            Cref = jacobi_constant(mu, seed(1,1:state_dim).');  %Reference Jacobi constant level
+            ds = direction*1e-1;                                 %Continuation step 
+            object_period = object_period+ds;                    %Modify initial conditions 
 
             %Main loop
             while (i <= object_number) && (GoOn)
                 %Differential correction
-                [Y, state(i)] = differential_correction('Jacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
+                [Y, state(i)] = differential_correction('Periodic Multiple Shooting', mu, y, n, tol, nodes, object_period);
                 STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                 %Study stability 
@@ -153,7 +156,11 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
                     object_period = object_period+ds;             %Update orbit period
                     i = i+1;                                      %Update iteration value
                 else
-                    GoOn = false;                                 %Stop the process
+                   i = i+1;                                       %Update iteration value
+                   %Correct the final desired orbit
+                   [Y, state(i)] = differential_correction('Periodic Multiple Shooting', mu, y, n, tol, nodes, object_period);
+                   X(i,:) = Y.Trajectory(1,1:state_dim);          %Save initial conditions
+                   GoOn = false;                                  %Stop the process
                 end  
             end
             

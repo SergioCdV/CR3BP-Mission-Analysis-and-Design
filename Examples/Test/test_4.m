@@ -25,14 +25,14 @@ mu = 0.0121505856;                                          %Reduced gravitation
 L = libration_points(mu);                                   %System libration points
 Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [-1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
+param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
-maxIter = 50;                                               %Maximum allowed iterations in the differential correction schemes
+maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-5;                                                 %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
 num = 5;                                                    %Number of orbits to continuate
