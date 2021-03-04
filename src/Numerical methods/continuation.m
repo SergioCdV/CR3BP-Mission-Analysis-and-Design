@@ -61,7 +61,7 @@ end
 function [Output, state] = SP_Orbit_continuation(object_number, parametrization, Object, corrector, setup)
     %Constants 
     state_dim = 6;                              %Phase space dimension 
-    nodes = 10;                                 %Number of nodes to correct the object
+    nodes = 15;                                 %Number of nodes to correct the object
 
     parameter = parametrization{1};             %Parameter to continuate on the initial object
     parameter_value = parametrization{2};       %Desired parameter value 
@@ -129,11 +129,12 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
             %Modify initial conditions 
             ds = direction*1e-1;                                 %Continuation step 
             object_period = object_period+ds;                    %Modify initial conditions 
+            corrector = 'Periodic Multiple Shooting';            %Algorithm corrector
 
             %Main loop
             while (i <= object_number) && (GoOn)
                 %Differential correction
-                [Y, state(i)] = differential_correction('Periodic Multiple Shooting', mu, y, n, tol, nodes, object_period);
+                [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
                 STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                 %Study stability 

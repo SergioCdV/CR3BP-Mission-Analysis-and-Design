@@ -42,6 +42,8 @@ function [xf, state] = differential_correction(algorithm, mu, seed, n, tol, vara
             [xf, state]= MSPeriodic_scheme(mu, seed, n, tol, varargin);
         case 'Jacobi Constant Multiple Shooting'
             [xf, state] = MSJacobi_scheme(mu, seed, n, tol, varargin);
+        case 'Periodic PSC Multiple Shooting'
+            [xf, state] = PSPeriodic_scheme(mu, seed, n, tol, varargin);
         otherwise
             disp('No valid options was selected.');
             xf = [];
@@ -504,7 +506,7 @@ function [xf, state] = SymPlanar_scheme(mu, seed, n, tol)
     state = ~GoOn;
 end
 
-%Compute periodic orbits using multiple shooting
+%Compute periodic orbits using multiple shooting and energy-continuity constraint
 function [xf, state] = MSPeriodic_scheme(mu, seed, n, tol, varargin)
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
@@ -595,16 +597,20 @@ function [xf, state] = MSPeriodic_scheme(mu, seed, n, tol, varargin)
             else
                 %Periodicity constraint
                 STM = reshape(S(end,m+1:end),[m, m]);                            %Subarc STM
-                A(m*(i-1)+1:m*i,1:m) = -eye(m);                                  %Constraint matrix                  
-                A(m*(i-1)+1:m*i,end-m+1:end) = STM;                              %Contraint matrix
+                A(end-m+1:end-1,end-m+1:end) = [STM(1:4,:); STM(1,:)];           %Constraint matrix
+                A(end-m+1:end-1,1:m) = -[eye(4) zeros(4,2); zeros(1,5) 1];       %Constraint matrix          
+                %Jacobi Constant constraint
+                A(end,end-m+1:end) = -jacobi_gradient(mu, S(end,1:m).').';       %Constraint matrix
+                A(end,1:m) = -jacobi_gradient(mu, internalSeed(1:m)).';          %Constraint matrix
             end     
             
-            %Compute the error and impose periodicity constraint
+            %Compute the error
             if (i ~= nodes)
-                e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));
+                e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
             else
                 dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
-                e(end-m+1:end) = dR;
+                e(end-m+1:end-1) = [dR(1:4); dR(6)];                                                %Periodicity constraint
+                e(end) = jacobi_constant(mu, internalSeed(1:m))-jacobi_constant(mu, S(end,1:m).');  %Jacobi Constant constraint
             end
         end
         
