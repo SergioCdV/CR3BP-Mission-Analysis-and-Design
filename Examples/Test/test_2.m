@@ -79,7 +79,7 @@ title('Converged Lyapunov orbit');
 grid on;
 
 figure(3) 
-plot3(halo_orbit2.Trajectory(:,1), halo_orbit2.Trajectory(:,2), halo_orbit2.Trajectory(:,3));
+plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');
 zlabel('Synodic normalized z coordinate');
