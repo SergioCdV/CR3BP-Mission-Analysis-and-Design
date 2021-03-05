@@ -42,7 +42,7 @@ function [x, state] = continuation(object_number, method, parametrization, Objec
         case 'PAC' 
             switch(Object{1})
                 case 'Orbit'
-                    [x, state] = PA_Orbit_continuation(object_number, parametrization, Object{2}, corrector, setup);
+                    [x, state] = PA_Orbit_continuation(object_number, Object, setup);
                 case 'Torus' 
                     [x, state] = PA_Torus_continuation(object_number, parametrization, Object{2}, corrector, setup);
                 otherwise 
@@ -71,9 +71,6 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     n = setup(2);                               %Maximum number of iterations for the differential correction process 
     tol = setup(3);                             %Tolerance for the differential correction method
     direction = setup(4);                       %Direction to continuate for
-
-    GoOn = true;                                %Boolean to stop the continuation process
-    i = 1;                                      %Continuation iteration
             
     %Preallocate solution
     state = zeros(1,object_number);             %Preallocate convergence solution
@@ -81,23 +78,26 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     T = zeros(1,object_number);                 %Period of each orbit
     stability = zeros(1,object_number);         %Stability index of each orbit
     y = seed;                                   %Initial solution
+    
+    GoOn = true;                                %Boolean to stop the continuation process
+    num = 1;                                    %Continuation iteration
                 
     %Main computation
     switch (parameter)
          case 'Energy'  
             %Modify initial conditions 
-            ds = direction*1e-3;                      %Continuation step (will vary depending on the solution stability)
-            step = [ds zeros(1,state_dim-1)];         %Family continuation vector
-            y(1,1:state_dim) = y(1,1:state_dim)+step; %Modify initial conditions 
+            ds = direction*(1e-3);                      %Continuation step (will vary depending on the solution stability)
+            step = [ds zeros(1,state_dim-1)];           %Family continuation vector
+            y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions 
 
             %Main loop
-            while (i <= object_number) && (GoOn)
+            while (num <= object_number) && (GoOn)
                %Differential correction
-               [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
+               [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
                STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                %Study stability 
-               [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
+               [stability(1:state_dim/2,num), stm_state] = henon_stability(STM); 
 
                %Compute the energy of the solution 
                C = jacobi_constant(mu, shiftdim(Y.Trajectory(end,1:state_dim)));
@@ -109,36 +109,37 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
                
                %Convergence and stability analysis
                if (stm_state) && (par_error > tol)   
-                   T(i) = Y.Period;                              %Update the period vector
-                   X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+                   T(num) = Y.Period;                            %Update the period vector
+                   X(num,:) = Y.Trajectory(1,1:state_dim);       %Save initial conditions
 
                    %Update initial conditions
                    y = Y.Trajectory(:,1:state_dim);
                    y(1,:) = y(1,:)+step;     
-                   i = i+1;                                      %Update iteration value
+                   num = num+1;                                  %Update iteration value
                else
-                   i = i+1;                                      %Update iteration value
+                   num = num+1;                                  %Update object number
                    %Correct the final desired orbit
-                   [Y, state(i)] = differential_correction('Jacobi Constant Multiple Shooting', mu, y, n, tol, nodes, object_period, Cref);
-                   X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+                   [Y, state(num)] = differential_correction('Jacobi Constant Multiple Shooting', mu, y, n, tol, ...
+                                                             nodes, object_period, Cref);
+                   X(num,:) = Y.Trajectory(1,1:state_dim);       %Save initial conditions
                    GoOn = false;                                 %Stop the process
                end  
             end
            
          case 'Period'
             %Modify initial conditions 
-            ds = direction*1e-1;                                 %Continuation step 
+            ds = direction*(1e-1);                               %Continuation step 
             object_period = object_period+ds;                    %Modify initial conditions 
             corrector = 'Periodic Multiple Shooting';            %Algorithm corrector
 
             %Main loop
-            while (i <= object_number) && (GoOn)
+            while (num <= object_number) && (GoOn)
                 %Differential correction
-                [Y, state(i)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
+                [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
                 STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                 %Study stability 
-                [stability(1:state_dim/2,i), stm_state] = henon_stability(STM); 
+                [stability(1:state_dim/2,num), stm_state] = henon_stability(STM); 
 
                 %Compute the energy of the solution 
                 if (isnan(parameter_value))
@@ -149,18 +150,19 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
 
                 %Convergence and stability analysis
                 if (stm_state) && (par_error > tol)   
-                    T(i) = Y.Period;                              %Update the period vector
-                    X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
+                    T(num) = Y.Period;                           %Update the period vector
+                    X(num,:) = Y.Trajectory(1,1:state_dim);      %Save initial conditions
 
                     %Update initial conditions
                     y = Y.Trajectory(:,1:state_dim);                            
-                    object_period = object_period+ds;             %Update orbit period
-                    i = i+1;                                      %Update iteration value
+                    object_period = object_period+ds;            %Update orbit period
+                    num = num+1;                                 %Update iteration value
                 else
-                   i = i+1;                                       %Update iteration value
+                   num = num+1;                                  %Update object number
                    %Correct the final desired orbit
-                   [Y, state(i)] = differential_correction('Periodic Multiple Shooting', mu, y, n, tol, nodes, object_period);
-                   X(i,:) = Y.Trajectory(1,1:state_dim);          %Save initial conditions
+                   [Y, state(num)] = differential_correction('Periodic Multiple Shooting', mu, y, n, tol, ...
+                                                             nodes, object_period);
+                   X(num,:) = Y.Trajectory(1,1:state_dim);        %Save initial conditions
                    GoOn = false;                                  %Stop the process
                 end  
             end
@@ -192,9 +194,6 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     n = setup(2);                               %Maximum number of iterations for the differential correction process 
     tol = setup(3);                             %Tolerance for the differential correction method
     direction = setup(4);                       %Direction to continuate for
-
-    GoOn = true;                                %Boolean to stop the continuation process
-    i = 1;                                      %Continuation iteration
             
     %Preallocate solution
     state = zeros(1,object_number);             %Preallocate convergence solution
@@ -202,19 +201,14 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     T = zeros(1,object_number);                 %Period of each orbit
     stability = zeros(1,object_number);         %Stability index of each orbit
     y = seed;                                   %Initial solution
-                
-    %Main computation
-    %Modify initial conditions 
     ds = direction*(0.5);                       %Initial step
-    Jab = jacobian(y(1,1:state_dim));           %Jacobian matrix of the initial seed
-    nullVector = null(Jab);                     %Null vector of the Jacobian matrix
-    step = ds*nullVector;                       %Family continuation vector
-    y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions 
+    
+    i = 1;                                      %Continuation iteration
 
     %Main loop
-    while (i <= object_number) && (GoOn)
+    while (i <= object_number)
     	%Differential correction
-        [Y, state(i)] = differential_correction('PA_Periodic_scheme', mu, y, n, tol, nodes, object_period);
+        [Y, state(i)] = differential_correction('PA_Periodic_scheme', mu, y, n, tol, nodes, object_period, ds, i);
         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
         %Study stability 
@@ -226,9 +220,14 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
             X(i,:) = Y.Trajectory(1,1:state_dim);         %Save initial conditions
 
             %Update initial conditions
+            if (i == 1)
+                ds = Y.Iter*ds;                           %Update the step length
+            else
+                ds = (Y.Iter/iter)*ds;                    %Update the step length
+                iter = Y.Iter;                            %Update number of iterations
+            end
             y = Y.Trajectory(:,1:state_dim);
-            y(1,:) = y(1,:)+step;     
-            i = i+1;                                      %Update iteration value
+            i = i+1;                                      %Update object number
         end
     end 
     
