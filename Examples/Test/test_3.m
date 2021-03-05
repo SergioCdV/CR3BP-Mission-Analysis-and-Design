@@ -53,6 +53,7 @@ Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.T
 
 %% Plotting and results 
 figure(1) 
+view(3)
 plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');
