@@ -21,9 +21,9 @@
 % Output: - dx, an n/n+n^2 x 1 size vector containing the time flow of the full
 %           dynamical model of the satellite.
 
-% Methods: classical Euler solid rigid equations.
+% Methods: 
 
-% New version:
+% New version: classical Euler solid rigid equations.
 
 function [dx] = cr3bp_dynamics(sysData, satData, flags, t, x)
     %Define relevant constants 
