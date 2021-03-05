@@ -43,7 +43,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, n, tol, vara
         case 'Jacobi Constant Multiple Shooting'
             [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin);
         case 'Periodic PSC Multiple Shooting'
-            [xf, state] = PS_Periodic_scheme(mu, seed, n, tol, varargin);
+            [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin);
         otherwise
             disp('No valid options was selected.');
             xf = [];
