@@ -45,11 +45,11 @@ tol = 1e-5;                                                 %Tolerance
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
 %Manifold computation
-rho = 30;                    %Number of manifold fibers to compute
+rho = 10;                    %Number of manifold fibers to compute
 manifold_ID = 'U';           %Unstable manifold (U or S)
 manifold_branch = 'R';       %Left branch of the manifold (L or R)
 
-Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
+Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, 0:dt:1.5*pi);
 
 %% Plotting and results 
 figure(1) 
@@ -79,5 +79,5 @@ hold off
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');
 zlabel('Synodic normalized z coordinate');
-title('Lyapunov orbit and left unstable manifold');
+title('Lyapunov orbit and associated manifold');
 grid on;

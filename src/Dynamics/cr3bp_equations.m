@@ -50,16 +50,16 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
     
     %Compute the time flow of the system (depending on the time direction)
     if (direction == -1)
-        inAcc = [x-2*V(2); y+2*V(1); 0];                    %Inertial acceleration
+        gamma = [x-2*V(2); y+2*V(1); 0];                    %Inertial acceleration
     else
-        inAcc = [x+2*V(2); y-2*V(1); 0];                    %Inertial acceleration
+        gamma = [x+2*V(2); y-2*V(1); 0];                    %Inertial acceleration
     end
-    F = [V; inAcc-mu1/R1^3*r1-mu2/R2^3*r2];                 %Time flow of the system
+    F = [V; gamma-mu1/R1^3*r1-mu2/R2^3*r2];                 %Time flow of the system
     
     %Compute the variational equations if needed
     if (flagVar)
         %Compute the initial STM
-        phi = reshape(s(n+1:end), [n n]);
+        Phi = reshape(s(n+1:end), [n n]);
         
         %First variations of the augmented potential function (Hessian of the potential)
         Ux = 1-(mu1/R1^3)*(1-3*((x+mu2)/R1)^2)-(mu2/R2^3)*(1-3*((x-mu1)/R2)^2); 
@@ -78,7 +78,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
         G = [Ux Uxy Uxz; Uyx Uy Uyz; Uzx Uzy Uz];
         K = [0 2 0; -2 0 0; 0 0 0];
         Jacob = [O I; G K];                             %Jacobian of the system   
-        dphi = Jacob*phi;                               %Variational equations
+        dphi = Jacob*Phi;                               %Variational equations
         dphi = reshape(dphi, [n^2 1]); 
         
         %Update the differential configuration space vector

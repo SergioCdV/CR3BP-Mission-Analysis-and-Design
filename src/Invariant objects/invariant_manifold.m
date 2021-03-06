@@ -6,7 +6,7 @@
 % Validated: 
 
 %% Invariant manifold %%
-% This function contains the algorithm to compute the invariant manifold associated with 
+% This function contains the algorithm to compute the invariant manifolds associated with 
 % a particular solution orbit.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
@@ -20,7 +20,7 @@
 %           complete a orbital period.
 %         - scalar rho, a number of fibers/trajectories to compute on the
 %           manifold.
-%         - scalar time, a time to integrate the dynamics
+%         - scalar time, to integrate the dynamics
 
 % Output: - vector field M, containing the manifold evolution for each
 %           fiber. 
@@ -34,7 +34,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
     %General constants 
     flagVar = false;             %No STM integration needed
     n = 6;                       %Phase space dimension
-    epsilon = 1e-8;              %Displacement of the initial conditions  
+    epsilon = 1e-5;              %Displacement of the initial conditions  
     T = size(r,1);               %Orbit period in nondimensinal units
     
     %Integration tolerances
@@ -48,9 +48,9 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
         eigenV = 1;             %Unstable eigenvector
     elseif (manifold == 'S')
         direction = -1;         %Backward integration
-        eigenV = 6;             %Stable eigenvector
+        eigenV = 2;             %Stable eigenvector
     else
-        disp('No valid option was selected. Try again.'); 
+        disp('No valid manifold was selected. Try again.'); 
         disp(' ');
         M = [];
     end
@@ -71,8 +71,8 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
     h = round((T-1)/rho);                       %Spatial step
     for i = 1:rho
         %Position and time in the periodic orbit 
-        orbitX0 = r((i-1)*h+1,1:n);             %Orbit point position
-        orbitT = (i-1)*h+1;                     %Orbit independent variables (t or theta)
+        orbitT = (i-1)*h+1;                     %Orbit independent variables (t or theta, using a time law)
+        orbitX0 = r(orbitT,1:n);                %Orbit point position
         
         %STM at that point and time
         Phi = reshape(r(orbitT,n+1:end), [n n]);
