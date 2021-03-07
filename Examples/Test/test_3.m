@@ -45,11 +45,11 @@ tol = 1e-5;                                                 %Tolerance
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
 %Manifold computation
-rho = 10;                    %Number of manifold fibers to compute
+rho = 40;                    %Number of manifold fibers to compute
 manifold_ID = 'U';           %Unstable manifold (U or S)
-manifold_branch = 'R';       %Left branch of the manifold (L or R)
+manifold_branch = 'L';       %Left branch of the manifold (L or R)
 
-Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, 0:dt:1.5*pi);
+Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, 0:dt:2*pi);
 
 %% Plotting and results 
 figure(1) 
@@ -65,16 +65,16 @@ figure(2)
 hold on 
 for i = 1:size(Manifold,1)
     ManifoldAux = shiftdim(Manifold(i,:,:));
-    plot3(ManifoldAux(:,1), ManifoldAux(:,2), ManifoldAux(:,3), 'r');
+    plot3(ManifoldAux(:,1), ManifoldAux(:,2), ManifoldAux(:,3), 'm');
 end
 plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
-plot3(L(1,1), L(2,1), L(3,1), 'ok');
-plot3(L(1,2), L(2,2), L(3,2), 'ok');
-plot3(L(1,3), L(2,3), L(3,3), 'ok');
-plot3(L(1,4), L(2,4), L(3,4), 'ok');
-plot3(L(1,5), L(2,5), L(3,5), 'ok');
-plot3(-mu, 0, 0, 'ob');
-plot3(1-mu, 0, 0, 'ob');
+% plot3(L(1,1), L(2,1), L(3,1), 'ok');
+% plot3(L(1,2), L(2,2), L(3,2), 'ok');
+% plot3(L(1,3), L(2,3), L(3,3), 'ok');
+% plot3(L(1,4), L(2,4), L(3,4), 'ok');
+% plot3(L(1,5), L(2,5), L(3,5), 'ok');
+% plot3(-mu, 0, 0, 'ob');
+% plot3(1-mu, 0, 0, 'ob');
 hold off
 xlabel('Synodic normalized x coordinate');
 ylabel('Synodic normalized y coordinate');

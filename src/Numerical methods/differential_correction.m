@@ -791,8 +791,6 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
         nodes = local_inputs{1};            %Nodes to compute
         T = local_inputs{2};                %Initial period of the orbit
         ds = local_inputs{3};               %Pseudo-archlength step
-        previousSolution = local_inputs{4}; %Previous converged solution
-        nullVector = local_inputs{5};       %Null vector of the Jacobian of the previous converged solution
         
         if (nodes < 2) 
             disp('No valid inputs. Correction is about to finish.'); 
@@ -813,6 +811,10 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
         state = false; 
         return;
     end
+    
+    %Compute the Jacobian of the solution 
+    
+    %Step in the family direction
     
     %Constants 
     m = 6;                                      %Phase space dimension 
@@ -888,7 +890,7 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
                 %Pseudo-arclength constraint
                 if (i == 1)
-                    e(end) = (previousSolution-internalSeed(1:m)).'*nullVector-ds;
+                    e(end) = (initSol-internalSeed(1:m)).'*nullVector-ds;
                 end
             else
                 dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
@@ -920,6 +922,7 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
     %Ouput corrected trajectory 
     xf.Trajectory = S;                           %Trajectory
     xf.Period = t(end);                          %Orbit period
+    xf.Iter = iter;                              %Number of iterations needed to converge
         
     %Ouput differential correction scheme convergence results
     state = ~GoOn;

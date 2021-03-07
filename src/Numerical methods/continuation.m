@@ -70,7 +70,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     mu = setup(1);                              %Reduce gravitational parameter of the system
     n = setup(2);                               %Maximum number of iterations for the differential correction process 
     tol = setup(3);                             %Tolerance for the differential correction method
-    direction = setup(4);                       %Direction to continuate for
+    direction = setup(4);                       %Direction to continuate in
             
     %Preallocate solution
     state = zeros(1,object_number);             %Preallocate convergence solution
@@ -193,7 +193,7 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     mu = setup(1);                              %Reduce gravitational parameter of the system
     n = setup(2);                               %Maximum number of iterations for the differential correction process 
     tol = setup(3);                             %Tolerance for the differential correction method
-    direction = setup(4);                       %Direction to continuate for
+    direction = setup(4);                       %Direction to continuate in
             
     %Preallocate solution
     state = zeros(1,object_number);             %Preallocate convergence solution
@@ -203,12 +203,12 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     y = seed;                                   %Initial solution
     ds = direction*(0.5);                       %Initial step
     
-    i = 1;                                      %Continuation iteration
+    i = 1;                                      %Continuation number
 
     %Main loop
     while (i <= object_number)
     	%Differential correction
-        [Y, state(i)] = differential_correction('PA_Periodic_scheme', mu, y, n, tol, nodes, object_period, ds, i);
+        [Y, state(i)] = differential_correction('PA_Periodic_scheme', mu, y, n, tol, nodes, object_period, ds);
         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
         %Study stability 

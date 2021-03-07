@@ -80,7 +80,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
         %Initial conditions of the manifold fiber
         mV = Phi*mV0;                           %Pushed and propagate the selected eigenvector
         mV = mV/norm(mV);                       %Normalized propagated selected eigenvector
-        M0(i,:) = orbitX0+epsilon*mV.';         %Manifold initial condition
+        M0(i,:) = orbitX0+epsilon*mV.';         %Manifold initial conditions
     end
     
     %Complete manifold integration 
