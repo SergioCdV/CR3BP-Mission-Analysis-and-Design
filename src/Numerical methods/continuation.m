@@ -200,19 +200,18 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     T = zeros(1,object_number);                 %Period of each orbit
     stability = zeros(1,object_number);         %Stability index of each orbit
     y = seed;                                   %Initial solution
-    ds = direction*(0.5);                       %Initial step
-    
+    ds = direction*(0.5);                       %Initial step  
     i = 0;                                      %Continuation number
     
     %Initial evaluation
-    [Y,  ~] = differential_correction('Periodic PSC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
+    [Y,  ~] = differential_correction('Periodic PAC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
     
     %Main loop
     y = Y;                          %Auxiliary variable
     i = 1;                          %Initial continuation object  
     while (i <= object_number)
     	%Differential correction
-        [Y, state(i)] = differential_correction('Periodic PSC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
+        [Y, state(i)] = differential_correction('Periodic PAC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
         %Study stability 
