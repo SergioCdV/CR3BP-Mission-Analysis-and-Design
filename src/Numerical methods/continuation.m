@@ -186,7 +186,6 @@ end
 function [Output, state] = PA_Orbit_continuation(object_number, Object, setup) 
     %Constants 
     state_dim = 6;                              %Phase space dimension 
-    nodes = 15;                                 %Number of nodes to correct the object
 
     seed = Object{2};                           %Initial orbit seed
     object_period = Object{3};                  %Orbit initial period
@@ -203,12 +202,17 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
     y = seed;                                   %Initial solution
     ds = direction*(0.5);                       %Initial step
     
-    i = 1;                                      %Continuation number
-
+    i = 0;                                      %Continuation number
+    
+    %Initial evaluation
+    [Y,  ~] = differential_correction('Periodic PSC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
+    
     %Main loop
+    y = Y;                          %Auxiliary variable
+    i = 1;                          %Initial continuation object  
     while (i <= object_number)
     	%Differential correction
-        [Y, state(i)] = differential_correction('PA_Periodic_scheme', mu, y, n, tol, nodes, object_period, ds);
+        [Y, state(i)] = differential_correction('Periodic PSC Multiple Shooting', mu, y, n, tol, object_period, i, ds);
         STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
         %Study stability 
@@ -226,7 +230,7 @@ function [Output, state] = PA_Orbit_continuation(object_number, Object, setup)
                 ds = (Y.Iter/iter)*ds;                    %Update the step length
                 iter = Y.Iter;                            %Update number of iterations
             end
-            y = Y.Trajectory(:,1:state_dim);
+            y = Y;                                        %Auxiliary variable
             i = i+1;                                      %Update object number
         end
     end 

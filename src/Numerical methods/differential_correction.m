@@ -45,7 +45,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, n, tol, vara
         case 'Periodic PSC Multiple Shooting'
             [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin);
         otherwise
-            disp('No valid options was selected.');
+            disp('No valid option was selected.');
             xf = [];
             state = false;
     end
@@ -508,6 +508,9 @@ end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
 function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
+    %Constants 
+    m = 6;                                  %Phase space dimension 
+    
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
        disp('No valid inputs. Correction is about to finish.');
@@ -528,8 +531,8 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
     end
     
     %Sanity check on initial conditions dimension
-    if (size(seed,2) == 6) || (size(seed,1) == 6)
-        if (size(seed,2) == 6)
+    if (size(seed,2) == m) || (size(seed,1) == m)
+        if (size(seed,2) == m)
             seed = seed.';          %Accomodate new format
         end
     else
@@ -540,7 +543,6 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
     end
     
     %Constants 
-    m = 6;                          %Phase space dimension 
     Phi = eye(m);                   %Initial STM  
     Phi = reshape(Phi, [m^2 1]);    %Initial STM 
     dt = 1e-4;                      %Integration time step
@@ -644,6 +646,9 @@ end
 
 %Compute periodic orbits using multiple shooting and fixed Jacobi Constant value 
 function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
+    %Constants 
+    m = 6;                                  %Phase space dimension
+    
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
        disp('No valid inputs. Correction is about to finish.');
@@ -665,8 +670,8 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
     end
     
     %Sanity check on initial conditions dimension
-    if (size(seed,2) == 6) || (size(seed,1) == 6)
-        if (size(seed,2) == 6)
+    if (size(seed,2) == m) || (size(seed,1) == m)
+        if (size(seed,2) == m)
             seed = seed.';          %Accomodate new format
         end
     else
@@ -677,7 +682,6 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
     end
     
     %Constants 
-    m = 6;                          %Phase space dimension 
     Phi = eye(m);                   %Initial STM  
     Phi = reshape(Phi, [m^2 1]);    %Initial STM 
     dt = 1e-4;                      %Integration time step
@@ -779,7 +783,10 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
-function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
+function [xf, state] = PA_Periodic_scheme(mu, y, n, tol, varargin)
+    %Constants 
+    m = 6;                                  %Phase space dimension 
+        
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
        disp('No valid inputs. Correction is about to finish.');
@@ -788,22 +795,20 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
        return;
     else
         local_inputs = varargin{1};
-        nodes = local_inputs{1};            %Nodes to compute
-        T = local_inputs{2};                %Initial period of the orbit
+        T = local_inputs{1};                %Initial period of the orbit
+        num = local_inputs{2};              %Continuation iteration
         ds = local_inputs{3};               %Pseudo-archlength step
-        
-        if (nodes < 2) 
-            disp('No valid inputs. Correction is about to finish.'); 
-            xf = []; 
-            state = false;
-            return;
+        if (num == 0)
+            seed = y;                       %Initial trajectory
+        else
+            seed = y.Trajectory(:,1:m);     %Initial trajectory
         end
     end
     
     %Sanity check on initial conditions dimension
-    if (size(seed,2) == 6) || (size(seed,1) == 6)
-        if (size(seed,2) == 6)
-            seed = seed.';          %Accomodate new format
+    if (size(seed,2) == m) || (size(seed,1) == m)
+        if (size(seed,2) == m)
+            seed = seed.';                  %Accomodate new format
         end
     else
         disp('No valid initial conditions.');
@@ -811,30 +816,33 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
         state = false; 
         return;
     end
-    
-    %Compute the Jacobian of the solution 
-    
-    %Step in the family direction
-    
+        
     %Constants 
-    m = 6;                                      %Phase space dimension 
     Phi = eye(m);                               %Initial STM  
     Phi = reshape(Phi, [m^2 1]);                %Initial STM 
     dt = 1e-4;                                  %Integration time step
-    h = fix(size(seed,2)/nodes)-1;              %Temporal index step
+    nodes = 15;                                 %Number of internal patch points
     Dt = T/nodes;                               %Time step
-    constraints = 7;                            %Additional constraints to continuity
+    constraints = 6;                            %Additional constraints to continuity
         
-    %Preallocate internal patch points seeds 
-    internalSeed = zeros((m+1)*nodes-1,1);    
-    
-    %Divide the orbit into the internal nodes
-    for i = 1:nodes
-        internalSeed(m*(i-1)+1:m*i) = seed(1:m,(i-1)*h+1);
-        if (i ~= nodes)
-            internalSeed(end-(nodes-1)+i) = Dt;
-        end
-    end    
+    %Initial conditions
+    if (num == 0)
+        %Preallocate internal patch points seeds 
+        h = fix(size(seed,2)/nodes)-1;          %Temporal index step
+        internalSeed = zeros((m+1)*nodes-1,1);    
+
+        %Divide the orbit into the internal nodes
+        for i = 1:nodes
+            internalSeed(m*(i-1)+1:m*i) = seed(1:m,(i-1)*h+1);
+            if (i ~= nodes)
+                internalSeed(end-(nodes-1)+i) = Dt;
+            end
+        end  
+    else
+        %Step into the tangent family direction
+        V = null(y.Jacobian);
+        internalSeed = y.PatchPoints+ds*V;
+    end
     
     %Set up integration 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration conditions and tolerances                     
@@ -871,39 +879,41 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
                 A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = reshape(S(end,m+1:end),[m m]);  %Subarc STM
                 A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                        %Continuity constraint matrix
                 B(m*(i-1)+1:m*i,i) = F(1:m);                                     %Dynamics matrix
-                %Pseudo-arclength constraint
-                if (i == 1)
-                    A(end,:) = nullVector.';                                     %Constraint matrix
-                end
             else
                 %Periodicity constraint
                 STM = reshape(S(end,m+1:end),[m, m]);                            %Subarc STM
-                A(end-m:end-2,end-m+1:end) = [STM(1:4,:); STM(1,:)];             %Constraint matrix
-                A(end-m:end-2,1:m) = -[eye(4) zeros(4,2); zeros(1,5) 1];         %Constraint matrix          
+                A(end-m+1:end-1,end-m+1:end) = [STM(1:4,:); STM(1,:)];           %Constraint matrix
+                A(end-m+1:end-1,1:m) = -[eye(4) zeros(4,2); zeros(1,5) 1];       %Constraint matrix          
                 %Jacobi Constant constraint
-                A(end-1,end-m+1:end) = -jacobi_gradient(mu, S(end,1:m).').';     %Constraint matrix
-                A(end-1,1:m) = -jacobi_gradient(mu, internalSeed(1:m)).';        %Constraint matrix
+                A(end,end-m+1:end) = -jacobi_gradient(mu, S(end,1:m).').';       %Constraint matrix
+                A(end,1:m) = -jacobi_gradient(mu, internalSeed(1:m)).';          %Constraint matrix
             end     
             
             %Compute the error
             if (i ~= nodes)
                 e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
-                %Pseudo-arclength constraint
-                if (i == 1)
-                    e(end) = (initSol-internalSeed(1:m)).'*nullVector-ds;
-                end
             else
                 dR = shiftdim(S(end,1:m).'-internalSeed(1:m));
-                e(end-m:end-2) = [dR(1:4); dR(6)];                                                    %Periodicity constraint
-                e(end-1) = jacobi_constant(mu, internalSeed(1:m))-jacobi_constant(mu, S(end,1:m).');  %Jacobi Constant constraint
+                e(end-m+1:end-1) = [dR(1:4); dR(6)];                                                %Periodicity constraint
+                e(end) = jacobi_constant(mu, internalSeed(1:m))-jacobi_constant(mu, S(end,1:m).');  %Jacobi Constant constraint
             end
+        end
+        
+        %Pseudo-arclength constraint 
+        if (num ~= 0)
+            A(constraints+1,:) = nullVector.';                                     %Constraint matrix
+            e(constraints+1) = (initSol-internalSeed(1:m)).'*nullVector-ds;        %Error            
         end
         
         %Full covariance matrix 
         C = [A B];
                 
         %Compute the correction 
-        ds0(:,iter) = C\e;                              %Compute the variation (under-determined case)
+        if (num == 0)
+            ds0(:,iter) = C.'*(C*C.')^(-1)*e;           %Compute the variation (under-determined case)
+        else
+            ds0(:,iter) = C\e;                          %Compute the variation (determined case)
+        end
         
         %Convergence analysis 
         if (norm(e) <= tol)
@@ -922,6 +932,8 @@ function [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin)
     %Ouput corrected trajectory 
     xf.Trajectory = S;                           %Trajectory
     xf.Period = t(end);                          %Orbit period
+    xf.PatchPoints = internalSeed;               %Converged internal patch points
+    xf.Jacobian = C;                             %Converged jacobian of the patch points
     xf.Iter = iter;                              %Number of iterations needed to converge
         
     %Ouput differential correction scheme convergence results

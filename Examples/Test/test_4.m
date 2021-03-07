@@ -43,31 +43,31 @@ direction = 1;                                              %Direction to contin
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
 %Continuation procedure 
-method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                              %Differential corrector method
-setup = [mu maxIter tol direction];                         %General setup
-
-[Results_energy, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
-
-%Continuation procedure 
-method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Period', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
-corrector = ' ';                                            %Differential corrector method
-setup = [mu maxIter tol direction];                         %General setup
-
-[Results_period, state_period] = continuation(num, method, algorithm, object, corrector, setup);
-
-%Continuation procedure 
-% method = 'PAC';                                             %Type of continuation method (Single-Parameter Continuation)
+% method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+% algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+% object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+% corrector = 'Plane Symmetric';                              %Differential corrector method
+% setup = [mu maxIter tol direction];                         %General setup
+% 
+% [Results_energy, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
+% 
+% %Continuation procedure 
+% method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 % algorithm = {'Period', NaN};                                %Type of SPC algorithm (on period or on energy)
 % object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
 % corrector = ' ';                                            %Differential corrector method
 % setup = [mu maxIter tol direction];                         %General setup
 % 
-% [Results_PA, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+% [Results_period, state_period] = continuation(num, method, algorithm, object, corrector, setup);
+
+%Continuation procedure 
+method = 'PAC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Period', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+corrector = ' ';                                            %Differential corrector method
+setup = [mu maxIter tol direction];                         %General setup
+
+[Results_PA, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
 %% Plotting and results 
 %Plot results
