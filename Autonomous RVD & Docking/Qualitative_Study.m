@@ -21,23 +21,23 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 
 %% Contants and initial data %% 
 % Time span 
-dt = 1e-3;                  %Time step
-tmax = 2*pi;                %Maximum time of integration (corresponding to a synodic period)
-tspan = 0:dt:tmax;          %Integration time span
+dt = 1e-3;                          %Time step
+tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tspan = 0:dt:tmax;                  %Integration time span
 
 % CR3BP constants 
-mu = 0.0121505;             %Earth-Moon reduced gravitational parameter
-L = libration_points(mu);   %System libration points
-Lem = 384400e3;             %Mean distance from the Earth to the Moon
+mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
+L = libration_points(mu);           %System libration points
+Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 % CR3BP integration flags 
-flagVar = 1;                %Integrate the dynamics and the first variotional equations 
-direction = 1;              %Integrate forward in time 
+flagVar = 1;                        %Integrate the dynamics and the first variotional equations 
+direction = 1;                      %Integrate forward in time 
 
 % Differential corrector set up
-nodes = 10;                 %Number of nodes for the multiple shooting corrector
-maxIter = 20;               %Maximum number of iterations
-tol = 1e-7;                 %Differential corrector tolerance
+nodes = 10;                         %Number of nodes for the multiple shooting corrector
+maxIter = 20;                       %Maximum number of iterations
+tol = 1e-7;                         %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
@@ -46,7 +46,7 @@ Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances
 Ln = 2;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-K = 1e-7;                                                   %Nondimensional distance from target to chaser
+K = 1e-8;                                                   %Nondimensional distance from target to chaser
 
 %Compute a halo seed 
 halo_param = [1 Az Ln gamma m];                             %Northern halo parameters
@@ -55,21 +55,52 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Correct the seed and obtain initial conditions for a halo orbit
 [halo_orbit, state] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%% Modelling %% 
-r_t0 = halo_orbit.Trajectory(1,1:6);        %Initial target conditions
-r_c0(1:6) = r_t0(1:6)+K*rand(1,6);          %Initial chaser conditions 
-rho0 = K*rand(1,6);                         %Initial relative conditions
-s0 = [r_t0 rho0];                           %Initial conditions of the target and the relative state
+%% Modelling in the synodic frame %% 
+r_t0 = halo_orbit.Trajectory(1,1:6);                        %Initial target conditions
+r_c0(1:6) = r_t0(1:6)+K*rand(1,6);                          %Initial chaser conditions 
+rho0 = K*rand(1,6);                                         %Initial relative conditions
+s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
 %Integration of the model
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
-[t, S] = ode113(@(t,s)full_model(mu, true, false, t, s), tspan, s0, options);
+[t, S] = ode113(@(t,s)fulrel_motion(mu, true, false, true, t, s), tspan, s0, options);
+%[t, Sn] = ode113(@(t,s)fulrel_motion(mu, true, false, false, t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                  %Reconstructed chaser motion
+S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
+error = S_c-S_rc;                                           %Compute the error via the full nonlinear model with the Encke method
+%S_rcn = Sn(:,1:6)+Sn(:,7:12);                               %Reconstructed chaser motion via the full nonlinear model
+%error_n = S_c-S_rce;                                        %Compute the error via the full nonlinear model
 
-%Compute the error 
-error = S_c-S_rc;
+%% Results in the inertial frame %% 
+%Preallocation 
+inertial_error = zeros(size(S_c,1),3);      %Position error in the inertial frame
+
+%Main computation
+for i = 1:size(S_c,1)
+     elaps = dt*(i-1);                                                       %Elaps time
+     inertial_error(i,:) = (inertial2synodic(elaps, error(i,1:3).', 1)).';   %Position error in the synodic frame
+end
+
+%% Results in the libration synodic frame %% 
+%Preallocation 
+libration_error = zeros(size(S_c,1),3);     %Position error in the synodic frame
+
+%Main computation
+for i = 1:size(S_c, 1)
+     libration_error(i,:) = (synodic2lagrange(mu, gamma, Ln, error(i,1:3).', 1)).'; %Position error in the synodic frame
+end
+
+%% Results in the Frenet-Serret frame of the target orbit %% 
+%Preallocation
+T = zeros(size(S_c,1),3,3);             %Synodic to Frenet frame rotation matrix
+frenet_error = zeros(size(S_c,1), 3);   %Position error in the Frenet frame
+
+%Main computation
+for i = 1:size(S_c,1)
+    T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                   %Frenet-Serret frame
+    frenet_error(i,:) = (shiftdim(T(i,:,:))*error(i,1:3).').';   %Position error in the Frenet-Serret frame of the target orbit
+end
 
 %% Results %% 
 % Plot results 
@@ -87,41 +118,35 @@ zlabel('Synodic z coordinate');
 grid on;
 
 figure(2) 
+hold on
 plot(t, error); 
+%plot(t, error_n(:,1), 'r');
+hold off
+grid on
 xlabel('Nondimensional epoch'); 
-ylabel('Relative error'); 
+ylabel('Relative error in the synodic frame');
+title('Error in the chaser motion reconstruction')
 
-%% Relative motion model 
-function [drho] = relative_motion(mu, s_t, s_r)
-    %Constants of the system 
-    mu1 = 1-mu;             %Reduced gravitational parameter of the first primary 
-    mu2 = mu;               %Reduced gravitational parameter of the second primary 
-    
-    %State variables 
-    r_t = s_t(1:3);         %Synodic position of the target
-    r_r = s_r(1:3);         %Synodic relative position 
-    v_r = s_r(4:6);         %Synodic relative velotice 
-    
-    %Synodic position of the primaries 
-    R1 = [-mu; 0; 0];       %Synodic position of the first primary
-    R2 = [1-mu; 0; 0];      %Synodic position of the second primary
-    
-    %Equations of motion 
-    drho = [v_r; 
-            r_r(1)+2*v_r(2)-mu1*((r_t(1)+mu)/norm(r_t-R1)^3-(r_t(1)+r_r(1)+mu)/norm(r_t-R1+r_r)^3)-mu2*((r_t(1)-(1-mu))/norm(r_t-R2)^3-(r_t(1)+r_r(1)-(1-mu))/norm(r_t-R2+r_r)^3); 
-            r_r(2)-2*v_r(1)-mu1*(r_t(2)/norm(r_t-R1)^3-(r_t(2)+r_r(2))/norm(r_t-R1+r_r)^3)-mu2*(r_t(2)/norm(r_t-R2)^3-(r_t(2)+r_r(2))/norm(r_t-R2+r_r)^3); 
-            -mu1*(r_t(3)/norm(r_t-R1)^3-(r_t(3)+r_r(3))/norm(r_t-R1+r_r)^3)-mu2*(r_t(3)/norm(r_t-R2)^3-(r_t(3)+r_r(3))/norm(r_t-R2+r_r)^3)];
-end
+figure(3) 
+plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
+xlabel('Nondimensional x coordinate'); 
+ylabel('Nondimensional y coordinate');
+zlabel('Nondimensional z coordinate');
+grid on
+title('Position error in the inertial frame'); 
 
-function [ds] = full_model(mu, true, false, t, s)
-    %State variables 
-    s_t = s(1:6);       %State of the target
-    rho = s(7:12);      %State of the chaser
-    
-    %Equations of motion 
-    ds_t = cr3bp_equations(mu, true, false, t, s_t);        %Target equations of motion
-    drho = relative_motion(mu, s_t, rho);                   %Relative motion equations
-    
-    %Vector field 
-    ds = [ds_t; drho];
-end
+figure(4) 
+plot3(libration_error(:,1), libration_error(:,2), libration_error(:,3)); 
+xlabel('Nondimensional x coordinate'); 
+ylabel('Nondimensional y coordinate');
+zlabel('Nondimensional z coordinate');
+grid on
+title('Position error in the libration synodic frame'); 
+
+figure(5) 
+plot3(frenet_error(:,1), frenet_error(:,2), frenet_error(:,3)); 
+xlabel('Nondimensional x coordinate'); 
+ylabel('Nondimensional y coordinate');
+zlabel('Nondimensional z coordinate');
+grid on
+title('Position error in the Frenet-Serret frame');
