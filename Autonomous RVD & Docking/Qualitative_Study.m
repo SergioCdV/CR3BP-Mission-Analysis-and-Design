@@ -99,7 +99,7 @@ frenet_error = zeros(size(S_c,1), 3);   %Position error in the Frenet frame
 %Main computation
 for i = 1:size(S_c,1)
     T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                   %Frenet-Serret frame
-    frenet_error(i,:) = (shiftdim(T(i,:,:))*error(i,1:3).').';   %Position error in the Frenet-Serret frame of the target orbit
+    frenet_error(i,:) = (shiftdim(T(i,:,:)).'*error(i,1:3).').'; %Position error in the Frenet-Serret frame of the target orbit
 end
 
 %% Results %% 
