@@ -43,7 +43,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, n, tol, vara
         case 'Jacobi Constant Multiple Shooting'
             [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin);
         case 'Periodic PAC Multiple Shooting'
-            [xf, state] = PA_Periodic_scheme(mu, seed, n, tol, varargin);
+            [xf, state] = PAC_Periodic_scheme(mu, seed, n, tol, varargin);
         otherwise
             disp('No valid option was selected.');
             xf = [];
@@ -783,7 +783,7 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
-function [xf, state] = PA_Periodic_scheme(mu, y, n, tol, varargin)
+function [xf, state] = PAC_Periodic_scheme(mu, y, n, tol, varargin)
     %Constants 
     m = 6;                                  %Phase space dimension 
         
