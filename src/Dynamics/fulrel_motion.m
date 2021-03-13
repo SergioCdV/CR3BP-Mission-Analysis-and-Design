@@ -57,17 +57,24 @@ function [drho] = relative_motion(mu, s_t, s_r)
     %State variables 
     r_t = s_t(1:3);         %Synodic position of the target
     r_r = s_r(1:3);         %Synodic relative position 
-    v_r = s_r(4:6);         %Synodic relative velotice 
+    v_r = s_r(4:6);         %Synodic relative velocity
+    
+    x = r_r(1);             %Synodic relative x coordinate
+    y = r_r(2);             %Synodic relative y coordinate
     
     %Synodic position of the primaries 
     R1 = [-mu; 0; 0];       %Synodic position of the first primary
     R2 = [1-mu; 0; 0];      %Synodic position of the second primary
     
+    %Relative acceleration 
+    gamma = [2*v_r(2)+y; -2*v_r(1)+x; 0];                                   %Synodic acceleration
+    F1 = mu1*((r_t-R1)/norm(r_t-R1)^3-(r_t-R1+r_r)/norm(r_t-R1+r_r)^3);     %Gravitational force of the first primary
+    F2 = mu2*((r_t-R2)/norm(r_t-R2)^3-(r_t-R2+r_r)/norm(r_t-R2+r_r)^3);     %Gravitational force of the second primary
+    gamma = gamma + F1 + F2;                                                %Total synodic acceleration
+    
     %Equations of motion 
     drho = [v_r; 
-            r_r(1)+2*v_r(2)-mu1*((r_t(1)+mu)/norm(r_t-R1)^3-(r_t(1)+r_r(1)+mu)/norm(r_t-R1+r_r)^3)-mu2*((r_t(1)-(1-mu))/norm(r_t-R2)^3-(r_t(1)+r_r(1)-(1-mu))/norm(r_t-R2+r_r)^3); 
-            r_r(2)-2*v_r(1)-mu1*(r_t(2)/norm(r_t-R1)^3-(r_t(2)+r_r(2))/norm(r_t-R1+r_r)^3)-mu2*(r_t(2)/norm(r_t-R2)^3-(r_t(2)+r_r(2))/norm(r_t-R2+r_r)^3); 
-            -mu1*(r_t(3)/norm(r_t-R1)^3-(r_t(3)+r_r(3))/norm(r_t-R1+r_r)^3)-mu2*(r_t(3)/norm(r_t-R2)^3-(r_t(3)+r_r(3))/norm(r_t-R2+r_r)^3)];
+            gamma];
 end
 
 function [drho] = Encke_method(mu, s_t, s_r)
@@ -89,9 +96,10 @@ function [drho] = Encke_method(mu, s_t, s_r)
     for i = 1:length(mu_r)
         q = -dot(2*(r_t-R(:,i))+r_r,r_r)/norm(r_t+r_r-R(:,i))^2;
         f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
-        gamma = gamma + (mu_r(i)/norm(r_t-R(:,i))^3)*(f*(r_t-R(:,i))+(1+f)*r_r);
+        gamma = gamma - (mu_r(i)/norm(r_t-R(:,i))^3)*(f*(r_t-R(:,i))+(1+f)*r_r);
     end
     
     %Equations of motion 
-    drho = [v_r; gamma];
+    drho = [v_r; 
+            gamma];
 end

@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 % Time span 
 dt = 1e-3;                          %Time step
-tmax = 4*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 % CR3BP constants 
@@ -41,12 +41,11 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 100e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-K = 1e-10;                                                   %Nondimensional distance from target to chaser
 
 %Compute a halo seed 
 halo_param = [1 Az Ln gamma m];                             %Northern halo parameters
@@ -57,8 +56,8 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %% Modelling in the synodic frame %% 
 r_t0 = halo_orbit.Trajectory(1,1:6);                        %Initial target conditions
-r_c0(1:6) = r_t0(1:6)+K*rand(1,6);                          %Initial chaser conditions 
-rho0 = K*rand(1,6);                                         %Initial relative conditions
+r_c0 = halo_orbit.Trajectory(2,1:6);                       %Initial chaser conditions 
+rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
 %Integration of the model
