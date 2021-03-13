@@ -16,7 +16,7 @@ function plotObject(object)
     dim = size(object);
     
     %Main procedure
-    if (any(dim == 20)) || (any(dim == 42))
+    if (any(dim == 20)) || (any(dim == 42)) || ((any(dim == 4)) || (any(dim == 6)))
         %Select the proper format
         if (dim(1) == 4) || (dim(1) == 6)
             object = object.';
@@ -25,8 +25,10 @@ function plotObject(object)
         %Plot object depending on its dimension
         if (dim(2) == 4)
             plot(object(:,1), object(:,2));
+            grid on;
         else
             plot3(object(:,1), object(:,2), object(:,3));
+            grid on;
         end
     else
         disp('No valid object was input. Phase space dimension is not correct.'); 
