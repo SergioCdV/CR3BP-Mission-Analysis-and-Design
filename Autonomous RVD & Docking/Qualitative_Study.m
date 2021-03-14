@@ -56,20 +56,27 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %% Modelling in the synodic frame %% 
 r_t0 = halo_orbit.Trajectory(1,1:6);                        %Initial target conditions
-r_c0 = halo_orbit.Trajectory(2,1:6);                       %Initial chaser conditions 
+r_c0 = halo_orbit.Trajectory(2,1:6);                        %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
 %Integration of the model
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
-[t, S] = ode113(@(t,s)fulrel_motion(mu, true, false, true, t, s), tspan, s0, options);
-%[t, Sn] = ode113(@(t,s)fulrel_motion(mu, true, false, false, t, s), tspan, s0, options);
+[~, S] = ode113(@(t,s)fulrel_motion(mu, true, false, true, t, s), tspan, s0, options);
+[t, Sn] = ode113(@(t,s)fulrel_motion(mu, true, false, false, t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 error = S_c-S_rc;                                           %Compute the error via the full nonlinear model with the Encke method
-%S_rcn = Sn(:,1:6)+Sn(:,7:12);                               %Reconstructed chaser motion via the full nonlinear model
-%error_n = S_c-S_rce;                                        %Compute the error via the full nonlinear model
+S_rcn = Sn(:,1:6)+Sn(:,7:12);                               %Reconstructed chaser motion via the full nonlinear model
+error_n = S_c-S_rcn;                                        %Compute the error via the full nonlinear model
+
+ep = zeros(size(error,1), 1);                               %Position error (L2 norm) via Encke's method
+epn = zeros(size(error,1), 1);                              %Position error (L2 norm) via direct integration
+for i = 1:size(error,1)
+    ep(i) = norm(error(i,1:3));
+    epn(i) = norm(error_n(i,1:3));
+end
 
 %% Results in the inertial frame %% 
 %Preallocation 
@@ -115,16 +122,16 @@ xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
-
 figure(2) 
 hold on
-plot(t, error); 
-%plot(t, error_n(:,1), 'r');
+plot(t, ep, 'b'); 
+plot(t, epn, 'r');
 hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Relative error in the synodic frame');
-title('Error in the chaser motion reconstruction')
+title('Error in the chaser velocity (L2 norm)')
+legend('Encke method error', 'Direct integration error');
 
 figure(3) 
 plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
