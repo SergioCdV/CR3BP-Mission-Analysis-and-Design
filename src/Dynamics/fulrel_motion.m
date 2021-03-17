@@ -1,6 +1,6 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 31/12/20
+% Date: 10/03/21
 % File: fulrel_motion.m 
 % Issue: 0 
 % Validated: 
@@ -79,8 +79,8 @@ end
 
 function [drho] = Encke_method(mu, s_t, s_r)
     %Constants of the system 
-    mu_r(1) = 1-mu;                 %Reduced gravitational parameter of the first primary 
-    mu_r(2) = mu;                   %Reduced gravitational parameter of the second primary 
+    mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
+    mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
     
     %State variables 
     r_t = s_t(1:3);               %Synodic position of the target
