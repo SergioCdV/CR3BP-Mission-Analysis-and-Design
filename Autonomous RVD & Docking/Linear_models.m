@@ -80,50 +80,37 @@ for i = 1:size(error_rel,1)
     ea(i) = norm(error_abs(i,1:3));
 end
 
-%% Results in the inertial frame %% 
-%Preallocation 
-inertial_error = zeros(size(S_c,1),3);      %Position error in the inertial frame
+%% Comparison with the analytical solution 
+%Analytical solution
+Ax = -S(1,7);                                       %Relative orbit amplitude
+omega = sqrt(cn(2)+2+sqrt(9*cn(2)^2-8*cn(2)))/2;    %Orbital frequency
+k = (omega^2+(1-2*cn(2)))/(2*omega);                %Amplitude constraint gain
+x = -Ax*cos(omega*tspan);                           %Analytical synodic x solution
+y = k*Ax*sin(omega*tspan);                          %Analytical synodic y solution
 
-%Main computation
-for i = 1:size(S_c,1)
-     elaps = dt*(i-1);                                                           %Elaps time
-     inertial_error(i,:) = (inertial2synodic(elaps, error_rel(i,1:3).', 1)).';   %Position error in the synodic frame
-end
-
-%% Results in the libration synodic frame %% 
-%Preallocation 
-libration_error = zeros(size(S_c,1),3);     %Position error in the synodic frame
-
-%Main computation
-for i = 1:size(S_c, 1)
-     libration_error(i,:) = (synodic2lagrange(mu, gamma, Ln, error_rel(i,1:3).', 1)).'; %Position error in the synodic frame
-end
-
-%% Results in the Frenet-Serret frame of the target orbit %% 
-%Preallocation
-T = zeros(size(S_c,1),3,3);             %Synodic to Frenet frame rotation matrix
-frenet_error = zeros(size(S_c,1), 3);   %Position error in the Frenet frame
-
-%Main computation
-for i = 1:size(S_c,1)
-    T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                       %Frenet-Serret frame
-    frenet_error(i,:) = (shiftdim(T(i,:,:)).'*error_rel(i,1:3).').'; %Position error in the Frenet-Serret frame of the target orbit
-end
+z = (sqrt(cn(2))/(2*cn(2)))*[S(1,12)+S(1,9)*sqrt(cn(2)) -S(1,12)+S(1,9)*sqrt(cn(2))]*[exp(sqrt(cn(2))*tspan); ...
+           exp(-sqrt(cn(2))*tspan)]; 
+       
+rho_a = [x.' y.' z.'];
+S_a(:,1:3) = S(:,1:3)+rho_a;                    %Reconstructed chaser motion via linear models
 
 %% Results %% 
 %Plot results 
 figure(1) 
 view(3) 
 hold on
-plot3(S(:,1), S(:,2), S(:,3)); 
+plot3(S(:,1), S(:,2), S(:,3),'r-.'); 
 plot3(S_c(:,1), S_c(:,2), S_c(:,3)); 
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+plot3(S_a(:,1), S_a(:,2), S_a(:,3)); 
 hold off
-legend('Target motion', 'Chaser motion', 'New chaser motion'); 
+legend('Target motion', 'Chaser motion', 'Linear integration', 'Analytical solution'); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
+title('Reconstruction of the chaser motion');
+
 figure(2) 
 hold on
 plot(t, er, 'b'); 
@@ -135,26 +122,5 @@ ylabel('Relative error in the synodic frame');
 title('Error in the chaser velocity (L2 norm)')
 legend('Linear method w.r.t Encke', 'Linear method w.r.t integration');
 
-figure(3) 
-plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
-grid on
-title('Position error in the inertial frame'); 
 
-figure(4) 
-plot3(libration_error(:,1), libration_error(:,2), libration_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
-grid on
-title('Position error in the libration synodic frame'); 
 
-figure(5) 
-plot3(frenet_error(:,1), frenet_error(:,2), frenet_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
-grid on
-title('Position error in the Frenet-Serret frame');
