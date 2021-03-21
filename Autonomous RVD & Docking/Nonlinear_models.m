@@ -2,8 +2,8 @@
 % Sergio Cuevas del Valle % 
 % 20/02/21 % 
 
-%% First contact %% 
-% This scripts provides a first contact with the RVD project. 
+%% Nonlinear models %% 
+% This scripts provides a script to test different nonlinear models for relative motion in the CR3BP. 
 
 % The relative motion of two spacecraft in a halo orbit around L1 in the
 % Earth-Moon system is analyzed both from the direct integration of the
@@ -16,25 +16,21 @@
 %Set up graphics 
 set_graphics();
 
-%Integration tolerances (ode45)
+%Integration tolerances (ode113)
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
-% Time span 
+%Time span 
 dt = 1e-3;                          %Time step
 tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
-% CR3BP constants 
+%CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
-% CR3BP integration flags 
-flagVar = 1;                        %Integrate the dynamics and the first variotional equations 
-direction = 1;                      %Integrate forward in time 
-
-% Differential corrector set up
+%Differential corrector set up
 nodes = 10;                         %Number of nodes for the multiple shooting corrector
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
@@ -62,8 +58,8 @@ s0 = [r_t0 rho0];                                           %Initial conditions 
 
 %Integration of the model
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
-[~, S] = ode113(@(t,s)fulrel_motion(mu, true, false, true, t, s), tspan, s0, options);
-[t, Sn] = ode113(@(t,s)fulrel_motion(mu, true, false, false, t, s), tspan, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspan, s0, options);
+[t, Sn] = ode113(@(t,s)nlr_model(mu, true, false, 'Full nonlinear', t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
@@ -74,8 +70,8 @@ error_n = S_c-S_rcn;                                        %Error via the full 
 ep = zeros(size(error,1), 1);                               %Position error (L2 norm) via Encke's method
 epn = zeros(size(error,1), 1);                              %Position error (L2 norm) via direct integration
 for i = 1:size(error,1)
-    ep(i) = norm(error(i,1:3));
-    epn(i) = norm(error_n(i,1:3));
+    ep(i) = norm(error(i,4:6));
+    epn(i) = norm(error_n(i,4:6));
 end
 
 %% Results in the inertial frame %% 
@@ -105,7 +101,7 @@ frenet_error = zeros(size(S_c,1), 3);   %Position error in the Frenet frame
 %Main computation
 for i = 1:size(S_c,1)
     T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                   %Frenet-Serret frame
-    frenet_error(i,:) = (shiftdim(T(i,:,:)).'*error(i,1:3).').'; %Position error in the Frenet-Serret frame of the target orbit
+    frenet_error(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').'; %Position error in the Frenet-Serret frame of the target orbit
 end
 
 %% Results %% 
@@ -122,10 +118,12 @@ xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
+title('Reconstruction of the chaser motion');
+
 figure(2) 
 hold on
-plot(t, ep, 'b'); 
-plot(t, epn, 'r');
+plot(t, log(ep), 'b'); 
+plot(t, log(epn), 'r');
 hold off
 grid on
 xlabel('Nondimensional epoch'); 

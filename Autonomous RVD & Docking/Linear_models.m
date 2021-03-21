@@ -17,25 +17,21 @@
 %Set up graphics 
 set_graphics();
 
-%Integration tolerances (ode45)
+%Integration tolerances (ode113)
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
-% Time span 
+%Time span 
 dt = 1e-3;                          %Time step
-tmax = 0.8*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tmax = 0.8*pi;                      %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
-% CR3BP constants 
+%CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
-% CR3BP integration flags 
-flagVar = 1;                        %Integrate the dynamics and the first variotional equations 
-direction = 1;                      %Integrate forward in time 
-
-% Differential corrector set up
+%Differential corrector set up
 nodes = 10;                         %Number of nodes for the multiple shooting corrector
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
@@ -62,49 +58,40 @@ r_c0 = halo_orbit.Trajectory(2,1:6);                        %Initial chaser cond
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
-%Integration of the model
+%Integration of the models
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
-[~, S_cf] = ode113(@(t,s)fulrel_motion(mu, true, false, true, t, s), tspan, s0, options);
-[t, S] = ode113(@(t,s)linrel_model(mu, true, false, 'Libration', t, s, cn(2)), tspan, s0, options);
+
+[~, S_t] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Target', t, s), tspan, s0, options);
+[~, S_fl] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Fixed libration', t, s), tspan, s0, options);
+[t, S_ml] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Moving libration', t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
-S_cf = S_cf(:,1:6)+S_cf(:,7:12);                            %Reconstructed chaser motion via linear models
-S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via linear models
-error_rel = S_cf-S_rc;                                      %Error via the Encke method and the linear models
-error_abs = S_c-S_rc;                                       %Error between the full integration and the linear models
+S_ct = S_t(:,1:6)+S_t(:,7:12);                              %Chaser motion from the target linearization
+S_cfl = S_fl(:,1:6)+S_fl(:,7:12);                           %Chaser motion from the fixed libration point linearization
+S_cml = S_ml(:,1:6)+S_ml(:,7:12);                           %Chaser motion from the moving libration point linearization
 
-er = zeros(size(error_rel,1), 1);                           %Position error (L2 norm) via linear models
-ea = zeros(size(error_abs,1), 1);                           %Position error (L2 norm) via direct integration
-for i = 1:size(error_rel,1)
-    er(i) = norm(error_rel(i,1:3));
-    ea(i) = norm(error_abs(i,1:3));
+%% Error in the approximations %%
+%Preallocation 
+error_t = zeros(1,size(S_c,1));                             %Error using the target linearization model
+error_fl = zeros(1,size(S_c,1));                            %Error using the fixed libration point linearization model
+error_ml = zeros(1,size(S_c,1));                            %Error using the moving libration point linearization model
+
+%Main computation
+for i = 1:size(S_c,1)
+    error_t(i) =  norm(S_c(i,:)-S_ct(i,:));                 %Error using the target linearization model
+    error_fl(i) = norm(S_c(i,:)-S_cfl(i,:));                %Error using the fixed libration point linearization model
+    error_ml(i) = norm(S_c(i,:)-S_cml(i,:));                %Error using the moving libration point linearization model
 end
-
-%% Comparison with the analytical solution 
-%Analytical solution
-Ax = -S(1,7);                                       %Relative orbit amplitude
-omega = sqrt(cn(2)+2+sqrt(9*cn(2)^2-8*cn(2)))/2;    %Orbital frequency
-k = (omega^2+(1-2*cn(2)))/(2*omega);                %Amplitude constraint gain
-x = -Ax*cos(omega*tspan);                           %Analytical synodic x solution
-y = k*Ax*sin(omega*tspan);                          %Analytical synodic y solution
-
-z = (sqrt(cn(2))/(2*cn(2)))*[S(1,12)+S(1,9)*sqrt(cn(2)) -S(1,12)+S(1,9)*sqrt(cn(2))]*[exp(sqrt(cn(2))*tspan); ...
-           exp(-sqrt(cn(2))*tspan)]; 
-       
-rho_a = [x.' y.' z.'];
-S_a(:,1:3) = S(:,1:3)+rho_a;                    %Reconstructed chaser motion via linear models
 
 %% Results %% 
 %Plot results 
 figure(1) 
 view(3) 
 hold on
-plot3(S(:,1), S(:,2), S(:,3),'r-.'); 
-plot3(S_c(:,1), S_c(:,2), S_c(:,3)); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
-plot3(S_a(:,1), S_a(:,2), S_a(:,3)); 
+plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'r-.'); 
+plot3(S_cml(:,1), S_cml(:,2), S_cml(:,3), 'b'); 
 hold off
-legend('Target motion', 'Chaser motion', 'Linear integration', 'Analytical solution'); 
+legend('CR3BP integration', 'LMLP method'); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
@@ -113,14 +100,13 @@ title('Reconstruction of the chaser motion');
 
 figure(2) 
 hold on
-plot(t, er, 'b'); 
-plot(t, ea, 'r');
+plot(t, log(error_ml), 'r'); 
+plot(t, log(error_fl), 'b'); 
 hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Relative error in the synodic frame');
-title('Error in the chaser velocity (L2 norm)')
-legend('Linear method w.r.t Encke', 'Linear method w.r.t integration');
-
+legend('LMLP method', 'LFLP method');
+title('Error in the phase space vector with LP methods')
 
 
