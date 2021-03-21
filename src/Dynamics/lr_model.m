@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 17/03/20
-% File: linrel_motion.m 
+% File: rel_motion.m 
 % Issue: 0 
 % Validated: 
 
@@ -24,14 +24,14 @@
 % Outputs: - vector dr, the differential vector field, which will include
 %            the phase space trajectory.
 
-% Methods: . 
+% Methods: different linear models of relative motion. 
 
 % New versions: include the first variations of the vector field.
 
-function [ds] = linrel_model(mu, direction, flagVar, model, t, s, varargin)
+function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s)
     %State variables 
     s_t = s(1:6);       %State of the target
-    rho = s(7:12);      %State of the chaser
+    s_r = s(7:12);      %State of the chaser
     
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);        %Target equations of motion
@@ -39,9 +39,11 @@ function [ds] = linrel_model(mu, direction, flagVar, model, t, s, varargin)
     %Equations of motion of the relative state 
     switch (model)
         case 'Target'
-            drho = target_centered(mu, s_t, rho);                  %Relative motion equations
-        case 'Libration'
-            drho = libration_centered(rho, varargin);              %Relative motion equations
+            drho = target_centered(mu, s_t, s_r);                  %Relative motion equations
+        case 'Fixed libration'
+            drho = librationf_centered(cn, s_r);                   %Relative motion equations
+        case 'Moving libration'
+            drho = librationm_centered(mu, s_t, s_r);              %Relative motion equations
         otherwise
             drho = [];
             disp('No valid model was chosen');
@@ -86,11 +88,10 @@ function [drho] = target_centered(mu, s_t, s_r)
     drho = A*s_r;
 end
 
-%Relative motion equations linearized with respect to a libration point
-function [drho] = libration_centered(s_r, varargin)    
-    %Linear Legendre coefficient c2           
-    c2 = varargin{1};                       %Second Legendre coefficient
-    c2 = c2{1};                             %Second Legendre coefficient
+%Relative motion equations linearized with respect to the global libration point
+function [drho] = librationf_centered(cn, s_r)    
+    %Legendre coefficient c2           
+    c2 = cn(2);                             %Second Legendre coefficient
     
     %Relative acceleration (non inertial)
     O = zeros(3,3);                         %3 by 3 null matrix
@@ -98,7 +99,28 @@ function [drho] = libration_centered(s_r, varargin)
     Omega = [0 1 0; -1 0 0; 0 0 0];         %Hat map dyadic of the angular velocity for the synodice reference frame
     
     %Gravity acceleration
-    Sigma = [1-2*c2 0 0; 0 1+c2 0; 0 0 c2];
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
+    
+    %Equations of motion 
+    drho = [O I; Sigma -2*Omega]*s_r;
+end
+
+%Relative motion equations linearized with respect to the local libration point
+function [drho] = librationm_centered(mu, s_t, s_r)  
+    %State variables 
+    r_t = s_t(1:3);                             %Position vector of the target
+        
+    %Relative Legendre coefficient c2           
+    cn = relegendre_coefficients(mu, r_t, 2);   %Relative Legendre coefficients 
+    c2 = cn(2);                                 %First order relative Legendre coefficient
+    
+    %Relative acceleration (non inertial)
+    O = zeros(3,3);                             %3 by 3 null matrix
+    I = eye(3);                                 %3 by 3 identity matrix
+    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
+    
+    %Gravity acceleration
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
     
     %Equations of motion 
     drho = [O I; Sigma -2*Omega]*s_r;
