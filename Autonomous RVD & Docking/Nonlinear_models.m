@@ -70,8 +70,8 @@ error_n = S_c-S_rcn;                                        %Error via the full 
 ep = zeros(size(error,1), 1);                               %Position error (L2 norm) via Encke's method
 epn = zeros(size(error,1), 1);                              %Position error (L2 norm) via direct integration
 for i = 1:size(error,1)
-    ep(i) = norm(error(i,4:6));
-    epn(i) = norm(error_n(i,4:6));
+    ep(i) = norm(error(i,:));
+    epn(i) = norm(error_n(i,:));
 end
 
 %% Results in the inertial frame %% 
@@ -104,6 +104,29 @@ for i = 1:size(S_c,1)
     frenet_error(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').'; %Position error in the Frenet-Serret frame of the target orbit
 end
 
+%% Evolution of the Hamiltonian of the system
+%Preallocation
+H = zeros(size(S,1),1);               %Relative Hamiltonian
+
+%Main computation
+for i = 1:size(S,1)
+    r_t = S(i,1:3).';                 %Target position       
+    rho = S(i,7:9).';                 %Relative position
+    v = S(i,10:12).';                 %Relative velocity
+    R = [-mu 1-mu; 0 0; 0 0];         %Position of the primaries
+    mup = [1-mu; mu];                 %Reduced gravitational parameters of the primaries
+    
+    %Kinetic energy
+    T = (1/2)*norm(v-[0 -1 0; 1 0 0; 0 0 0]*rho)^2;
+    
+    %Potential energy
+    U = -(mup(1)*((1/norm(rho+r_t-R(:,1)))-(dot(rho,(R(:,1)-r_t))/norm(r_t-R(:,1)))) ...
+         +mup(2)*((1/norm(rho+r_t-R(:,2)))-(dot(rho,(R(:,2)-r_t))/norm(r_t-R(:,2)))));
+     
+    %Relative Hamiltonian
+    H(i) = T+U;
+end
+
 %% Results %% 
 % Plot results 
 figure(1) 
@@ -128,29 +151,38 @@ hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Relative error in the synodic frame');
-title('Error in the chaser velocity (L2 norm)')
+title('Error in the phase space vector (L2 norm)')
 legend('Encke method error', 'Direct integration error');
 
 figure(3) 
-plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
+plot(t, H, 'b'); 
 grid on
-title('Position error in the inertial frame'); 
+xlabel('Nondimensional epoch'); 
+ylabel('Relative Hamiltonian');
+title('Relative energy evolution')
 
-figure(4) 
-plot3(libration_error(:,1), libration_error(:,2), libration_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
-grid on
-title('Position error in the libration synodic frame'); 
+if (false)
+    figure(4) 
+    plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
+    xlabel('Nondimensional x coordinate'); 
+    ylabel('Nondimensional y coordinate');
+    zlabel('Nondimensional z coordinate');
+    grid on
+    title('Position error in the inertial frame'); 
 
-figure(5) 
-plot3(frenet_error(:,1), frenet_error(:,2), frenet_error(:,3)); 
-xlabel('Nondimensional x coordinate'); 
-ylabel('Nondimensional y coordinate');
-zlabel('Nondimensional z coordinate');
-grid on
-title('Position error in the Frenet-Serret frame');
+    figure(5) 
+    plot3(libration_error(:,1), libration_error(:,2), libration_error(:,3)); 
+    xlabel('Nondimensional x coordinate'); 
+    ylabel('Nondimensional y coordinate');
+    zlabel('Nondimensional z coordinate');
+    grid on
+    title('Position error in the libration synodic frame'); 
+
+    figure(6) 
+    plot3(frenet_error(:,1), frenet_error(:,2), frenet_error(:,3)); 
+    xlabel('Nondimensional x coordinate'); 
+    ylabel('Nondimensional y coordinate');
+    zlabel('Nondimensional z coordinate');
+    grid on
+    title('Position error in the Frenet-Serret frame');
+end
