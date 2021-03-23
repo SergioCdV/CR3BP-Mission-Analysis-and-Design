@@ -44,6 +44,8 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
             drho = full_model(mu, s_t, rho);                      %Relative motion equations
         case 'Second order'
             drho = so_model(mu, s_t, rho);                        %Relative motion equations 
+        case 'Third order'
+            drho = th_model(mu, s_t, rho);                        %Relative motion equations
         otherwise
             drho = [];
             disp('No valid model was chosen');
@@ -135,4 +137,35 @@ function [drho] = so_model(mu, s_t, s_r)
     
     %Equations of motion 
     drho = [O I; Sigma -2*Omega]*s_r + Sigma3;
+end
+
+%Third order relative motion equations 
+function [drho] = th_model(mu, s_t, s_r)  
+    %State variables 
+    r_t = s_t(1:3);                             %Position vector of the target
+    x = s_r(1);                                 %Synodic x coordinate of the relative position
+    y = s_r(2);                                 %Synodic y coordinate of the relative position
+    z = s_r(3);                                 %Synodic z coordinate of the relative position
+        
+    %Relative Legendre coefficients          
+    cn = relegendre_coefficients(mu, r_t, 4);   %Relative Legendre coefficients 
+    c2 = cn(2);                                 %First order relative Legendre coefficient
+    c3 = cn(3);                                 %Second order relative Legendre coefficient
+    c4 = cn(4);                                 %Third order relative Legendre coefficient
+    
+    %Relative acceleration (non inertial)
+    O = zeros(3,3);                             %3 by 3 null matrix
+    I = eye(3);                                 %3 by 3 identity matrix
+    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
+    
+    %Gravity acceleration
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                                    %Linear term
+    Sigma3 = [0; 0; 0; 3*c3*x^2-(3/2)*c3*(y^2+z^2); -3*c3*x*y; -3*c3*x*z];      %Second order term
+    Sigma4 = [0; 0; 0; ...
+              (5/2)*c4*x^3-(30/4)*c4*(y^2+z^2)*x+(3/2)*c4*(x^2+y^2+z^2)*x; ...
+             -(30/4)*c4*x^2*y+(3/2)*c4*(x^2+y^2+z^2)*y; ...
+             -(30/4)*c4*x^2*z+(3/2)*c4*(x^2+y^2+z^2)*z];                        %Third order term
+    
+    %Equations of motion 
+    drho = [O I; Sigma -2*Omega]*s_r + Sigma3 + Sigma4;
 end

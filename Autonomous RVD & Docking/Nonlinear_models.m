@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tmax = 0.8*pi;                      %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -59,7 +59,7 @@ s0 = [r_t0 rho0];                                           %Initial conditions 
 %Integration of the model
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 [~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspan, s0, options);
-[t, Sn] = ode113(@(t,s)nlr_model(mu, true, false, 'Full nonlinear', t, s), tspan, s0, options);
+[t, Sn] = ode113(@(t,s)nlr_model(mu, true, false, 'Third order', t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
@@ -111,7 +111,7 @@ view(3)
 hold on
 plot3(S(:,1), S(:,2), S(:,3)); 
 plot3(S_c(:,1), S_c(:,2), S_c(:,3)); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3)); 
 hold off
 legend('Target motion', 'Chaser motion', 'New chaser motion'); 
 xlabel('Synodic x coordinate');
