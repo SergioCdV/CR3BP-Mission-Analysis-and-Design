@@ -17,21 +17,22 @@
 %           backward integration.
 %         - boolean flagVar, true for dyanmics and STM integration, 
 %           false for only dynamical integration.
+%         - string method_ID, identifying which integration method to use.
 %         - scalar t, a reference epoch. 
 %         - vector s, containing in an Nx1 array the phase space vector,
 %           possibly augmented with the state transition matrix at time t. 
 
-% Outputs: - vector dr, the differential vector field, which will include
+% Outputs: - vector ds, the differential vector field, which will include
 %            the phase space trajectory.
 
 % Methods: . 
 
-% New versions: include the first variations of the vector field.
+% New versions: 
 
 function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
     %State variables 
     s_t = s(1:6);       %State of the target
-    rho = s(7:12);      %State of the chaser
+    s_r = s(7:12);      %State of the relative particle
     
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);       %Target equations of motion
@@ -39,13 +40,15 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
     %Equations of motion of the relative state 
     switch (method_ID)
         case 'Encke'
-            drho = Encke_method(mu, s_t, rho);                    %Relative motion equations
+            drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
+        case 'Encke V'
+            drho = EnckeV_method(mu, s);                          %Relative motion equations
         case 'Full nonlinear'
-            drho = full_model(mu, s_t, rho);                      %Relative motion equations
+            drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
-            drho = so_model(mu, s_t, rho);                        %Relative motion equations 
+            drho = so_model(mu, s_t, s_r);                        %Relative motion equations 
         case 'Third order'
-            drho = th_model(mu, s_t, rho);                        %Relative motion equations
+            drho = th_model(mu, s_t, s_r);                        %Relative motion equations
         otherwise
             drho = [];
             disp('No valid model was chosen');
@@ -65,7 +68,7 @@ function [drho] = Encke_method(mu, s_t, s_r)
     %State variables 
     r_t = s_t(1:3);               %Synodic position of the target
     r_r = s_r(1:3);               %Synodic relative position 
-    v_r = s_r(4:6);               %Synodic relative velotice 
+    v_r = s_r(4:6);               %Synodic relative velocity 
     
     %Synodic position of the primaries 
     R(1:3,1) = [-mu; 0; 0];       %Synodic position of the first primary
@@ -82,6 +85,39 @@ function [drho] = Encke_method(mu, s_t, s_r)
     %Equations of motion 
     drho = [v_r; 
             gamma];
+end
+
+%Full nonlinear relative motion equations and first variational system via Encke's method
+function [drho] = EnckeV_method(mu, s)
+    %System parameters 
+    mup(1) = 1-mu;                  %Reduced gravitational parameter of the first primary
+    mup(2) = mu;                    %Reduced gravitational parameter of the second primary
+    R(1:3,1) = [-mu; 0; 0];         %Synodic position of the first primary
+    R(1:3,2) = [1-mu; 0; 0];        %Synodic position of the second primary
+    
+    %State variables 
+    s_t = s(1:6);       %State of the target
+    s_r = s(7:12);      %State of the chaser
+    ds = s(13:end);     %Phase space error vector 
+    
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);
+    
+    %Variational equations
+    ds = reshape(ds, [6 6]);            %Reshape the covariance vector in the matrix form 
+    O = zeros(3,3);                     %3 by 3 null matrix
+    I = eye(3);                         %3 by 3 identity matrix
+    Omega = [0 2 0; -2 0 0; 0 0 0];     %Coriolis dyadic
+    H = zeros(3,3);                     %Preallocation of the hessian of the potential 
+    for i = 1:length(mup)
+    end
+    Jac = [O I; H Omega];               %Jacobian of the system 
+    
+    ds = Jac*ds;                        %Variational equations 
+    ds = reshape(ds, [36 1]);           %Variational vector field 
+    
+    %Final vector field 
+    drho = [drho ds]; 
 end
 
 %Full nonlinear relative motion equations

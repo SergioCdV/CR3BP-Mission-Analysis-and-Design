@@ -21,11 +21,11 @@
 
 % New versions: 
 
-function [sol] = dimensionalizer(d, T, V, X, s, direction)
+function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
     %Main computation
     if (direction == 0)
         %Normalize input
-        switch (s)
+        switch (magnitude)
             case 'Epoch'
                 sol = X*(2*pi/T);
             case 'Position'
@@ -38,7 +38,7 @@ function [sol] = dimensionalizer(d, T, V, X, s, direction)
             
     elseif (direction == 1)
         %Dimensionalize input
-        switch (s)
+        switch (magnitude)
             case 'Epoch'
                 sol = X*(T/(2*pi));
             case 'Position'

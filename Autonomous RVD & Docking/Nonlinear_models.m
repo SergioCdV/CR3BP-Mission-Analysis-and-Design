@@ -76,32 +76,32 @@ end
 
 %% Results in the inertial frame %% 
 %Preallocation 
-inertial_error = zeros(size(S_c,1),3);      %Position error in the inertial frame
+inertial = zeros(size(S_c,1),3);      %Position error in the inertial frame
 
 %Main computation
 for i = 1:size(S_c,1)
-     elaps = dt*(i-1);                                                       %Elaps time
-     inertial_error(i,:) = (inertial2synodic(elaps, error(i,1:3).', 1)).';   %Position error in the synodic frame
+     elaps = dt*(i-1);                                                 %Elaps time
+     inertial(i,:) = (inertial2synodic(elaps, Sn(i,7:9).', 1)).';      %Relative position in the synodic frame
 end
 
 %% Results in the libration synodic frame %% 
 %Preallocation 
-libration_error = zeros(size(S_c,1),3);     %Position error in the synodic frame
+libration = zeros(size(S_c,1),3);                                               %Position error in the synodic frame
 
 %Main computation
 for i = 1:size(S_c, 1)
-     libration_error(i,:) = (synodic2lagrange(mu, gamma, Ln, error(i,1:3).', 1)).'; %Position error in the synodic frame
+     libration(i,:) = (synodic2lagrange(mu, gamma, Ln, Sn(i,7:9).', 1)).';      %Relative position in the synodic frame
 end
 
 %% Results in the Frenet-Serret frame of the target orbit %% 
 %Preallocation
 T = zeros(size(S_c,1),3,3);             %Synodic to Frenet frame rotation matrix
-frenet_error = zeros(size(S_c,1), 3);   %Position error in the Frenet frame
+frenet = zeros(size(S_c,1), 3);         %Position error in the Frenet frame
 
 %Main computation
 for i = 1:size(S_c,1)
-    T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                   %Frenet-Serret frame
-    frenet_error(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').'; %Position error in the Frenet-Serret frame of the target orbit
+    T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                %Frenet-Serret frame
+    frenet(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').';        %Relative position in the Frenet-Serret frame of the target orbit
 end
 
 %% Evolution of the Hamiltonian of the system
@@ -161,28 +161,29 @@ xlabel('Nondimensional epoch');
 ylabel('Relative Hamiltonian');
 title('Relative energy evolution')
 
-if (false)
+%Relative orbit plots
+if (true)
     figure(4) 
-    plot3(inertial_error(:,1), inertial_error(:,2), inertial_error(:,3)); 
+    plot3(inertial(:,1), inertial(:,2), inertial(:,3)); 
     xlabel('Nondimensional x coordinate'); 
     ylabel('Nondimensional y coordinate');
     zlabel('Nondimensional z coordinate');
     grid on
-    title('Position error in the inertial frame'); 
+    title('Relative orbit in the inertial frame'); 
 
     figure(5) 
-    plot3(libration_error(:,1), libration_error(:,2), libration_error(:,3)); 
+    plot3(libration(:,1), libration(:,2), libration(:,3)); 
     xlabel('Nondimensional x coordinate'); 
     ylabel('Nondimensional y coordinate');
     zlabel('Nondimensional z coordinate');
     grid on
-    title('Position error in the libration synodic frame'); 
+    title('Relative orbit in the libration synodic frame'); 
 
     figure(6) 
-    plot3(frenet_error(:,1), frenet_error(:,2), frenet_error(:,3)); 
+    plot3(frenet(:,1), frenet(:,2), frenet(:,3)); 
     xlabel('Nondimensional x coordinate'); 
     ylabel('Nondimensional y coordinate');
     zlabel('Nondimensional z coordinate');
     grid on
-    title('Position error in the Frenet-Serret frame');
+    title('Relative orbit in the Frenet-Serret frame');
 end
