@@ -55,7 +55,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Initial relative state 
 l = dimensionalizer(Lem, T, Lem/T, 1, 'Position', 0);           %Normalize 1 m in the synodic frame
 v = dimensionalizer(Lem, T, Lem/T, 1, 'Velocity', 0);           %Normalize 1 m/s in the synodic frame
-e = [l l l v 0 0];                                              %Initial error
+e = [l l l v v v];                                              %Initial error
 r_t0 = target_orbit.Trajectory(1,1:6);                          %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6)+e;                        %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                               %Initial relative conditions

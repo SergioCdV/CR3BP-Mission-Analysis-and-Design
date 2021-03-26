@@ -18,7 +18,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = 4*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tmax = pi;                          %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -60,28 +60,76 @@ setup = [mu maxIter tol direction];                         %General setup
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,1:6), maxIter, tol);
 
 %% Modelling in the synodic frame %% 
-r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial target conditions
-r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
+r_t0 = target_orbit.Trajectory(1,1:6).';                    %Initial target conditions
+r_c0 = chaser_orbit.Trajectory(1,1:6).';                    %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
-s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
-ds0 = [1 0 0 0 0 0];                                        %Initial phase space error vector
-s0 = [s0 ds0];                                              %Initial conditions of the target and the relative state and the error
+s0 = [r_t0; rho0];                                          %Initial conditions of the target and the relative state
+ds0 = eye(length(r_t0));                                    %Initial phase space error vector
+ds0 = reshape(ds0, [length(r_t0)^2 1]);                     %Initial phase space error vector
+s0 = [s0; ds0];                                             %Initial conditions of the target and the relative state and the error
 
 %Integration of the model
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 [t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspan, s0, options);
 
+%% Analysis of the state transition matrix evolution
+%Prealocation
+STM = zeros(size(S,1), length(r_t0), length(r_t0));         %STM of the system
+detSTM = zeros(size(S,1),1);                                %Determinant of the STM
+drho = zeros(size(S,1),3);                                  %Total variation along each configuration space coordinate
+dv = zeros(size(S,1),3);                                    %Total variation along each velocity space coordinate
+
+%Main computation
+for i = 1:size(S,1)
+    STM(i,:,:) = reshape(S(i,13:end), [length(r_t0), length(r_t0)]);
+    detSTM(i) = det(shiftdim(STM(i,:,:)));
+    drho(i,1:3) = [sum(shiftdim(STM(i,1,:))) sum(shiftdim(STM(i,2,:))) sum(shiftdim(STM(i,3,:)))];
+    dv(i,1:3) = [sum(shiftdim(STM(i,4,:))) sum(shiftdim(STM(i,5,:))) sum(shiftdim(STM(i,6,:)))];
+end
+
 %% Results %% 
 % Plot results 
 figure(1) 
-view(3) 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
-hold on
-for i = 1:size(S_rc,1) 
+plot(t, log(drho(:,1:3))); 
+title('Evolution of the position initial displacements'); 
+grid on; 
+legend('x error', 'y error', 'z error'); 
+xlabel('Nondimensional time'); 
+ylabel('Error evolution');
+
+figure(2) 
+plot(t, log(dv(:,1:3))); 
+title('Evolution of the velocity initial displacements'); 
+grid on; 
+legend('x error', 'y error', 'z error');
+xlabel('Nondimensional time'); 
+ylabel('Error evolution');
+
+figure(3)
+plot(t, detSTM); 
+title('Evolution of the determinant of the STM'); 
+grid on; 
+xlabel('Nondimensional time'); 
+ylabel('Determinant of the STM');
+
+if (false)
+    figure(1) 
+    view(3) 
+    plot3(S(:,7), S(:,8), S(:,9), 'g');
+    grid on;
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    title('Phase space evolution');
+    hold on
+    for i = 1:size(S,1) 
+       X = quiver3(S(i,7), S(i,8), S(i,9), 1e-3*STM(i,1,1), 1e-3*STM(i,2,1), 1e-3*STM(i,3,1), 'r');
+       Y = quiver3(S(i,7), S(i,8), S(i,9), 1e-3*STM(i,1,2), 1e-3*STM(i,2,2), 1e-3*STM(i,3,2), 'b');
+       Z = quiver3(S(i,7), S(i,8), S(i,9), 1e-3*STM(i,1,3), 1e-3*STM(i,2,3), 1e-3*STM(i,3,3), 'k');
+       drawnow;
+       delete(X); 
+       delete(Y);
+       delete(Z);
+    end
+    hold off
 end
-hold off
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
-grid on;
-title('Phase space evolution');
