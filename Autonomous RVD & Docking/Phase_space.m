@@ -1,5 +1,9 @@
+%% Autonomous RVD and docking in the CR3BP %% 
+% Sergio Cuevas del Valle % 
+% 23/03/21 % 
+
 %% Phase space study %% 
-% This scripts provides an interface to test how the phase space volumens evolve. 
+% This script provides an interface to test how the phase space volumens evolve. 
 
 % The relative motion of two spacecraft in two halo orbits around L1 in the
 % Earth-Moon system is analyzed both from the direct integration of the
@@ -73,7 +77,7 @@ s0 = [s0; ds0];                                             %Initial conditions 
 [t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspan, s0, options);
 
 %% Analysis of the state transition matrix evolution
-%Prealocation
+%Preallocation
 STM = zeros(size(S,1), length(r_t0), length(r_t0));         %STM of the system
 detSTM = zeros(size(S,1),1);                                %Determinant of the STM
 drho = zeros(size(S,1),3);                                  %Total variation along each configuration space coordinate
@@ -85,6 +89,17 @@ for i = 1:size(S,1)
     detSTM(i) = det(shiftdim(STM(i,:,:)));
     drho(i,1:3) = [sum(shiftdim(STM(i,1,:))) sum(shiftdim(STM(i,2,:))) sum(shiftdim(STM(i,3,:)))];
     dv(i,1:3) = [sum(shiftdim(STM(i,4,:))) sum(shiftdim(STM(i,5,:))) sum(shiftdim(STM(i,6,:)))];
+end
+
+%% Analysis of the phase space volume invariancy 
+%Preallocation
+J = zeros(size(S,1), length(r_t0), length(r_t0));           %Jacobian all along the trajectory
+detJ = zeros(size(S,1),1);                                  %Determinant of the Jacobian
+
+%Main computation
+for i = 1:size(S,1)
+    J(i,:,:) = rel_jacobian(mu, S(i,:).');                  %Jacobian of the system
+    detJ(i) = det(shiftdim(J(i,:,:)));                      %Determinant of the Jacobian
 end
 
 %% Results %% 
@@ -111,6 +126,13 @@ title('Evolution of the determinant of the STM');
 grid on; 
 xlabel('Nondimensional time'); 
 ylabel('Determinant of the STM');
+
+figure(4)
+plot(t, detJ); 
+title('Evolution of the determinant of the Jacobian'); 
+grid on; 
+xlabel('Nondimensional time'); 
+ylabel('Determinant of the Jacobian');
 
 if (false)
     figure(1) 
