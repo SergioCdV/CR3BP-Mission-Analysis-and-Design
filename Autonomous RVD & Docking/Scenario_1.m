@@ -1,5 +1,9 @@
+%% Autonomous RVD and docking in the CR3BP %% 
+% Sergio Cuevas del Valle % 
+% 24/03/21 % 
+
 %% Scenario 1 %% 
-% This scripts provides an interface to test different nonlinear models for relative motion in the CR3BP
+% This script provides an interface to test different nonlinear models for relative motion in the CR3BP
 % in different orbits. 
 
 % The relative motion of two spacecraft in two halo orbits around L1 in the

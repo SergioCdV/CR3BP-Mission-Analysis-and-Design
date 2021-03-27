@@ -1,5 +1,9 @@
+%% Autonomous RVD and docking in the CR3BP %% 
+% Sergio Cuevas del Valle % 
+% 23/03/21 % 
+
 %% Error study %% 
-% This scripts provides an interface to the evolution of the relative dynamics for differente initial 
+% This script provides an interface to the evolution of the relative dynamics for differente initial 
 % conditions. 
 
 % The relative motion of two spacecraft in two halo orbits around L1 in the

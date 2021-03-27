@@ -3,7 +3,7 @@
 % 20/02/21 % 
 
 %% Nonlinear models %% 
-% This scripts provides a script to test different nonlinear models for relative motion in the CR3BP. 
+% This script provides a script to test different nonlinear models for relative motion in the CR3BP. 
 
 % The relative motion of two spacecraft in a halo orbit around L1 in the
 % Earth-Moon system is analyzed both from the direct integration of the

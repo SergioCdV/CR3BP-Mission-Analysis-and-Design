@@ -3,7 +3,7 @@
 % 20/02/21 % 
 
 %% Linear relative motion models %% 
-% This scripts provides a complete script dedicated to linear models 
+% This script provides a complete script dedicated to linear models 
 % for relative motion in the CR3BP.
 
 % The relative motion of two spacecraft in a halo orbit around L1 in the
