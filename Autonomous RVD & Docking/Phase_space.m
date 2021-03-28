@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = pi;                          %Maximum time of integration (corresponding to a synodic period)
+tmax = 4*pi;                        %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -61,7 +61,7 @@ direction = 1;                                              %Direction to contin
 setup = [mu maxIter tol direction];                         %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,1:6), maxIter, tol);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,1:6), maxIter, tol);
 
 %% Modelling in the synodic frame %% 
 r_t0 = target_orbit.Trajectory(1,1:6).';                    %Initial target conditions
@@ -102,6 +102,11 @@ for i = 1:size(S,1)
     detJ(i) = det(shiftdim(J(i,:,:)));                      %Determinant of the Jacobian
 end
 
+%Fourier transform of the determinant 
+Adet = fft(detJ(1:11000));
+f = (1/(dt*length(Adet)))*(1:length(Adet));
+PSD = Adet.*conj(Adet)/length(Adet);
+
 %% Results %% 
 % Plot results 
 figure(1) 
@@ -133,6 +138,13 @@ title('Evolution of the determinant of the Jacobian');
 grid on; 
 xlabel('Nondimensional time'); 
 ylabel('Determinant of the Jacobian');
+
+figure(5)
+plot(f, PSD); 
+title('Power spectral density of the determinant of the Jacobian'); 
+grid on; 
+xlabel('Nondimensional frequency'); 
+ylabel('PSD');
 
 if (false)
     figure(1) 
