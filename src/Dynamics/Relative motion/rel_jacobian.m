@@ -42,7 +42,7 @@ function [J] = rel_jacobian(mu, s)
                 q = -dot(2*r(:,k)+rho,rho)/norm(rc(:,k))^2;                   %Encke variable
                 f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));                          %Encke coefficient
                 %Derivative of the Encke coefficient
-                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(r(:,k),rho)/norm(rc(:,k))^2)*rc(j,k);                             
+                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(2*(r(:,k)+rho),rho)/norm(rc(:,k))^2)*rc(i,k);                             
                 %Encke acceleration
                 if (i == j)
                     gamma = gamma + (mup(k)/norm(r(:,k))^3)*((1+f)+df*rc(j,k));             
@@ -53,12 +53,16 @@ function [J] = rel_jacobian(mu, s)
             
             %Hessian of the potential function
             if (i == j)
-                H(i,j) = C(i)-gamma;
+                H(i,j) = C(i)-gamma;    %Diagonal terms
             else
-                H(i,j) = -gamma;
+                H(i,j) = -gamma;        %Non-diagonal terms
             end
-            
-            H(i,j) = H(j,i);            %Symmetry constraint
+        end
+    end
+    
+    for i = 1:size(H,1)
+        for j = 1:size(H,2)
+            H(j,i) = H(i,j);
         end
     end
     

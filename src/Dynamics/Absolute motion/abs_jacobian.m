@@ -1,11 +1,11 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 06/03/21
-% File: cr3bp_jacobian.m 
+% File: abs_jacobian.m 
 % Issue: 0 
 % Validated: 
 
-%% CR3BP Jacobian %%
+%% Absolute Jacobian %%
 % This function contains the jacobian of the vector field of the CR3BP. It accounts for a infinitesimal mass
 % moving in the normalized, non dimensional synodic frame define by the two primaries, which
 % are assumed to be in the same plane and in circular orbits.
@@ -20,7 +20,7 @@
 
 % New versions: 
 
-function [Jacobian] = cr3bp_jacobian(mu, s) 
+function [Jacobian] = abs_jacobian(mu, s) 
     %Define the phase space vector
     x = s(1);               %Synodyc x coordinate
     y = s(2);               %Synodyc y coordinate 

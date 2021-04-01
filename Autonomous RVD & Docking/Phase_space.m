@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = 4*pi;                        %Maximum time of integration (corresponding to a synodic period)
+tmax = pi;                          %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -64,6 +64,7 @@ setup = [mu maxIter tol direction];                         %General setup
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,1:6), maxIter, tol);
 
 %% Modelling in the synodic frame %% 
+%Initial conditions
 r_t0 = target_orbit.Trajectory(1,1:6).';                    %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6).';                    %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
@@ -91,6 +92,12 @@ for i = 1:size(S,1)
     dv(i,1:3) = [sum(shiftdim(STM(i,4,:))) sum(shiftdim(STM(i,5,:))) sum(shiftdim(STM(i,6,:)))];
 end
 
+%Analysis of the numerical error 
+noise = detSTM-1; 
+noise = fft(noise); 
+freq(:,1) = (1/(dt*length(noise)))*(1:length(noise));
+PSD(:,1) = noise.*conj(noise)/length(noise);
+
 %% Analysis of the phase space volume invariancy 
 %Preallocation
 J = zeros(size(S,1), length(r_t0), length(r_t0));           %Jacobian all along the trajectory
@@ -101,11 +108,6 @@ for i = 1:size(S,1)
     J(i,:,:) = rel_jacobian(mu, S(i,:).');                  %Jacobian of the system
     detJ(i) = det(shiftdim(J(i,:,:)));                      %Determinant of the Jacobian
 end
-
-%Fourier transform of the determinant 
-Adet = fft(detJ(1:11000));
-f = (1/(dt*length(Adet)))*(1:length(Adet));
-PSD = Adet.*conj(Adet)/length(Adet);
 
 %% Results %% 
 % Plot results 
@@ -138,13 +140,6 @@ title('Evolution of the determinant of the Jacobian');
 grid on; 
 xlabel('Nondimensional time'); 
 ylabel('Determinant of the Jacobian');
-
-figure(5)
-plot(f, PSD); 
-title('Power spectral density of the determinant of the Jacobian'); 
-grid on; 
-xlabel('Nondimensional frequency'); 
-ylabel('PSD');
 
 if (false)
     figure(1) 
