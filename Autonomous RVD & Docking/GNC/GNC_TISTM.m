@@ -59,7 +59,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%% Modelling in the synodic frame %% 
+%% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
 if (index > size(target_orbit.Trajectory,1))
     index = mod(index, size(target_orbit.Trajectory,1));    %Rendezvous point
@@ -79,7 +79,7 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: two impulsive rendezvous (this is working)
+%% GNC: two impulsive rendezvous %%
 %Differential corrector set up
 S = S(1:index,:);                   %Restrict the time integration span
 maxIter = 20;                       %Maximum number of iterations
@@ -121,7 +121,7 @@ dV2(1) = norm(dV0(:,1))+norm(dVf(:,1));       %L2 norm of the impulses
 
 Pass(1) = ~GoOn;
 
-%% GNC: one impulsive rendezvous (not enough degrees of freedom)
+%% GNC: one impulsive rendezvous %% 
 %Differential corrector set up
 S = Sn(1:index,:);                  %Reinitiate the trajectory
 s0 = Sn(1,:).';                     %Reinitiate initial conditions
