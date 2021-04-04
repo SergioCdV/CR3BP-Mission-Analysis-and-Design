@@ -25,25 +25,25 @@
 % New versions: torus correction. Use monodromy properties to correct
 % error. Review all.
 
-function [xf, state] = differential_correction(algorithm, mu, seed, n, tol, varargin)            
+function [xf, state] = differential_correction(algorithm, mu, seed, maxIter, tol, varargin)            
     %Implement the selected scheme 
     switch (algorithm)
         case 'Axis Symmetric'
-            [xf, state] = Sym_Axis_scheme(mu, seed, n, tol);
+            [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol);
         case 'Plane Symmetric'
-            [xf, state] = Sym_Plane_scheme(mu, seed, n, tol);
+            [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol);
         case 'Double Symmetric'
-            [xf, state] = Sym_Double_scheme(mu, seed, n, tol);
+            [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol);
         case 'Double Plane Symmetric' 
-            [xf, state] = Sym_DoublePlane_scheme(mu, seed, n, tol);
+            [xf, state] = Sym_DoublePlane_scheme(mu, seed, maxIter, tol);
         case 'Planar'
-            [xf, state] = Sym_Planar_scheme(mu, seed, n, tol);
+            [xf, state] = Sym_Planar_scheme(mu, seed, maxIter, tol);
         case 'Periodic Multiple Shooting'
-            [xf, state]= MS_Periodic_scheme(mu, seed, n, tol, varargin);
+            [xf, state]= MS_Periodic_scheme(mu, seed, maxIter, tol, varargin);
         case 'Jacobi Constant Multiple Shooting'
-            [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin);
+            [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin);
         case 'Periodic PAC Multiple Shooting'
-            [xf, state] = PAC_Periodic_scheme(mu, seed, n, tol, varargin);
+            [xf, state] = PAC_Periodic_scheme(mu, seed, maxIter, tol, varargin);
         otherwise
             disp('No valid option was selected.');
             xf = [];
@@ -53,7 +53,7 @@ end
 
 %% Auxiliary functions (individual schemes)
 %Compute periodic orbits using the X axis symmetry
-function [xf, state] = Sym_Axis_scheme(mu, seed, n, tol) 
+function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol) 
     %Constants 
     m = 6;      %Phase space dimension 
     
@@ -99,7 +99,6 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, n, tol)
     
     %Set up differential correction scheme
     GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
     iter = 1;           %Initial iteration
     
     %Preallocation 
@@ -144,7 +143,7 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, n, tol)
 end
 
 %Compute periodic orbits using the XZ symmetry
-function [xf, state] = Sym_Plane_scheme(mu, seed, n, tol)
+function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
     %Constants 
     m = 6;      %Phase space dimension 
     
@@ -189,8 +188,7 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, n, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
+    GoOn = true;        %Convergence flag 
     iter = 1;           %Initial iteration
     
     %Preallocation 
@@ -235,7 +233,7 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, n, tol)
 end
 
 %Compute periodic orbits using the double X-XZ symmetry
-function [xf, state] = Sym_Double_scheme(mu, seed, n, tol)
+function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
     %Constants 
     m = 6;      %Phase space dimension 
     
@@ -280,8 +278,7 @@ function [xf, state] = Sym_Double_scheme(mu, seed, n, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
+    GoOn = true;        %Convergence flag   
     iter = 1;           %Initial iteration
     
     %Preallocation 
@@ -327,7 +324,7 @@ function [xf, state] = Sym_Double_scheme(mu, seed, n, tol)
 end
 
 %Compute periodic orbits using the symmetry XZ-XY planes
-function [xf, state] = Sym_DoublePlane_scheme(mu, seed, n, tol)
+function [xf, state] = Sym_DoublePlane_scheme(mu, seed, maxIter, tol)
     %Constants 
     m = 6;      %Phase space dimension 
     
@@ -372,8 +369,7 @@ function [xf, state] = Sym_DoublePlane_scheme(mu, seed, n, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
+    GoOn = true;        %Convergence flag 
     iter = 1;           %Initial iteration
     
     %Preallocation 
@@ -418,7 +414,7 @@ function [xf, state] = Sym_DoublePlane_scheme(mu, seed, n, tol)
 end
 
 %Compute planar periodic orbits -for Lyapunov orbits-
-function [xf, state] = Sym_Planar_scheme(mu, seed, n, tol)
+function [xf, state] = Sym_Planar_scheme(mu, seed, maxIter, tol)
     %Constants 
     m = 6;      %Phase space dimension 
     
@@ -464,8 +460,7 @@ function [xf, state] = Sym_Planar_scheme(mu, seed, n, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    maxIter = n;        %Maximum number of iterations   
+    GoOn = true;        %Convergence flag 
     iter = 1;           %Initial iteration
     
     %Preallocation 
@@ -507,7 +502,7 @@ function [xf, state] = Sym_Planar_scheme(mu, seed, n, tol)
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
-function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
+function [xf, state] = MS_Periodic_scheme(mu, seed, maxIter, tol, varargin)
     %Constants 
     m = 6;                                  %Phase space dimension 
     
@@ -567,8 +562,7 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;                                                %Convergence flag
-    maxIter = n;                                                %Maximum number of iterations   
+    GoOn = true;                                                %Convergence flag 
     iter = 1;                                                   %Initial iteration
     
     %Preallocation 
@@ -645,7 +639,7 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, n, tol, varargin)
 end
 
 %Compute periodic orbits using multiple shooting and fixed Jacobi Constant value 
-function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
+function [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin)
     %Constants 
     m = 6;                                  %Phase space dimension
     
@@ -707,7 +701,6 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
     
     %Set up differential correction scheme
     GoOn = true;                                                %Convergence flag
-    maxIter = n;                                                %Maximum number of iterations   
     iter = 1;                                                   %Initial iteration
     
     %Preallocation 
@@ -783,7 +776,7 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, n, tol, varargin)
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
-function [xf, state] = PAC_Periodic_scheme(mu, y, n, tol, varargin)
+function [xf, state] = PAC_Periodic_scheme(mu, y, maxIter, tol, varargin)
     %Constants 
     m = 6;                                  %Phase space dimension 
         
@@ -850,8 +843,7 @@ function [xf, state] = PAC_Periodic_scheme(mu, y, n, tol, varargin)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;                                                %Convergence flag
-    maxIter = n;                                                %Maximum number of iterations   
+    GoOn = true;                                                %Convergence flag  
     iter = 1;                                                   %Initial iteration
     
     %Preallocation 
