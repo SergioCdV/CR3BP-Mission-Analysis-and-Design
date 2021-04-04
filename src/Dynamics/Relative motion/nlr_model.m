@@ -30,9 +30,17 @@
 % New versions: 
 
 function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
+    %Constants 
+    m = 6;                                                        %Individual phase space dimension
+    
     %State variables 
-    s_t = s(1:6);       %State of the target
-    s_r = s(7:12);      %State of the relative particle
+    if (flagVar)
+        method_ID = 'Encke V';
+        s_t = s(1:m+m^2);                                         %State of the target
+    else
+        s_t = s(1:6);                                             %State of the target
+        s_r = s(7:12);                                            %State of the relative particle
+    end
     
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);       %Target equations of motion
@@ -42,7 +50,7 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
         case 'Encke'
             drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
         case 'Encke V'
-            drho = EnckeV_method(mu, s);                          %Relative motion equations
+            drho = EnckeV_method(mu, flagVar, s);                 %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
@@ -88,14 +96,20 @@ function [drho] = Encke_method(mu, s_t, s_r)
 end
 
 %Full nonlinear relative motion equations and first variational system via Encke's method
-function [drho] = EnckeV_method(mu, s)
+function [drho] = EnckeV_method(mu, flagVar, s)
     %System parameters 
-    m = 6;                              %Phase space dimension
+    m = 6;                                       %Phase space dimension
     
     %State variables 
-    s_t = s(1:6);                       %Target state 
-    s_r = s(7:12);                      %Relative state
-    ds = reshape(s(13:end), [m m]);     %State transition matrix
+    if (flagVar)
+        s_t = s(1:m);                            %Target state 
+        s_r = s(m+m^2+1:2*m+m^2);                %Relative state
+        ds = reshape(s(2*m+m^2+1:end), [m m]);   %State transition matrix
+    else
+        s_t = s(1:6);                            %Target state 
+        s_r = s(7:12);                           %Relative state
+        ds = reshape(s(13:end), [m m]);          %State transition matrix
+    end
 
     %Compute the integration of the relative motion equations 
     drho = Encke_method(mu, s_t, s_r);
@@ -157,8 +171,8 @@ function [drho] = so_model(mu, s_t, s_r)
     Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
     
     %Gravity acceleration
-    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                                    %Linear term
-    Sigma3 = [0; 0; 0; 3*c3*x^2-(3/2)*c3*(y^2+z^2); -3*c3*x*y; -3*c3*x*z];      %Second order term
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                           %Linear term
+    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];      %Second order term
     
     %Equations of motion 
     drho = [O I; Sigma -2*Omega]*s_r + Sigma3;
@@ -185,11 +199,9 @@ function [drho] = th_model(mu, s_t, s_r)
     
     %Gravity acceleration
     Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                                    %Linear term
-    Sigma3 = [0; 0; 0; 3*c3*x^2-(3/2)*c3*(y^2+z^2); -3*c3*x*y; -3*c3*x*z];      %Second order term
-    Sigma4 = [0; 0; 0; ...
-              (5/2)*c4*x^3-(30/4)*c4*(y^2+z^2)*x+(3/2)*c4*(x^2+y^2+z^2)*x; ...
-             -(30/4)*c4*x^2*y+(3/2)*c4*(x^2+y^2+z^2)*y; ...
-             -(30/4)*c4*x^2*z+(3/2)*c4*(x^2+y^2+z^2)*z];                        %Third order term
+    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];               %Second order term
+    Sigma4 = c4*[0; 0; 0; 2*x*(2*x^2-3*y^2-3*z^2); ...
+                 -(3/2)*y*(4*x^2-y^2-z^2); -(3/2)*z*(4*x^2-y^2-z^2)];           %Third order term
     
     %Equations of motion 
     drho = [O I; Sigma -2*Omega]*s_r + Sigma3 + Sigma4;
