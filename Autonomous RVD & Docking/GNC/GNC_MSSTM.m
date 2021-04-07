@@ -40,7 +40,7 @@ Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %Differential corrector set up
 nodes = 10;                         %Number of nodes for the multiple shooting corrector
-maxIter = 20;                       %Maximum number of iterations
+maxIter = 50;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
@@ -79,7 +79,8 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %Differential corrector set up
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
-maxIter = 20;                               %Maximum number of iterations
+nodes = 5;                                  %Number of nodes to compute
+maxIter = 50;                               %Maximum number of iterations
 tol = 1e-10;                                %Differential corrector tolerance
 GoOn = true;                                %Convergence boolean 
 iter = 1;                                   %Initial iteration 
@@ -88,13 +89,14 @@ iter = 1;                                   %Initial iteration
 dV = zeros(3,maxIter);                      %Targeting impulse
 
 %Implementation 
-[S, state] = MS_rendezvous(mu, S, T, 2, 20, tol);     %Trajectory optimization
-St = S.Trajectory;                                    %Final computed trajectory
+[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol);    %Trajectory optimization
+St = S.Trajectory;                                            %Final computed trajectory
+Pass = false;
 
 %% Results %% 
 disp('SIMULATION RESULTS: ')
 %Print results 
-if (Pass(1))
+if (Pass)
     disp('   Multiple impulsive rendezvous was achieved.');
     fprintf('   Number of impulses: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(1,1), dV0(1,1));
     fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(1,1), dV1(1,1));
@@ -120,7 +122,7 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(St(:,7), St(:,8), St(:,9)); 
+plot3(St(:,43), St(:,44), St(:,45)); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
@@ -128,7 +130,7 @@ grid on;
 title('Relative motion in the configuration space');
 
 %Rendezvous animation 
-if (true)
+if (false)
     figure(3) 
     view(3) 
     grid on;
@@ -217,11 +219,14 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol)
             %Build the covariance matrix                                       
             if (i ~= nodes)
                 %Continuity constraint
-                A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = reshape(S(end,m+1:end),[m m]);         %Subarc STM
+                STM = [reshape(S(end,n+1:n+n^2),[n n]) zeros(n); ...
+                       zeros(n) reshape(S(end,2*n+n^2+1:end),[n n])];                   %Subarc STM
+                A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = STM;                                   %Subarc STM
                 A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                               %Continuity constraint matrix
-                B(m*(i-1)+1:m*i,i) = F(m+1:end);                                        %Dynamics matrix
-                %Compute the error
-                e(m*(i-1)+1:m*i) = shiftdim(S(end,1:m).'-internalSeed(m*i+1:m*(i+1)));  %Continuity constraint
+                B(m*(i-1)+1:m*i,i) = F(1:end);                                          %Dynamics matrix
+                
+                %Compute the continuity error
+                e(m*(i-1)+1:m*i) = shiftdim([S(end,1:n) S(end,n+n^2+1:2*n+n^2)].'-internalSeed(m*i+1:m*(i+1)));  
             end     
         end
         
@@ -241,9 +246,9 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol)
     end
     
     %Integrate the whole trayectory
-    tspan = 0:dt:sum(internalSeed(end-nodes+1:end))+Dt;
-    seed = [shiftdim(internalSeed(1:m)); Phi];                  
-    [t, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, seed, options);
+    tspan = 0:dt:sum(internalSeed(end-nodes+1:end))+Dt; 
+    seed = [shiftdim(internalSeed(1:n)); Phi; shiftdim(internalSeed(n+1:2*n)); Phi];
+    [t, S] = ode113(@(t,s)nlr_model(mu, direction, true, 'Encke V', t, s), tspan, seed, options);
     
     %Ouput corrected trajectory 
     xf.Trajectory = S;                           %Trajectory
