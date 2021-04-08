@@ -79,7 +79,7 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: two impulsive rendezvous %%
+%% GNC: two impulsive rendezvous, single shooting scheme %%
 %Differential corrector set up
 S = S(1:index,:);                   %Restrict the time integration span
 maxIter = 20;                       %Maximum number of iterations
@@ -93,7 +93,7 @@ dV = zeros(3,maxIter);              %Targeting impulse
 %First impulse: targeting 
 while ((GoOn) && (iter < maxIter))
     %Initial impulse
-    error = S(end,7:9).';                                         %Velocity error
+    error = S(end,7:9).';                                           %Velocity error
     STM = reshape(S(end,13:end), [length(r_t0) length(r_t0)]);      %STM evaluated at time tf
     dV(:,iter) = STM(1:3,4:6)\error;                                %Required impulse
     
@@ -121,7 +121,7 @@ dV2(1) = norm(dV0(:,1))+norm(dVf(:,1));       %L2 norm of the impulses
 
 Pass(1) = ~GoOn;
 
-%% GNC: one impulsive rendezvous %% 
+%% GNC: one impulsive rendezvous, single shooting scheme %% 
 %Differential corrector set up
 S = Sn(1:index,:);                  %Reinitiate the trajectory
 s0 = Sn(1,:).';                     %Reinitiate initial conditions
@@ -162,16 +162,16 @@ dV2(1) = norm(dV0(:,2))+norm(dVf(:,2));  %L2 norm of the impulses
 Pass(2) = ~GoOn;
 
 %% Results %% 
-disp('SIMULATION RESULTS: ')
 %Print results 
+disp('SIMULATION RESULTS: ')
 if (Pass(1))
-    disp('   Two impulsive rendezvous was achieved.');
+    disp('   Two impulsive rendezvous was achieved');
     fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(1,1), dV0(1,1));
     fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dVf(1,1), dVf(1,1), dVf(1,1));
     fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(1,1), dV1(1,1));
     fprintf('   Delta V budget (L2 norm): %.4e \n', dV2(:,1));
 else
-    disp('    Two impulsive rendezvous was not achieved.');
+    disp('    Two impulsive rendezvous was not achieved');
 end
 
 disp(' ');

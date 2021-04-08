@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 1: Two-impulsive rendezvous via STM %% 
+%% GNC 2: Two-impulsive rendezvous via STM %% 
 % This script provides an interface to test the two-impusilve rendezvous strategia using the STM of 
 % the dynamical model. 
 
@@ -39,7 +39,6 @@ L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %Differential corrector set up
-nodes = 10;                         %Number of nodes for the multiple shooting corrector
 maxIter = 50;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
@@ -75,36 +74,24 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: multiple impulsive rendezvous %%
+%% GNC: two impulsive rendezvous, multiple shooting scheme %%
 %Differential corrector set up
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
-nodes = 5;                                  %Number of nodes to compute
-maxIter = 50;                               %Maximum number of iterations
-tol = 1e-10;                                %Differential corrector tolerance
+nodes = 2;                                  %Number of nodes to compute
 GoOn = true;                                %Convergence boolean 
 iter = 1;                                   %Initial iteration 
+
+cost = 'Position';                          %Targeting rendezvous
 
 %Preallocation 
 dV = zeros(3,maxIter);                      %Targeting impulse
 
 %Implementation 
-[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol);    %Trajectory optimization
-St = S.Trajectory;                                            %Final computed trajectory
-Pass = false;
+[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol, cost);      %Trajectory optimization
+St = S.Trajectory;                                                    %Final computed trajectory
 
 %% Results %% 
-disp('SIMULATION RESULTS: ')
-%Print results 
-if (Pass)
-    disp('   Multiple impulsive rendezvous was achieved.');
-    fprintf('   Number of impulses: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(1,1), dV0(1,1));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(1,1), dV1(1,1));
-    fprintf('   Delta V budget (L2 norm): %.4e \n', dV2(:,1));
-else
-    disp('    Multiple impulsive rendezvous was not achieved.');
-end
-
 %Plot results 
 figure(1) 
 view(3) 
@@ -152,7 +139,7 @@ if (false)
 end
 
 %% Auxiliary functions %% 
-function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol)
+function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
     %Constants 
     m = 12;                         %Complete phase space dimension 
     n = 6;                          %Individual phase space dimension
@@ -175,7 +162,15 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol)
     dt = 1e-4;                              %Integration time step
     h = fix(size(seed,2)/nodes)-1;          %Temporal index step
     Dt = T/nodes;                           %Time step between arcs
-    constraints = 0;                        %Additional constraints to continuity
+    
+    switch (cost)
+        case 'Position'
+            constraints = 3;                %Additional constraints to continuity (targeting rendezvous)
+        case 'Velocity'
+            constraints = 3;                %Additional constraints to continuity (relative position rendezvous)
+        otherwise
+            constraints = 6;                %Additional constraints to continuity (full rendezvous)
+    end
         
     %Preallocate internal patch points seeds 
     internalSeed = zeros((m+1)*nodes-1,1);        
@@ -227,6 +222,20 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol)
                 
                 %Compute the continuity error
                 e(m*(i-1)+1:m*i) = shiftdim([S(end,1:n) S(end,n+n^2+1:2*n+n^2)].'-internalSeed(m*i+1:m*(i+1)));  
+            else
+                %Rendezvous error
+                STM = reshape(S(end,2*n+n^2+1:end),[n n]);                               %Corresponding STM
+                switch (cost)
+                    case 'Position'
+                        e(end-constraints+1:end) = shiftdim(S(end,n+n^2+1:n+n^2+3)).';   %Relative phase space vector to the origin
+                        A(end-constraints+1:end,end-constraints+1:end) = STM(1:3,4:6);   %Constraint matrix
+                    case 'Velocity'
+                        e(end-constraints+1:end) = shiftdim(S(end,n+n^2+4:2*n+n^2)).';   %Relative phase space vector to the origin
+                        A(end-constraints+1:end,end-constraints+1:end) = STM(4:6,4:6);   %Constraint matrix
+                    otherwise
+                        e(end-n+1:end) = shiftdim(S(end,n+n^2+1:2*n+n^2)).';             %Relative phase space vector to the origin
+                        A(end-constraints+1:end,end-2:end) = STM(:,4:6);                 %Constraint matrix
+                end
             end     
         end
         
