@@ -27,7 +27,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %Spacecraft mass 
-m = 1e-21;
+mass = 1e-21;
 
 %Time span 
 dt = 1e-3;                          %Time step
@@ -69,38 +69,42 @@ r_t0 = target_orbit.Trajectory(33,1:6);                     %Initial target cond
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
-Phi = eye(length(r_t0));                                    %Initial STM
-Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
-s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspann, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
 %% GNC: LQR/SDRE control law %%
+%Approximation 
+order = 2;                                                  %Order of the approximation 
+
 %Cost function matrices 
 Q = eye(n);                                                 %Cost weight on the state error
-R = eye(n);                                                 %Cost weight on the spent energy
+R = eye(n/2);                                               %Cost weight on the spent energy
 
 %Preallocation 
-S = zeros(length(tspan), 2*(n+n^2));                        %Relative orbit trajectory
+S = zeros(length(tspan), 2*n);                              %Relative orbit trajectory
 
 %Input matrix 
 B = (1/mass)*[zeros(n/2); eye(n/2)];
 
 %Compute the trajectory
 for i = 1:length(tspan)
+    %Compute the relative Legendre coefficient c2 
+    rc = relegendre_coefficients(mu, S(i,1:3).', order); 
+    c2 = rc(2); 
+    
     %Evaluate the linear model 
-    A = lr_model(mu, 0, 1, false, 'Target', t, S(i,:));
+    A = [zeros(3) eye(3); 1+2*c2 0 0 0 2 0; 0 1-c2 0 -2 0 0; 0 0 0 -c2 0 0];     %Linear model state matrix
     
     %Compute the LQR matrix 
-    [~, K, ~] = idare(A, B, Q, R);                          %Feedback gain matrix
+    [~, ~, K] = care(A, B, Q, R);                                                %Feedback gain matrix
     
     %Compute the control law
-    u = -K*shiftdim(S(i,n+n^2+1:2*n+n^2)).';                %Feedback control law
+    u = -K*shiftdim(S(i,7:12));                                                  %Feedback control law
     
     %Re-integrate trajectory
     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u), [0 dt], S(i,:), options);

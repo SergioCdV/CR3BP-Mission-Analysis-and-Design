@@ -29,7 +29,7 @@
 
 % New versions: 
 
-function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
+function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
     %Constants 
     m = 6;                                                        %Individual phase space dimension
     
@@ -51,6 +51,8 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s)
             drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
         case 'Encke V'
             drho = EnckeV_method(mu, flagVar, s);                 %Relative motion equations
+        case 'Encke C'
+            drho = EnckeC_method(mu, s, varargin);                %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
@@ -121,6 +123,24 @@ function [drho] = EnckeV_method(mu, flagVar, s)
     
     %Final vector field 
     drho = [drho; ds]; 
+end
+
+%Full nonlinear relative motion equations with control vector
+function [drho] = EnckeC_method(mu, s, varargin)
+    %System parameters 
+    m = 6;                                   %Phase space dimension
+    
+    %Control vector 
+    u = varargin{1};
+    u = u{1};
+
+    %State variables
+    s_t = s(1:m);                            %Target state 
+    s_r = s(m+1:2*m);                        %Relative state
+
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    drho = drho + [0; 0; 0; u];                                 %Add control vector
 end
 
 %Full nonlinear relative motion equations
