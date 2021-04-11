@@ -131,9 +131,9 @@ function [drho] = EnckeC_method(mu, s, varargin)
     m = 6;                                   %Phase space dimension
     
     %Control vector 
-    u = varargin{1};
-    u = u{1};
-
+    aux = varargin{1};
+    u = aux{1};
+    
     %State variables
     s_t = s(1:m);                            %Target state 
     s_r = s(m+1:2*m);                        %Relative state

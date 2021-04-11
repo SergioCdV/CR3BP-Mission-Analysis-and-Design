@@ -57,21 +57,21 @@ end
 %Relative motion equations linearized with respect to the target
 function [drho] = target_centered(mu, s_t, s_r)
     %Constants of the system 
-    mu1 = 1-mu;             %Reduced gravitational parameter of the first primary 
-    mu2 = mu;               %Reduced gravitational parameter of the second primary 
+    mup(1) = 1-mu;             %Reduced gravitational parameter of the first primary 
+    mup(2) = mu;               %Reduced gravitational parameter of the second primary 
     
     %State variables 
-    r_t = s_t(1:3);         %Synodic position of the target
+    r_t = s_t(1:3);            %Synodic position of the target
     
     %Synodic position of the primaries 
-    R1 = [-mu; 0; 0];       %Synodic position of the first primary
-    R2 = [1-mu; 0; 0];      %Synodic position of the second primary
+    R(:,1) = [-mu; 0; 0];      %Synodic position of the first primary
+    R(:,2) = [1-mu; 0; 0];     %Synodic position of the second primary
     
     %Relative position between the primaries and the target 
-    Ur1 = r_t-R1;                           %Position of the target with respect to the first primary
-    ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the primary
-    Ur2 = r_t-R2;                           %Position of the target with respect to the first primary
-    ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the primary
+    Ur1 = r_t-R(:,1);                       ¡%Position of the target with respect to the first primary
+    ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the first primary
+    Ur2 = r_t-R(:,2);                       %Position of the target with respect to the first primary
+    ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the second primary
     
     %Relative acceleration (non inertial)
     O = zeros(3,3);                         %3 by 3 null matrix
@@ -79,7 +79,7 @@ function [drho] = target_centered(mu, s_t, s_r)
     Omega = [0 1 0; -1 0 0; 0 0 0];         %Hat map dyadic of the angular velocity for the synodice reference frame
     
     %Gravity acceleration
-    Sigma = -((mu1/norm(Ur1)^3)+(mu2/norm(Ur2))^3)*eye(3)+3*((mu1/norm(Ur1)^3)*(ur1*ur1.')+(mu2/norm(Ur2)^3)*(ur2*ur2.'));
+    Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
     
     %State matrix 
     A = [O I; Sigma-Omega*Omega -2*Omega];
