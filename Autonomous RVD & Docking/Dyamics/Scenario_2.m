@@ -102,8 +102,10 @@ for i = 1:size(S,1)
     T = (1/2)*norm(v-[0 -1 0; 1 0 0; 0 0 0]*rho)^2;
     
     %Potential energy
-    U = -(mup(1)*((1/norm(rho+r_t-R(:,1)))-(dot(rho,(R(:,1)-r_t))/norm(r_t-R(:,1)))) ...
-         +mup(2)*((1/norm(rho+r_t-R(:,2)))-(dot(rho,(R(:,2)-r_t))/norm(r_t-R(:,2)))));
+    U = 0;
+    for j = 1:length(mup)
+        U = U-mup(j)*((1/norm(rho+r_t-R(:,j)))-(dot(rho,(R(:,j)-r_t))/norm(r_t-R(:,j))^3));
+    end
      
     %Relative Hamiltonian
     H(i) = T+U;
