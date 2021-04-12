@@ -31,8 +31,8 @@ mass = 1e-10;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.6;                           %Rendezvous time
-tspan = 0:dt:0.6;                   %Integration time span
+tf = 0.4;                           %Rendezvous time
+tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
 %CR3BP constants 
@@ -60,14 +60,28 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+%Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
+num = 2;                                                    %Number of orbits to continuate
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, target_orbit.Period};         %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+direction = 1;                                              %Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                         %General setup
+
+[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
+
 %% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
 if (index > size(target_orbit.Trajectory,1))
     index = mod(index, size(target_orbit.Trajectory,1));    %Rendezvous point
 end
-r_t0 = target_orbit.Trajectory(5,1:6);                     %Initial target conditions
+r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
+rho0(1) = rho0(1)+100e3/Lem;
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
@@ -77,22 +91,53 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: LQR/SDRE control law %%
-%Model coefficients 
-mup(1) = 1-mu;             %Reduced gravitational parameter of the first primary 
-mup(2) = mu;               %Reduced gravitational parameter of the second primary 
-R(:,1) = [-mu; 0; 0];      %Synodic position of the first primary
-R2(:,2) = [1-mu; 0; 0];    %Synodic position of the second primary
-    
+%% Controlability analysis
 %Approximation 
-order = 2;                                                  %Order of the approximation 
+order = 2;                                   %Order of the approximation 
 
+%Preallocation 
+controlable = zeros(size(S(1:index),1),1);   %Controllability boolean
+
+%Model coefficients 
+mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary 
+mup(2) = mu;                        %Reduced gravitational parameter of the second primary 
+R(:,1) = [-mu; 0; 0];               %Synodic position of the first primary
+R(:,2) = [1-mu; 0; 0];              %Synodic position of the second primary
+
+%Linear model matrices
+B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
+Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
+
+for i = 1:size(S(1:index,:),1)
+    %State coefficients 
+    r_t = S(i,1:3).';               %Synodic position of the target
+        
+    %Relative position between the primaries and the target 
+    Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
+    ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
+    Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
+    ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
+    
+    %Compute the relative Legendre coefficient c2 
+    rc = relegendre_coefficients(mu, S(i,1:3).', order); 
+    cn = legendre_coefficients(mu, Ln, gamma, order);
+    c2 = cn(2); 
+    
+    %Evaluate the linear model 
+    %Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
+    Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
+    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];     
+    
+    %Controlability matrix 
+    C = ctrb(A,B); 
+    controlable(i) = (rank(C) == size(A,1));
+end
+
+%% GNC: LQR/SDRE control law %%
 %Cost function matrices 
-Q = 10*eye(n);                                                 %Cost weight on the state error
+m = n+3;                                                    %Augmented state vector to include the integrator dynamics
+Q = diag([1e-4, 1e-4, 1e-4, 1e2, 1e2, 1e2, 1e3, 1e3, 1e3]); %Cost weight on the state error
 R = eye(n/2);                                               %Cost weight on the spent energy
-
-%Linear model 
-Omega = [0 2 0; -2 0 0; 0 0 0];                             %Coriolis dyadic
 
 %Preallocation 
 Sc = zeros(length(tspan), 2*n);                             %Relative orbit trajectory
@@ -100,11 +145,11 @@ Sc(1,:) = Sn(1,:);                                          %Initial relative st
 u = zeros(3,length(tspan));                                 %Control law
 e = zeros(1,length(tspan));                                 %Error to rendezvous 
 
-%Input matrix 
-B = [zeros(n/2); eye(n/2)];
-
 %Hamiltonian matrix of the SDRE 
-H = [zeros(n,n) -B*R^(-1)*B.'; -Q zeros(n,n)];
+H = [zeros(m,m) -B*R^(-1)*B.'; -Q zeros(m,m)];
+
+%Initial value 
+integrator = zeros(3,1);
 
 %Compute the trajectory
 for i = 1:length(tspan)
@@ -116,35 +161,32 @@ for i = 1:length(tspan)
     ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the primary
     Ur2 = r_t-R(:,2);                       %Position of the target with respect to the first primary
     ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the primary
-    
-    %Compute the relative Legendre coefficient c2 
-    rc = relegendre_coefficients(mu, S(i,1:3).', order); 
-    cn = legendre_coefficients(mu, Ln, gamma, order);
-    c2 = rc(2); 
-    
+        
     %Evaluate the linear model 
-    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
     Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-    A = [zeros(3) eye(3); Sigma Omega];     
+    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];     
     
     %Compute the LQR matrix 
-    H(1:6,1:6) = A;                                                              %Complete the Hamiltonian matrix
-    H(end-5:end, end-5:end) = -A.';                                              %Complete the Hamiltonian matrix
+    H(1:9,1:9) = A;                                                              %Complete the Hamiltonian matrix
+    H(end-8:end, end-8:end) = -A.';                                              %Complete the Hamiltonian matrix
     [U,L] = schur(H);                                                            %Schur decomposition of the Hamiltonian matrix
     U = U.';                                                                     %Format transformation
-    P = U(1:6,7:12)*(U(1:6,1:6)^(-1)).';                                         %Solution of the Ricatti equation
+    P = U(1:9,10:18)*(U(1:9,1:9)^(-1)).';                                         %Solution of the Ricatti equation
     K = -R^(-1)*B.'*P;                                                           %LQR matrix
-    
-    K = dlqr(A,B,Q,R);
-    
+        
     %Compute the feedback control law
-    u(:,i) = -K*shiftdim(Sc(i,7:12));                                            
+    u(:,i) = K*[integrator; shiftdim(Sc(i,7:12))];                                            
     
     %Re-integrate trajectory
-    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i), mass), [0 dt], S(i,:), options);
+    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], S(i,:), options);
     
     %Update initial conditions
     Sc(i+1,:) = s(end,:);
+    
+    %Update integrator
+    fintegrator = @(t,s)(shiftdim(Sc(i,7:9)));
+    [~,integrator] = ode45(@(t,s)fintegrator(t,s), [0 dt], integrator, options);
+    integrator = integrator(end,:).';
     
     %Error in time 
     e(i) = norm(s(end,7:12));
