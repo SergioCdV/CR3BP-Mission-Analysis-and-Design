@@ -1,14 +1,12 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 24/03/21 % 
+% 15/04/21 % 
 
-%% Scenario 1 %% 
-% This script provides an interface to test different nonlinear models for relative motion in the CR3BP
-% in different orbits. 
+%% Variation of Parameters 1 %% 
+% This script provides an interface to test different approximation to
+% expressing the relative dynamics as a variation of the absolute ones.
 
-% The relative motion of two spacecraft in two halo orbits around L1 in the
-% Earth-Moon system is analyzed both from the direct integration of the
-% equations of motion and the full motion relative motion % 
+% The relative motion of two spacecraft in two halo orbits around L1 % 
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
 % points reference frame as defined by Howell, 1984.
@@ -77,37 +75,13 @@ s0 = [r_t0 rho0];                                           %Initial conditions 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%Error in the computation
-error = S_c-S_rc;                                           %Position error (L2 norm) via Encke's method          
-ep = zeros(size(error,1), 1);                               
-for i = 1:size(error,1)
-    ep(i) = norm(error(i,:));
-end
+%% Variation of parameters: approximation of the affine connection
+%Integration of the relative motion as the solution of the absolute dynamics
+s0(1:6) = zeros(6,1);                                                                       %Nullify the target motion
+[t, S_a] = ode45(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspan, s0);     %Integrate the absolute dynamics solution
 
-%% Evolution of the Hamiltonian of the system
-%Preallocation
-H = zeros(size(S,1),1);               %Relative Hamiltonian
-
-%Main computation
-for i = 1:size(S,1)
-    r_t = S(i,1:3).';                 %Target position       
-    rho = S(i,7:9).';                 %Relative position
-    v = S(i,10:12).';                 %Relative velocity
-    R = [-mu 1-mu; 0 0; 0 0];         %Position of the primaries
-    mup = [1-mu; mu];                 %Reduced gravitational parameters of the primaries
-    
-    %Kinetic energy
-    T = (1/2)*norm(v-[0 -1 0; 1 0 0; 0 0 0]*rho)^2;
-    
-    %Potential energy
-    U = 0;
-    for j = 1:length(mup)
-        U = U-mup(j)*((1/norm(rho+r_t-R(:,j)))-(dot(rho,(R(:,j)-r_t))/norm(r_t-R(:,j))^3));
-    end
-     
-    %Relative Hamiltonian
-    H(i) = T+U;
-end
+%Difference with the relative dynamics 
+S_v = S(:,7:12)-S_a;
 
 %% Results %% 
 % Plot results 
@@ -135,20 +109,3 @@ ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Relative orbit');
-
-figure(3) 
-hold on
-plot(t, log(ep), 'b'); 
-hold off
-grid on
-xlabel('Nondimensional epoch'); 
-ylabel('Relative error in the synodic frame');
-title('Error in the phase space vector (L2 norm)')
-legend('Encke method error');
-
-figure(4) 
-plot(t, H, 'b'); 
-grid on
-xlabel('Nondimensional epoch'); 
-ylabel('Relative Hamiltonian');
-title('Relative energy evolution')
