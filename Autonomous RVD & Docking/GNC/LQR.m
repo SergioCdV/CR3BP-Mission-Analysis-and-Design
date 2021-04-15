@@ -3,8 +3,8 @@
 % 01/04/21 % 
 
 %% GNC 3: LQR/SDRE control law %% 
-% This script provides an interface to test the two-impusilve rendezvous strategia using the STM of 
-% the dynamical model. 
+% This script provides an interface to test the LQR rendezvous strategy for
+% rendezvous missions
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.

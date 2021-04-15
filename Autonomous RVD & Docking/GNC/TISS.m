@@ -3,7 +3,7 @@
 % 01/04/21 % 
 
 %% GNC 1: Two-impulsive rendezvous via STM %% 
-% This script provides an interface to test the two-impusilve rendezvous strategia using the STM of 
+% This script provides an interface to test the two-impusilve rendezvous strategy using the STM of 
 % the dynamical model. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
