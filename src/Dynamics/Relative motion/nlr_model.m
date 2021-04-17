@@ -53,6 +53,10 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
             drho = EnckeV_method(mu, flagVar, s);                 %Relative motion equations
         case 'Encke C'
             drho = EnckeC_method(mu, s, varargin);                %Relative motion equations
+        case 'Encke LQR'
+            drho = EnckeLQR_method(mu, s, varargin);              %Relative motion equations
+        case 'Encke SDRE'    
+            drho = EnckeSDRE_method(mu, s, varargin);             %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
@@ -141,6 +145,103 @@ function [drho] = EnckeC_method(mu, s, varargin)
     %Compute the integration of the relative motion equations 
     drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
     drho = drho + [0; 0; 0; u];                                 %Add control vector
+end
+
+%Full nonlinear relative motion equations with a continuous LQR PID controller
+function [drho] = EnckeLQR_method(mu, s, varargin)
+    %System parameters 
+    m = 6;                                   %Phase space dimension
+    
+    %Control vector 
+    aux = varargin{1};
+    K = aux{1};
+    
+    %State variables
+    s_t = s(1:m);                            %Target state 
+    s_r = s(m+1:2*m);                        %Relative state
+    int = s(end-2:end);                      %Integrator control vector
+    
+    %Compute the control law 
+    u = -K*[int; s_r];
+
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    dint = s_r(1:3);                                            %Integrator field flow
+    drho = drho + [0; 0; 0; u];                                 %Add control vector
+    drho = [drho; dint];
+end
+
+%Full nonlinear relative motion equations with a continuous LQR PID controller
+function [drho] = EnckeSDRE_method(mu, s, varargin)
+    %System parameters 
+    m = 6;                                  %Phase space dimension
+    
+    %Control vector 
+    aux = varargin{1};
+    model = aux{1};                         %Model to be used
+    Ln = aux{2};                            %Libration point
+    gamma = aux{3};                         %Relative distance of the libration point to the primary
+    
+    %State variables
+    s_t = s(1:m);                           %Target state 
+    r_t = s_t(1:3);                         %Target position
+    s_r = s(m+1:2*m);                       %Relative state
+    int = s(end-2:end);                     %Integrator control vector
+    
+    %Approximation 
+    n = 6;                                  %Dimension of the state vector
+    order = 2;                              %Order of the approximation 
+
+    %Model coefficients 
+    mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary 
+    mup(2) = mu;                            %Reduced gravitational parameter of the second primary 
+    R(:,1) = [-mu; 0; 0];                   %Synodic position of the first primary
+    R(:,2) = [1-mu; 0; 0];                  %Synodic position of the second primary
+
+    %Linear model matrices
+    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
+    Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
+    
+    %Cost function matrices 
+    Q = diag(ones(1,n+3));                          %Cost weight on the state error
+    M = eye(n/2);                                   %Cost weight on the spent energy
+
+    %Select linear model 
+    switch (model)
+        case 'Fixed point'
+            cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
+            c2 = cn(2); 
+            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
+        case 'Moving point' 
+            rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
+            c2 = rc(2); 
+            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
+        case 'Target' 
+            %Relative position between the primaries and the target 
+            Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
+            ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
+            Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
+            ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
+            %Evaluate the linear model 
+            Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
+        otherwise 
+            error('No valid linear model was selected'); 
+    end
+
+    %Linear state model
+    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];  
+
+    %Compute the feedback control law
+    [K,~,~] = lqr(A,B,Q,M);
+    
+    %Compute the control law 
+    u = -K*[int; s_r];
+
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    dint = s_r(1:3);                                            %Integrator field flow
+    drho = drho + [0; 0; 0; u];                                 %Add control vector
+    drho = [drho; dint];
 end
 
 %Full nonlinear relative motion equations
