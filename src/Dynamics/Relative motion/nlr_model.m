@@ -57,6 +57,8 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
             drho = EnckeLQR_method(mu, s, varargin);              %Relative motion equations
         case 'Encke SDRE'    
             drho = EnckeSDRE_method(mu, s, varargin);             %Relative motion equations
+        case 'Encke SMC'    
+            drho = EnckeSMC_method(mu, s, varargin);              %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
@@ -64,8 +66,7 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
         case 'Third order'
             drho = th_model(mu, s_t, s_r);                        %Relative motion equations
         otherwise
-            drho = [];
-            disp('No valid model was chosen');
+            erro('No valid model was chosen');
     end
     
     %Vector field 
@@ -171,7 +172,7 @@ function [drho] = EnckeLQR_method(mu, s, varargin)
     drho = [drho; dint];
 end
 
-%Full nonlinear relative motion equations with a continuous LQR PID controller
+%Full nonlinear relative motion equations with a continuous SDRE PID controller
 function [drho] = EnckeSDRE_method(mu, s, varargin)
     %System parameters 
     m = 6;                                  %Phase space dimension
@@ -242,6 +243,58 @@ function [drho] = EnckeSDRE_method(mu, s, varargin)
     dint = s_r(1:3);                                            %Integrator field flow
     drho = drho + [0; 0; 0; u];                                 %Add control vector
     drho = [drho; dint];
+end
+
+function [drho] = EnckeSMC_method(mu, s, varargin)   
+    %System parameters 
+    m = 6;                                  %Phase space dimension
+    
+    %Control vector 
+    aux = varargin{1};
+    refState = aux{1};                      %Reference state to track
+    
+    %State variables
+    s_t = s(1:m);                           %Target state 
+    s_r = s(m+1:2*m);                       %Relative state
+        
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    
+    %Compute the control law
+    lambda = 1;                %General loop gain
+    epsi = 1;                  %Reachability condition gain
+    alpha = 0.9;               %Reachability condition exponent
+    delta = 0.1;               %Boundary layer width
+    
+    %Attitude state
+    r = s_r(1:3);              %Instanteneous position vector
+    v = s_r(4:6);              %Instanteneous velocity vector
+    
+    %Compute the position and velocity errors
+    dr = r-refState(1:3);      %Position error
+    dv = v-refState(4:6);      %Velocity error
+    
+    %Control computation
+    S = dv+lambda*dr;          %Sliding surface
+    
+    %Compute a bang bang saturation law, given the boundary layer delta 
+    U = zeros(length(S),1);
+    for i = 1:size(S)
+        if (S(i) > delta)
+            U(i) = 1; 
+        elseif (S(i) < -delta)
+            U(i) = -1; 
+        else
+            U(i) = (1/delta)*S(i);
+        end
+    end
+    
+    ds = epsi*(norm(S)^(alpha)*U+S);         %Reachability condition function
+    f = drho(4:6);                           %Relative CR3BP dynamics
+    u = refState(7:9)-f-lambda*dv-ds;        %Control vector
+    
+    %Add control vector
+    drho = drho + [0; 0; 0; u];                                 
 end
 
 %Full nonlinear relative motion equations

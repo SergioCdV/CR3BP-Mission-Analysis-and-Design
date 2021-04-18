@@ -1,6 +1,6 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 01/04/21 % 
+% 17/04/21 % 
 
 %% GNC 4: SMC control law %% 
 % This script provides an interface to test the Sliding Mode Control strategy for rendezvous missions. 
@@ -29,7 +29,7 @@ mass = 1e-10;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.4;                           %Rendezvous time
+tf = 2*pi;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -73,13 +73,9 @@ setup = [mu maxIter tol direction];                         %General setup
 
 %% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
-if (index > size(target_orbit.Trajectory,1))
-    index = mod(index, size(target_orbit.Trajectory,1));    %Rendezvous point
-end
-r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial target conditions
+r_t0 = target_orbit.Trajectory(2,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
-rho0(1) = rho0(1)+100e3/Lem;
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
@@ -89,62 +85,46 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: SMC control law %%
-%Cost function matrices 
-
+%% GNC: discrete SMC control law %%
 %Preallocation 
 Sc = zeros(length(tspan), 2*n);                             %Relative orbit trajectory
 Sc(1,:) = Sn(1,:);                                          %Initial relative state
 u = zeros(3,length(tspan));                                 %Control law
 e = zeros(1,length(tspan));                                 %Error to rendezvous 
 
-%Hamiltonian matrix of the SDRE 
-H = [zeros(m,m) -B*R^(-1)*B.'; -Q zeros(m,m)];
-
-%Initial value 
-integrator = zeros(3,1);
+%Reference state 
+refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
 
 %Compute the trajectory
 for i = 1:length(tspan)
-    %State coefficients 
-    r_t = S(i,1:3).';                       %Synodic position of the target
-        
-    %Relative position between the primaries and the target 
-    Ur1 = r_t-R(:,1);                       %Position of the target with respect to the first primary
-    ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the primary
-    Ur2 = r_t-R(:,2);                       %Position of the target with respect to the first primary
-    ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the primary
-        
-    %Evaluate the linear model 
-    Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];     
-    
-    %Compute the LQR matrix 
-    H(1:9,1:9) = A;                                                              %Complete the Hamiltonian matrix
-    H(end-8:end, end-8:end) = -A.';                                              %Complete the Hamiltonian matrix
-    [U,L] = schur(H);                                                            %Schur decomposition of the Hamiltonian matrix
-    U = U.';                                                                     %Format transformation
-    P = U(1:9,10:18)*(U(1:9,1:9)^(-1)).';                                         %Solution of the Ricatti equation
-    K = -R^(-1)*B.'*P;                                                           %LQR matrix
-        
-    %Compute the feedback control law
-    u(:,i) = K*[integrator; shiftdim(Sc(i,7:12))];                                            
-    
+    %Compute the control law 
+    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));
+
     %Re-integrate trajectory
     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], S(i,:), options);
     
     %Update initial conditions
     Sc(i+1,:) = s(end,:);
-    
-    %Update integrator
-    fintegrator = @(t,s)(shiftdim(Sc(i,7:9)));
-    [~,integrator] = ode45(@(t,s)fintegrator(t,s), [0 dt], integrator, options);
-    integrator = integrator(end,:).';
-    
+        
     %Error in time 
     e(i) = norm(s(end,7:12));
 end
 
+%% GNC: SMC control law %%
+% %Preallocation 
+e = zeros(1,length(tspan));                                 %Error to rendezvous 
+
+%Reference state 
+refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
+
+%Re-integrate trajectory
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke SMC', t, s, refState), tspan, s0, options);
+
+%Error in time 
+for i = 1:length(tspan)
+    e(i) = norm(Sc(i,7:12));
+end
+    
 %% Results %% 
 %Plot results 
 figure(1) 
@@ -179,7 +159,7 @@ grid on;
 title('Absolute error in the configuration space (L2 norm)');
 
 %Rendezvous animation 
-if (false)
+if (true)
     figure(4) 
     view(3) 
     grid on;
@@ -200,3 +180,41 @@ if (false)
 hold off
 end
 
+%% Auxiliary functions 
+%Control algorithms
+function [T] = hybrid_controller(mu, refState, x)
+    %SMC parameters 
+    lambda = 1;                %General loop gain
+    epsi = 1;                  %Reachability condition gain
+    alpha = 0.9;               %Reachability condition exponent
+    delta = 1e-2;              %Boundary layer width
+    
+    %Attitude state
+    r = x(7:9).';              %Instanteneous position vector
+    v = x(10:12).';            %Instanteneous velocity vector
+    
+    %Compute the position and velocity errors
+    dr = r-refState(1:3);      %Position error
+    dv = v-refState(4:6);      %Velocity error
+    
+    %Torque computation
+    s = dv+lambda*dr;                                                   %Sliding surface
+    f = nlr_model(mu, true, false, 'Encke C', 0, x.', zeros(3,1));      %Relative CR3BP dynamics
+    ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);               %Reachability condition function
+    T = refState(7:9)-f(10:12)-lambda*dv-ds;                            %Control vector
+end
+
+%Saturation function
+function [U] = saturation(s, delta)
+    %Compute a bang bang saturation law, given the boundary layer delta 
+    U = zeros(1,length(s));
+    for i = 1:size(s)
+        if (s(i) > delta)
+            U(i) = 1; 
+        elseif (s(i) < -delta)
+            U(i) = -1; 
+        else
+            U(i) = (1/delta)*s(i);
+        end
+    end
+end

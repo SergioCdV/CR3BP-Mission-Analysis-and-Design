@@ -75,9 +75,6 @@ setup = [mu maxIter tol direction];                                 %General set
 
 %% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
-if (index > size(target_orbit.Trajectory,1))
-    index = mod(index, size(target_orbit.Trajectory,1));    %Rendezvous point
-end
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
