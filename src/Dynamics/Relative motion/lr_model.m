@@ -28,7 +28,7 @@
 
 % New versions: include the first variations of the vector field.
 
-function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s)
+function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     %State variables 
     s_t = s(1:6);       %State of the target
     s_r = s(7:12);      %State of the chaser
@@ -47,6 +47,14 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s)
         otherwise
             drho = [];
             disp('No valid model was chosen');
+    end
+    
+    %Add control vector
+    control = varargin{1}; 
+    u = varargin{2};
+    
+    if (control)
+        drho = drho + [zeros(3,1); u];
     end
     
     %Vector field 
@@ -68,7 +76,7 @@ function [drho] = target_centered(mu, s_t, s_r)
     R(:,2) = [1-mu; 0; 0];     %Synodic position of the second primary
     
     %Relative position between the primaries and the target 
-    Ur1 = r_t-R(:,1);                       ¡%Position of the target with respect to the first primary
+    Ur1 = r_t-R(:,1);                       %Position of the target with respect to the first primary
     ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the first primary
     Ur2 = r_t-R(:,2);                       %Position of the target with respect to the first primary
     ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the second primary
