@@ -88,6 +88,23 @@ dV = zeros(3,maxIter);                      %Targeting impulse
 [S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol, cost);      %Trajectory optimization
 St = S.Trajectory;                                                    %Final computed trajectory
 
+%% GNC: two impulsive rendezvous, target point approach %%
+%Differential corrector set up
+S = S(1:index,:);                           %Restrict the time integration span
+T = index*dt;                               %Flight time along the arc
+nodes = 2;                                  %Number of nodes to compute
+GoOn = true;                                %Convergence boolean 
+iter = 1;                                   %Initial iteration 
+
+cost = 'Position';                          %Targeting rendezvous
+
+%Preallocation 
+dV = zeros(3,maxIter);                      %Targeting impulse
+
+%Implementation 
+[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol, cost);      %Trajectory optimization
+St = S.Trajectory;                                                    %Final computed trajectory
+
 %% Results %% 
 %Plot results 
 figure(1) 
