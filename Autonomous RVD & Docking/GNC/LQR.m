@@ -95,13 +95,13 @@ controlable = controlability_analysis(model, mu, Sn, index, Ln, gamma);
 %[Sc, e] = dsdre(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% GNC: DLQR control law %%
-%[Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma);
+[Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% GNC: LQR control law %%
 %[Sc, e] = lqrm(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% GNC: SDRE control law
-[Sc, e] = sdre(model, options, mu, Sn, tspan, Ln, gamma);
+%[Sc, e] = sdre(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% Results %% 
 %Plot results 
