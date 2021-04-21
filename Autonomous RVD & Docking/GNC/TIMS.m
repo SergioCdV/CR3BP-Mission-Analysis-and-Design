@@ -59,7 +59,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %% Modelling in the synodic frame %% 
 index = fix(tf/dt);                                         %Rendezvous point
-r_t0 = target_orbit.Trajectory(33,1:6);                     %Initial target conditions
+r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
@@ -72,23 +72,6 @@ Sn = S;
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
 %% GNC: two impulsive rendezvous, multiple shooting scheme %%
-%Differential corrector set up
-S = S(1:index,:);                           %Restrict the time integration span
-T = index*dt;                               %Flight time along the arc
-nodes = 2;                                  %Number of nodes to compute
-GoOn = true;                                %Convergence boolean 
-iter = 1;                                   %Initial iteration 
-
-cost = 'Position';                          %Targeting rendezvous
-
-%Preallocation 
-dV = zeros(3,maxIter);                      %Targeting impulse
-
-%Implementation 
-[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol, cost);      %Trajectory optimization
-St = S.Trajectory;                                                    %Final computed trajectory
-
-%% GNC: two impulsive rendezvous, target point approach %%
 %Differential corrector set up
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc

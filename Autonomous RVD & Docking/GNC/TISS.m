@@ -61,7 +61,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
-r_t0 = target_orbit.Trajectory(33,1:6);                     %Initial target conditions
+r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
@@ -163,9 +163,9 @@ Pass(2) = ~GoOn;
 disp('SIMULATION RESULTS: ')
 if (Pass(1))
     disp('   Two impulsive rendezvous was achieved');
-    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(1,1), dV0(1,1));
-    fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dVf(1,1), dVf(1,1), dVf(1,1));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(1,1), dV1(1,1));
+    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(2,1), dV0(3,1));
+    fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dVf(1,1), dVf(2,1), dVf(3,1));
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(2,1), dV1(3,1));
     fprintf('   Delta V budget (L2 norm): %.4e \n', dV2(:,1));
 else
     disp('    Two impulsive rendezvous was not achieved');
@@ -174,9 +174,9 @@ end
 disp(' ');
 if (Pass(2))
     disp('   One impulsive rendezvous was achieved.');
-    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,2), dV0(1,2), dV0(1,2));
-    fprintf('   Final impulse: %.4ei %.4ej %.4ek+\n', dVf(1,2), dVf(1,2), dVf(1,2));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,2), dV1(1,2), dV1(1,2));
+    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,2), dV0(2,2), dV0(3,2));
+    fprintf('   Final impulse: %.4ei %.4ej %.4ek+\n', dVf(1,2), dVf(2,2), dVf(3,2));
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,2), dV1(2,2), dV1(3,2));
     fprintf('   Delta V budget (L2 norm): %.4e', dV2(:,2));
 else
      disp('   One impulsive rendezvous was not achieved.');
