@@ -111,7 +111,7 @@ for i = 1:length(tspan)-1
     u(:,i) = U(:,1); 
 
     %Re-integrate the trajectory 
-    [~, s]= ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
+    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
 
     %Update initial conditions
     Sc(i+1,:) = s(end,:);

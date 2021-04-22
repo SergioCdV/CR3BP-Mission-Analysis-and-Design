@@ -95,7 +95,7 @@ M = 0.1*eye(6);                             %Penalty on the state noise
 Omegat = [zeros(3,3); eye(3)];              %Derivative of the state vector with respect to the impulse
 
 %Select measuring times 
-noise = true;                               %Boolean to account for state noise
+noise = false;                               %Boolean to account for state noise
 measurements = 3;                           %Number of noise measurements
 times = T*rand(1,measurements);             %Times to measure the state noise
 times = fix(times/dt);                      %Position along the time span to measure the state noise

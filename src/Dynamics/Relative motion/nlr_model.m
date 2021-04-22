@@ -59,6 +59,8 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
             drho = EnckeSDRE_method(mu, s, varargin);             %Relative motion equations
         case 'Encke SMC'    
             drho = EnckeSMC_method(mu, s, varargin);              %Relative motion equations
+        case 'Encke OPT'    
+            drho = EnckeOPT_method(mu, s, varargin);              %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
