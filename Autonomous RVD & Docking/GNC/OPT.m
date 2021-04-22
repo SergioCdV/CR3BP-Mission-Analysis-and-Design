@@ -109,10 +109,10 @@ P.guess.state = [rho0.' zeros(6,1)];
 P.guess.control = [P.bounds.control.upp P.bounds.control.low];
 
 %Dynamics function
-P.func.dynamics = @(t,x,u)(nlr_model(mu, 1, false, 'Encke OPT', t, [Sn(:,1:6).'; x], u));    
+P.func.dynamics = @(t,x,u)(opt_model(mu, Sn, t, x, u));    
 
 %Objective function
-P.func.pathObj = @(t,x,u)(u.^2);
+P.func.bndObj = @(t0,x0,tF,xF)(xF);
 
 %Select transcription method
 method = 'trapezoid';

@@ -247,6 +247,7 @@ function [drho] = EnckeSDRE_method(mu, s, varargin)
     drho = [drho; dint];
 end
 
+%Full nonlinear relative motion equations for MPC purposes 
 function [drho] = EnckeSMC_method(mu, s, varargin)   
     %System parameters 
     m = 6;                                  %Phase space dimension
@@ -297,6 +298,24 @@ function [drho] = EnckeSMC_method(mu, s, varargin)
     
     %Add control vector
     drho = drho + [0; 0; 0; u];                                 
+end
+
+%Full nonlinear relative motion equations with control vector for optimization purposes
+function [drho] = EnckeOPT_method(mu, s, varargin)
+    %System parameters 
+    m = 6;                                   %Phase space dimension
+    
+    %Control vector 
+    aux = varargin{1};
+    u = aux{1};
+    
+    %State variables
+    s_t = s(1:m);                            %Target state 
+    s_r = s(m+1:2*m);                        %Relative state
+
+    %Compute the integration of the relative motion equations 
+    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    drho = drho + [0; 0; 0; u];                                 %Add control vector
 end
 
 %Full nonlinear relative motion equations
