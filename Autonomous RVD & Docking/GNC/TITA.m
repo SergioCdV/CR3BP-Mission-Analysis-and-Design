@@ -78,7 +78,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %% GNC: two impulsive rendezvous, generalized targetting approach %%
 %Differential corrector set up
 maxIter = 100;                              %Maximum number of iterations
-tol = 1e-10;                                %Differential corrector tolerance
+tol = 1e-5;                                 %Differential corrector tolerance
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
 nodes = 2;                                  %Number of nodes to compute
@@ -89,18 +89,19 @@ iter = 1;                                   %Initial iteration
 dV = zeros(3,maxIter);                      %Targeting impulse
 
 %Cost function matrices
-Rt = [zeros(3,3); eye(3)];                  %Penalty on the impulse
+R = eye(3);                                 %Penalty on the impulse
 Qt = eye(6);                                %Penalty on the state error
 M = 0.1*eye(6);                             %Penalty on the state noise
 Omegat = [zeros(3,3); eye(3)];              %Derivative of the state vector with respect to the impulse
 
 %Select measuring times 
-noise = false;                               %Boolean to account for state noise
+noise = true;                               %Boolean to account for state noise
 measurements = 3;                           %Number of noise measurements
 times = T*rand(1,measurements);             %Times to measure the state noise
 times = fix(times/dt);                      %Position along the time span to measure the state noise
 times = sort(times);                        %Sort the times at which the noise measurements are taken
-ns = 1e-9*ones(6,1);                        %Initial state noise 
+ns = 1e-6*ones(6,1);                        %Initial state noise 
+sigma = 1;                                  %Velocity noise dependance on the velocity impulse
 
 %Cost function 
 cost = 'Position';                          %Make impulses to target position
@@ -113,37 +114,33 @@ while ((GoOn) && (iter < maxIter))
     %Propagate the error 
     if (noise)
         nSTM = zeros(6,3); 
-        nState = zeros(1,3);
         for i = 1:measurements 
-             dumbSTM = reshape(S(times(measurements),13:end), [length(r_t0) length(r_t0)]);     %Noise state transition matrix
-             dnState = dumbSTM*ns;                                                              %Noise state vector
-             nSTM = nSTM + dumbSTM.'*M*dumbSTM*Omegat;                                          %Accumulated state transition matrix
-             nState = nState + dnState.'*dumbSTM.'*M*dumbSTM*Omegat;                            %Accumulated noise vector
+             dumbSTM = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);     %Noise state transition matrix
+             nSTM = nSTM + sigma*dumbSTM.'*M*dumbSTM*Omegat;                         %Accumulated state transition matrix
         end
+        nState = ns.'*nSTM;                                                          %Accumulated noise vector
     end
 
     %Recompute initial conditions
     switch (cost)
         case 'Position' 
-            xf = S(end,7:9);            %Final positon state
-            Phi = STM(1:3,4:6);         %Needed state transition matrix
-            Q = Qt(4:6,4:6);            %Penalty on the state error 
-            R = Rt(4:6,:);              %Penalty on the velocity impulse
-            Omega = Omegat(4:6,:);      %Derivative of the state vector with respect to the impulse
+            xf = S(end,7:9);                %Final positon state
+            Phi = STM(1:3,4:6);             %Needed state transition matrix
+            Q = Qt(4:6,4:6);                %Penalty on the state error 
+            Omega = Omegat(4:6,:);          %Derivative of the state vector with respect to the impulse
             
             %Compute the STM 
-            STM = (R+Phi.'*Q*Phi*Omega);                           %Jacobian of the constraint function
+            STM = (R+Phi.'*Q*Phi*Omega);    %Jacobian of the constraint function
                         
         case 'State' 
-            xf = S(end,7:12);           %Final state
-            Phi = STM;                  %Needed state transition matrix
-            Q = Qt;                     %Penalty on the state error
-            R = Rt;                     %Penalty on the velocity impulse
-            Omega = Omegat;             %Derivative of the state vector with respect to the impulse
+            xf = S(end,7:12);               %Final state
+            Phi = STM;                      %Needed state transition matrix
+            Q = Qt;                         %Penalty on the state error
+            Omega = Omegat;                 %Derivative of the state vector with respect to the impulse
             
-            %Compute the STM 
-            STM = (R+Phi.'*Q*Phi*Omega);                           %Jacobian of the constraint function            
-            STM = STM(4:6,:);                                      %Jacobian of the constraint function
+            %Compute the STM
+            L = Phi.'*Q*Phi*Omega;          %Penalty on the state error 
+            STM = (R+L(4:6,:));             %Jacobian of the constraint function            
             
         otherwise
             error('No valid cost function was selected');
