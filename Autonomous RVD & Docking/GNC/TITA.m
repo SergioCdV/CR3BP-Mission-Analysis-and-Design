@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 2: Two-impulsive rendezvous using the target approach strategy %% 
+%% GNC 8: Two-impulsive rendezvous using the target approach strategy %% 
 % This script provides an interface to test the two-impusilve rendezvous strategy using the STM of 
 % the dynamical model. 
 

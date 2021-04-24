@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 17/04/21 % 
 
-%% GNC 4: SMC control law %% 
+%% GNC 5: SMC control law %% 
 % This script provides an interface to test the Sliding Mode Control strategy for rendezvous missions. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the

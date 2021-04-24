@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 3: MPC guidance-control law %% 
+%% GNC 7: MPC guidance-control law %% 
 % This script provides an interface to test MPC control law rendezvous strategies for
 % rendezvous missions.
 
@@ -106,20 +106,26 @@ P.bounds.control.upp = 0.1*ones(3,1);
 %Initial guess
 P.guess.time = [0 tf];  
 P.guess.state = [rho0.' zeros(6,1)];
-P.guess.control = [P.bounds.control.upp P.bounds.control.low];
+P.guess.control = [P.bounds.control.low P.bounds.control.low];
 
 %Dynamics function
-P.func.dynamics = @(t,x,u)(opt_model(mu, Sn, t, x, u));    
+P.func.dynamics = @(t,x,u)(opt_model(mu, Sn, t, x, u));   
+
+%Boundary constraint
+P.func.bndCst = @(t0,x0,tF,xF)(pathConstraint(xF));
 
 %Objective function
-P.func.bndObj = @(t0,x0,tF,xF)(xF);
+tol = 1e-3;
+P.func.pathObj = @(t,x,u)(dot(u,u,1));
 
 %Select transcription method
-method = 'trapezoid';
+method = 'rungeKutta';
 switch (method)
     case 'trapezoid'
         P.options(1).method = 'trapezoid';
-        P.options(1).defaultAccuracy = 'low';
+        P.options(1).defaultAccuracy = 'medium';
+        P.options(1).nlpOpt.MaxFunEvals = 2e5;
+        P.options(1).nlpOpt.MaxIter = 1e5;
         P.options(2).method = 'trapezoid';
         P.options(2).defaultAccuracy = 'medium';
         P.options(2).nlpOpt.MaxFunEvals = 2e4;
@@ -128,8 +134,9 @@ switch (method)
     case 'rungeKutta'
         P.options(1).method = 'rungeKutta';
         P.options(1).defaultAccuracy = 'low';
+        P.options(1).rungeKutta.nSegment = 20;
         P.options(2).method = 'rungeKutta';
-        P.options(2).defaultAccuracy = 'medium';
+        P.options(2).defaultAccuracy = 'high';
         
     case 'chebyshev'
         P.options(1).method = 'chebyshev';
@@ -148,3 +155,9 @@ soln = optimTraj(P);
 t = linspace(soln(end).grid.time(1),soln(end).grid.time(end),250);
 x = soln(end).interp.state(t);
 u = soln(end).interp.control(t);
+
+%% Auxiliary functions 
+function [c, ceq] = pathConstraint(xF)
+    c = []; 
+    ceq = xF;
+end

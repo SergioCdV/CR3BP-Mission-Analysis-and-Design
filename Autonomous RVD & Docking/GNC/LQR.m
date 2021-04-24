@@ -88,14 +88,14 @@ Sn = S;
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
 %% Controlability analysis
-model = 'Moving point';
+model = 'Target';
 controlable = controlability_analysis(model, mu, Sn, index, Ln, gamma);
 
 %% GNC: DSDRE control law %%
 %[Sc, e] = dsdre(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% GNC: DLQR control law %%
-[Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma);
+%[Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma);
 
 %% GNC: LQR control law %%
 %[Sc, e] = lqrm(model, options, mu, Sn, tspan, Ln, gamma);
@@ -233,7 +233,7 @@ function [Sc, e] = dsdre(model, options, mu, Sn, tspan, Ln, gamma)
     Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
     
     %Cost function matrices 
-    Q = diag([1e-4, 1e-4, 1e-4, ones(1,n)]);        %Cost weight on the state error
+    Q = diag(ones(1,n+3));                          %Cost weight on the state error
     M = eye(n/2);                                   %Cost weight on the spent energy
 
     %Preallocation 
@@ -281,7 +281,7 @@ function [Sc, e] = dsdre(model, options, mu, Sn, tspan, Ln, gamma)
         u(:,i) = -K*[integrator; shiftdim(Sc(i,7:12))];                                            
 
         %Re-integrate trajectory
-        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
+        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, zeros(3,1)), [0 dt], Sc(i,:), options);
         
         %Update integrator
         fintegrator = @(t,s)(shiftdim(Sc(i,7:9)));
@@ -374,6 +374,7 @@ function [Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma)
 
         %Update initial conditions
         Sc(i+1,:) = s(end,:);
+        Sc(i+1,10:12) = s(end,10:12)+u(:,i).';
 
         %Error in time 
         e(i) = norm(s(end,7:12));

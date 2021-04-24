@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 3: MPC guidance-control law %% 
+%% GNC 6: MPC guidance-control law %% 
 % This script provides an interface to test MPC control law rendezvous strategies for
 % rendezvous missions.
 
@@ -102,26 +102,27 @@ e = zeros(1,length(tspan));                     %Preallocate the error vector
 
 Sc(1,:) = s0;                                   %Initial conditions
 
-for i = 1:length(tspan)-1
+for i = 1:1
     %Shrink the horizon 
     Dt = tspan(i:end); 
     
     %Compute the control law 
     U = MPC_guidance(method, model, mu, Sc(i,:), Dt, cn, Tmax);
-    u(:,i) = U(:,1); 
-
-    %Re-integrate the trajectory 
-    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
-
-    %Update initial conditions
-    Sc(i+1,:) = s(end,:);
-    
-    %Update the error 
-    e(i) = norm(s(end,:));
+%     u(:,i) = U(:,1); 
+% 
+%     %Re-integrate the trajectory 
+%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
+% 
+%     %Update initial conditions
+%     Sc(i+1,:) = s(end,:);
+%     
+%     %Update the error 
+%     e(i) = norm(s(end,:));
 end
 
 %Shrink the integrated trajectory
 Sc = Sc(1:end-1,:);
+
 %% Results %% 
 %Plot results 
 figure(1) 
