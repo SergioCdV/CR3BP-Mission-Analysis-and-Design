@@ -109,7 +109,7 @@ J = zeros(2,length(tspanc)-1);                              %Cost function to an
 dV = zeros(3,length(tspanc)-1);                             %Velocity impulses all along the look ahead time arc
 
 %Select the restriction level of the CAM 
-restriction = 'Best';
+restriction = 'Worst';
 lambda(1) = 1;                                               %Safety distance
 lambda(2) = 1;                                               %Safety distance
 
@@ -173,7 +173,7 @@ end
 bestCAM.Impulse = dV(:,best);                          %Needed impulse
 bestCAM.Cost = J(1,best);                              %Cost function
 
-atime = tspan(index(2)+best(end):index(2)+best+100);   %CAM integration time
+atime = tspan(index(2)+best(end):index(2)+best+10);    %CAM integration time
 s0 = S(index(2)+(best-1),1:12);                        %Initial conditions
 s0(10:12) = s0(10:12)+dV(:,best).';                    %Update initial conditions with the velocity change
 

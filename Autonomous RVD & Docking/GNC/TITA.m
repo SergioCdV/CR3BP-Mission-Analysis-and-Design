@@ -104,7 +104,7 @@ ns = 1e-6*ones(6,1);                        %Initial state noise
 sigma = 1;                                  %Velocity noise dependance on the velocity impulse
 
 %Cost function 
-cost = 'Position';                          %Make impulses to target position
+cost = 'State';                          %Make impulses to target position
 
 %Implementation 
 while ((GoOn) && (iter < maxIter))
@@ -150,7 +150,7 @@ while ((GoOn) && (iter < maxIter))
     if (noise)
         STM = STM + nSTM(4:6,1:3);                             %Noise state matrix
         error = xf*Q*Phi*Omega + nState;                       %Error state (deviation from the rendezvous condition)
-        dV(:,iter) = STM\error.';                              %Needed impulse
+        dV(:,iter) = pinv(STM)*error.';                        %Needed impulse
         s0(10:12) = s0(10:12)-dV(:,iter);                      %New initial conditions
         s0(7:12) = s0(7:12)+ns;                                %New noisy initial conditions
     else
