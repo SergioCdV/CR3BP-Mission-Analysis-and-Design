@@ -53,6 +53,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+T = target_orbit.Period;
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
@@ -110,7 +111,7 @@ dV = zeros(3,length(tspanc)-1);                             %Velocity impulses a
 %Select the restriction level of the CAM 
 restriction = 'Best';
 lambda(1) = 1;                                               %Safety distance
-lambda(2) = 1e-3;                                            %Safety distance
+lambda(2) = 1;                                               %Safety distance
 
  for i = 1:length(tspanc)-1
     %Shrink the look ahead time 
@@ -119,6 +120,10 @@ lambda(2) = 1e-3;                                            %Safety distance
     %Compute the Floquet modes at each time instant 
     Monodromy = reshape(S(index(2)+(i-1),13:end), [6 6]);                  %State transition matrix at each instant        
     [E, sigma] = eig(Monodromy);                                           %Eigenspectrum of the STM 
+    
+    for j = 1:size(E,2)
+        E(:,j) = exp(-(tspan(index(2)+(i-1))/T)*log(sigma(j,j)))*E(:,j);
+    end
     
     %Compute the maneuver
     switch (restriction) 
@@ -134,14 +139,14 @@ lambda(2) = 1e-3;                                            %Safety distance
                 error = error+lambda(2)*E(:,2+j);                          %Error in the centre directions
             end
             maneuver = STM\error;                                          %Needed maneuver 
-            dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
+            dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
         otherwise
             error('No valid case was selected');
     end
     
     %Integrate the trajectory 
-    s0 = S(index(2)+(i-1),1:12);      %Initial conditions
-    s0(10:12) = s0(10:12)+dV(:,i).';  %Update initial conditions with the velocity change
+    s0 = S(index(2)+(i-1),1:12);            %Initial conditions
+    s0(10:12) = s0(10:12)+real(dV(:,i)).';  %Update initial conditions with the velocity change
     
     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
     
@@ -151,17 +156,30 @@ lambda(2) = 1e-3;                                            %Safety distance
  end
 
 %Select the safest trajectory 
-[~, best] = sort(J(1,:));                                   %Select the minmax solution
-bestCAM.Impulse = dV(:,best(end));                          %Needed impulse
-bestCAM.Cost = J(1,best(end));                              %Cost function
+tol = 1e-4;
+best = size(J,2); 
+for i = 1:size(J,2)
+    if (J(1,i)-J(1,best) > tol)
+        best = i;
+    elseif (J(1,i)-J(1,best) < tol)
+        %Do nothing, just the other extreme case
+    else
+        %Minimize the second cost function 
+        if (J(2,i) < J(2,best))
+            best = i;
+        end
+    end
+end
+bestCAM.Impulse = dV(:,best);                          %Needed impulse
+bestCAM.Cost = J(1,best);                              %Cost function
 
-atime = tspan(index(2)+best(end):index(2)+best(end)+100);   %CAM integration time
-s0 = S(index(2)+(best(end)-1),1:12);                        %Initial conditions
-s0(10:12) = s0(10:12)+dV(:,best(end)).';                    %Update initial conditions with the velocity change
+atime = tspan(index(2)+best(end):index(2)+best+100);   %CAM integration time
+s0 = S(index(2)+(best-1),1:12);                        %Initial conditions
+s0(10:12) = s0(10:12)+dV(:,best).';                    %Update initial conditions with the velocity change
 
 %Integrate the CAM trajectory
 [~, SCAM] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options); 
-SCAM = [S(1:index(2)+(best(end)-1),1:12); SCAM];
+SCAM = [S(1:index(2)+(best-1),1:12); SCAM];
 ScCAM = SCAM(:,1:6)+SCAM(:,7:12);
     
 %% Results %% 
