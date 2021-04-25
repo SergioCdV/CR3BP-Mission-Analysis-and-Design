@@ -57,7 +57,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %% Modelling in the synodic frame %% 
 index = fix(tf/dt);                                         %Rendezvous point
-r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
+r_t0 = target_orbit.Trajectory(10,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
@@ -74,7 +74,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% GNC: multi impulsive rendezvous, generalized targetting approach %%
 %Differential corrector set up
-maxIter = 100;                              %Maximum number of iterations
+maxIter = 200;                              %Maximum number of iterations
 tol = 1e-5;                                 %Differential corrector tolerance
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
@@ -83,55 +83,57 @@ GoOn = true;                                %Convergence boolean
 iter = 1;                                   %Initial iteration 
 
 %Select impulsive times 
-impulses = 3;                               %Number of impulses to be made
+impulses = 5;                               %Number of impulses to be made
 tspan = 0:dt:T;                             %Integration time span
-times = T*rand(1,impulses);                 %Times to impulse the spacecraft
-times = fix(times/dt);                      %Position along the time span to impulse the spacecraft
-times = sort(times);                        %Sort the times at which the impulses are made
-times = [1 times size(S,1)];                %Impulses time
-impulses = length(times);                   %Update the number of impulses to take into accoun the initial and final ones
+if (impulses ~= 0)
+    times = T*rand(1,impulses);             %Times to impulse the spacecraft
+    times = fix(times/dt);                  %Position along the time span to impulse the spacecraft
+    times = sort(times);                    %Sort the times at which the impulses are made
+    times = [1 times size(S,1)];            %Impulses time
+    impulses = length(times);               %Update the number of impulses to take into accoun the initial and final ones
+else
+    times = [1 size(S,1)];                  %Simply two impulsive rendezvous strategy
+    impulses = length(times);               %Update the number of impulses to take into accoun the initial and final ones
+end
 
 %Cost function 
-cost = 'State';                          %Make impulses to target position
+cost = 'Position';                          %Make impulses to target the state
 
 %Implementation 
 while ((GoOn) && (iter < maxIter))    
     %Recompute initial conditions
     switch (cost)
         case 'Position' 
-            xf = S(end,7:9);                %Final positon state
-            
-            %Preallocation of the SMT 
-            STM = zeros(3,3*impulses);
+            xf = S(end,7:9);                %Final positon state     
+            STM = zeros(3,3*impulses);      %Preallocation of the STM
             
             %Compute the STM 
             for i = 1:length(times)
-                aux = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);      %STM evaluated at time tf
+                aux = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);      %STM evaluated at time ti
                 STM(:,1+3*(i-1):3*i) = aux(1:3,4:6);
             end
                         
         case 'State' 
             xf = S(end,7:12);                %Final state
-            
-            %Preallocation of the SMT 
-            STM = zeros(6,6*impulses);
+            STM = zeros(6,6*impulses);       %Preallocation of the STM
             
             %Compute the STM 
             for i = 1:length(times)
-                STM(:,1+6*(i-1):6*i) = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);      %STM evaluated at time tf
-            end      
+                STM(:,1+6*(i-1):6*i) = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);    %STM evaluated at time ti
+            end
+            STM = STM(:,4:6); 
             
         otherwise
             error('No valid cost function was selected');
     end
     
     %Compute the error and the impulses 
-    dV = -STM\xf.';                           %Impulses
+    dV = -pinv(STM)*xf.';                           %Impulses
     
     %Reintegrate the trajectory
     for i = 1:length(times)-1
         %Integration time span
-        Dt = tspan(times(i):times(i+1));
+        Dt = tspan(times(i)):dt:tspan(times(i+1));
         
         %New trajectory
         [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), Dt, S(times(i),:), options); 
@@ -140,14 +142,14 @@ while ((GoOn) && (iter < maxIter))
         S(times(i):times(i+1),:) = s;
         
         %Make the impulse
-        S(times(i+1),10:12) = S(times(i+1),10:12) + dV(1+3*(i-1):3*i,:).';
+        S(times(i),10:12) = S(times(i),10:12) + dV(1+3*(i-1):3*i,:).';
     end
     
     %Include the final impulse 
     S(end,10:12) = S(end,10:12) + dV(end-2:end,:).';
     
     %Convergence analysis 
-    if (norm(xf) < tol)
+    if (norm(S(end,7:12)) < tol)
         GoOn = false;                       %Stop the method
     else
         iter = iter+1;                      %Update the iterations
