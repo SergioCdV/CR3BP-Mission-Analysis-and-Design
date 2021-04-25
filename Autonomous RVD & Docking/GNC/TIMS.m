@@ -75,7 +75,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %Differential corrector set up
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
-nodes = 2;                                  %Number of nodes to compute
+nodes = 3;                                  %Number of nodes to compute
 GoOn = true;                                %Convergence boolean 
 iter = 1;                                   %Initial iteration 
 
@@ -147,7 +147,7 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
             seed = seed.';          %Accomodate new format
         end
     else
-        disp('No valid initial conditions.');
+        disp('No valid initial conditions');
         xf = []; 
         state = false; 
         return;
@@ -206,13 +206,13 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
             S0 = shiftdim(internalSeed(m*(i-1)+1:m*i));
             S0 = [S0(1:n); Phi; S0(n+1:end); Phi];
             [~, S] = ode113(@(t,s)nlr_model(mu, direction, true, 'Encke V', t, s), tspan, S0, options);   %New trajectory
-            F = nlr_model(mu, direction, false, 'Encke', 0, S(end,:).');                                  %Vector field
+            F = nlr_model(mu, direction, false, 'Encke', 0, [S(end,1:n) S(end,n+n^2+1:2*n+n^2)].');       %Vector field
             
             %Build the covariance matrix                                       
             if (i ~= nodes)
                 %Continuity constraint
-                STM = [reshape(S(end,n+1:n+n^2),[n n]) zeros(n); ...
-                       zeros(n) reshape(S(end,2*n+n^2+1:end),[n n])];                   %Subarc STM
+                STM = [reshape(S(end,n+1:n+n^2),[n n]) zeros(n,n); ...
+                       zeros(n,n) reshape(S(end,2*n+n^2+1:end),[n n])];                 %Subarc STM
                 A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = STM;                                   %Subarc STM
                 A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                               %Continuity constraint matrix
                 B(m*(i-1)+1:m*i,i) = F(1:end);                                          %Dynamics matrix
@@ -243,6 +243,7 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
         ds0(:,iter) = C.'*(C*C.')^(-1)*e;               %Compute the variation (under-determined case)
         
         %Convergence analysis 
+        norm(e)
         if (norm(e) <= tol)
             GoOn = false;
         else
@@ -259,6 +260,12 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
     %Ouput corrected trajectory 
     xf.Trajectory = S;                           %Trajectory
     xf.Period = t(end);                          %Orbit period
+    
+    if (GoOn)
+        xf.Impulses = ds0(:,iter);               %Needed impulses to correct the trajectory
+    else
+        xf.Impulses = ds0(:,iter-1);             %Needed impulses to correct the trajectory
+    end
         
     %Ouput differential correction scheme convergence results
     state = ~GoOn;

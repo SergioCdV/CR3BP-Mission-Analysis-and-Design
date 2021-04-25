@@ -211,7 +211,7 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(St(:,43), St(:,44), St(:,45)); 
+plot3(St(:,7), St(:,8), St(:,9)); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
