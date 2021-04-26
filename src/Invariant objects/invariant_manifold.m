@@ -50,9 +50,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
         direction = -1;         %Backward integration
         eigenV = 2;             %Stable eigenvector
     else
-        disp('No valid manifold was selected. Try again.'); 
-        disp(' ');
-        M = [];
+        error('No valid manifold was selected'); 
     end
     
     if (branch == 'L')

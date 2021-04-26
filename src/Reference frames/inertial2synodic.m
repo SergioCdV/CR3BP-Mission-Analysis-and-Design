@@ -34,7 +34,7 @@ function [V] = inertial2synodic(epoch, v, direction)
             Q = Q.';                    
             V = Q*v;    %Apply transformation
         else
-            V = [];
+            error('No valid direction was selected');
         end
     
     %Velocity transformation
@@ -46,11 +46,11 @@ function [V] = inertial2synodic(epoch, v, direction)
             V = v(4:6)+cross(omega, v(1:3));     %Inertial velocity vector 
             V = [Q.'*v(1:3); V];                 %Phase space vector
         else
-            V = [];
+            error('No valid vector was selected');
         end
         
     %Error branch
     else
-        V = [];
+        error('No valid magnitude was selected');
     end    
 end

@@ -45,8 +45,7 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
         case 'Moving libration'
             drho = librationm_centered(mu, s_t, s_r);              %Relative motion equations
         otherwise
-            drho = [];
-            disp('No valid model was chosen');
+            error('No valid model was chosen');
     end
     
     %Add control vector

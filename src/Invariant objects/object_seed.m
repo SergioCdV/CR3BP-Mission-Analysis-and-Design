@@ -40,9 +40,7 @@ function [seed, T] = object_seed(mu, parameters, object)
         case 'Torus' 
             [seed, T] = torus_seed(mu, parameters);            %Generate a quasi-periodic torus linear seed
         otherwise 
-            disp('No valid options was selected.');            %Display selection error
-            disp(' ');
-            seed = []; 
+            error('No valid options was selected');            %Display selection error
     end
 end
 
@@ -86,9 +84,7 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     elseif (L == 2)
         k = 1;
     else
-        disp('No valid Lagrange point was selected.');
-        seed = [];
-        return;
+        error('No valid Lagrange point was selected');
     end
     
     x = gamma*x+(1-mu+k*gamma);         %X synodic coordinate
@@ -129,10 +125,7 @@ function [seed, T] = halo_seed(mu, parameters)
         won = 1;            %Associated sign
         primary = -mu;      %Reference primary position
     else
-        disp('No valid Lagrange point was selected.'); 
-        disp(' '); 
-        seed = []; 
-        return;
+        error('No valid Lagrange point was selected'); 
     end
     
     %Legendre polynomial coefficients c_n for the Richardson approximation
@@ -246,9 +239,7 @@ function [seed, T] = torus_seed(mu, parameters)
     elseif (L == 2)
         k = 1;
     else
-        disp('No valid Lagrange point was selected.');
-        seed = [];
-        return;
+        error('No valid Lagrange point was selected');
     end
     
     x = gamma*x+(1-mu+k*gamma);         %X synodic coordinate

@@ -33,7 +33,7 @@ function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
             case 'Velocity'
                 sol = X/V;
             otherwise
-                sol = [];
+                error('No valid magnitude was selected');
         end
             
     elseif (direction == 1)
@@ -46,11 +46,11 @@ function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
             case 'Velocity'
                 sol = X*V;
             otherwise
-                sol = [];
+                error('No valid magnitude was selected');
         end
         
     %Error branch
     else
-        sol = [];
+        error('No valid direction was selected');
     end
 end

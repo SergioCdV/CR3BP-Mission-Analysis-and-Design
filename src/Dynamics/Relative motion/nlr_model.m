@@ -76,6 +76,90 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
 end
 
 %% Auxiliary functions 
+%Full nonlinear relative motion equations
+function [drho] = full_model(mu, s_t, s_r)
+    %Constants of the system 
+    mu1 = 1-mu;             %Reduced gravitational parameter of the first primary 
+    mu2 = mu;               %Reduced gravitational parameter of the second primary 
+    
+    %State variables 
+    r_t = s_t(1:3);         %Synodic position of the target
+    r_r = s_r(1:3);         %Synodic relative position 
+    v_r = s_r(4:6);         %Synodic relative velocity
+    
+    x = r_r(1);             %Synodic relative x coordinate
+    y = r_r(2);             %Synodic relative y coordinate
+    
+    %Synodic position of the primaries 
+    R1 = [-mu; 0; 0];       %Synodic position of the first primary
+    R2 = [1-mu; 0; 0];      %Synodic position of the second primary
+    
+    %Relative acceleration 
+    gamma = [2*v_r(2)+y; -2*v_r(1)+x; 0];                                   %Synodic acceleration
+    F1 = mu1*((r_t-R1)/norm(r_t-R1)^3-(r_t-R1+r_r)/norm(r_t-R1+r_r)^3);     %Gravitational force of the first primary
+    F2 = mu2*((r_t-R2)/norm(r_t-R2)^3-(r_t-R2+r_r)/norm(r_t-R2+r_r)^3);     %Gravitational force of the second primary
+    gamma = gamma + F1 + F2;                                                %Total synodic acceleration
+    
+    %Equations of motion 
+    drho = [v_r; 
+            gamma];
+end
+
+%Second order relative motion equations 
+function [drho] = so_model(mu, s_t, s_r)  
+    %State variables 
+    r_t = s_t(1:3);                             %Position vector of the target
+    x = s_r(1);                                 %Synodic x coordinate of the relative position
+    y = s_r(2);                                 %Synodic y coordinate of the relative position
+    z = s_r(3);                                 %Synodic z coordinate of the relative position
+        
+    %Relative Legendre coefficients          
+    cn = relegendre_coefficients(mu, r_t, 3);   %Relative Legendre coefficients 
+    c2 = cn(2);                                 %First order relative Legendre coefficient
+    c3 = cn(3);                                 %Second order relative Legendre coefficient
+    
+    %Relative acceleration (non inertial)
+    O = zeros(3,3);                             %3 by 3 null matrix
+    I = eye(3);                                 %3 by 3 identity matrix
+    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
+    
+    %Gravity acceleration
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                           %Linear term
+    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];      %Second order term
+    
+    %Equations of motion 
+    drho = [O I; Sigma -2*Omega]*s_r + Sigma3;
+end
+
+%Third order relative motion equations 
+function [drho] = th_model(mu, s_t, s_r)  
+    %State variables 
+    r_t = s_t(1:3);                             %Position vector of the target
+    x = s_r(1);                                 %Synodic x coordinate of the relative position
+    y = s_r(2);                                 %Synodic y coordinate of the relative position
+    z = s_r(3);                                 %Synodic z coordinate of the relative position
+        
+    %Relative Legendre coefficients          
+    cn = relegendre_coefficients(mu, r_t, 4);   %Relative Legendre coefficients 
+    c2 = cn(2);                                 %First order relative Legendre coefficient
+    c3 = cn(3);                                 %Second order relative Legendre coefficient
+    c4 = cn(4);                                 %Third order relative Legendre coefficient
+    
+    %Relative acceleration (non inertial)
+    O = zeros(3,3);                             %3 by 3 null matrix
+    I = eye(3);                                 %3 by 3 identity matrix
+    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
+    
+    %Gravity acceleration
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                                    %Linear term
+    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];               %Second order term
+    Sigma4 = c4*[0; 0; 0; 2*x*(2*x^2-3*y^2-3*z^2); ...
+                 -(3/2)*y*(4*x^2-y^2-z^2); -(3/2)*z*(4*x^2-y^2-z^2)];           %Third order term
+    
+    %Equations of motion 
+    drho = [O I; Sigma -2*Omega]*s_r + Sigma3 + Sigma4;
+end
+
 %Full nonlinear relative motion equations via Encke's method
 function [drho] = Encke_method(mu, s_t, s_r)
     %Constants of the system 
@@ -247,7 +331,7 @@ function [drho] = EnckeSDRE_method(mu, s, varargin)
     drho = [drho; dint];
 end
 
-%Full nonlinear relative motion equations for MPC purposes 
+%Full nonlinear relative motion equations for SMC purposes 
 function [drho] = EnckeSMC_method(mu, s, varargin)   
     %System parameters 
     m = 6;                                  %Phase space dimension
@@ -316,88 +400,4 @@ function [drho] = EnckeOPT_method(mu, s, varargin)
     %Compute the integration of the relative motion equations 
     drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
     drho = drho + [0; 0; 0; u];                                 %Add control vector
-end
-
-%Full nonlinear relative motion equations
-function [drho] = full_model(mu, s_t, s_r)
-    %Constants of the system 
-    mu1 = 1-mu;             %Reduced gravitational parameter of the first primary 
-    mu2 = mu;               %Reduced gravitational parameter of the second primary 
-    
-    %State variables 
-    r_t = s_t(1:3);         %Synodic position of the target
-    r_r = s_r(1:3);         %Synodic relative position 
-    v_r = s_r(4:6);         %Synodic relative velocity
-    
-    x = r_r(1);             %Synodic relative x coordinate
-    y = r_r(2);             %Synodic relative y coordinate
-    
-    %Synodic position of the primaries 
-    R1 = [-mu; 0; 0];       %Synodic position of the first primary
-    R2 = [1-mu; 0; 0];      %Synodic position of the second primary
-    
-    %Relative acceleration 
-    gamma = [2*v_r(2)+y; -2*v_r(1)+x; 0];                                   %Synodic acceleration
-    F1 = mu1*((r_t-R1)/norm(r_t-R1)^3-(r_t-R1+r_r)/norm(r_t-R1+r_r)^3);     %Gravitational force of the first primary
-    F2 = mu2*((r_t-R2)/norm(r_t-R2)^3-(r_t-R2+r_r)/norm(r_t-R2+r_r)^3);     %Gravitational force of the second primary
-    gamma = gamma + F1 + F2;                                                %Total synodic acceleration
-    
-    %Equations of motion 
-    drho = [v_r; 
-            gamma];
-end
-
-%Second order relative motion equations 
-function [drho] = so_model(mu, s_t, s_r)  
-    %State variables 
-    r_t = s_t(1:3);                             %Position vector of the target
-    x = s_r(1);                                 %Synodic x coordinate of the relative position
-    y = s_r(2);                                 %Synodic y coordinate of the relative position
-    z = s_r(3);                                 %Synodic z coordinate of the relative position
-        
-    %Relative Legendre coefficients          
-    cn = relegendre_coefficients(mu, r_t, 3);   %Relative Legendre coefficients 
-    c2 = cn(2);                                 %First order relative Legendre coefficient
-    c3 = cn(3);                                 %Second order relative Legendre coefficient
-    
-    %Relative acceleration (non inertial)
-    O = zeros(3,3);                             %3 by 3 null matrix
-    I = eye(3);                                 %3 by 3 identity matrix
-    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
-    
-    %Gravity acceleration
-    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                           %Linear term
-    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];      %Second order term
-    
-    %Equations of motion 
-    drho = [O I; Sigma -2*Omega]*s_r + Sigma3;
-end
-
-%Third order relative motion equations 
-function [drho] = th_model(mu, s_t, s_r)  
-    %State variables 
-    r_t = s_t(1:3);                             %Position vector of the target
-    x = s_r(1);                                 %Synodic x coordinate of the relative position
-    y = s_r(2);                                 %Synodic y coordinate of the relative position
-    z = s_r(3);                                 %Synodic z coordinate of the relative position
-        
-    %Relative Legendre coefficients          
-    cn = relegendre_coefficients(mu, r_t, 4);   %Relative Legendre coefficients 
-    c2 = cn(2);                                 %First order relative Legendre coefficient
-    c3 = cn(3);                                 %Second order relative Legendre coefficient
-    c4 = cn(4);                                 %Third order relative Legendre coefficient
-    
-    %Relative acceleration (non inertial)
-    O = zeros(3,3);                             %3 by 3 null matrix
-    I = eye(3);                                 %3 by 3 identity matrix
-    Omega = [0 1 0; -1 0 0; 0 0 0];             %Hat map dyadic of the angular velocity for the synodice reference frame
-    
-    %Gravity acceleration
-    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];                                    %Linear term
-    Sigma3 = c3*[0; 0; 0; (3/2)*(2*x^2-y^2-z^2); -3*x*y; -3*x*z];               %Second order term
-    Sigma4 = c4*[0; 0; 0; 2*x*(2*x^2-3*y^2-3*z^2); ...
-                 -(3/2)*y*(4*x^2-y^2-z^2); -(3/2)*z*(4*x^2-y^2-z^2)];           %Third order term
-    
-    %Equations of motion 
-    drho = [O I; Sigma -2*Omega]*s_r + Sigma3 + Sigma4;
 end

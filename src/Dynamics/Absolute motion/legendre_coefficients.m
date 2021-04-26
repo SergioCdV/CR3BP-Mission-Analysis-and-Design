@@ -38,7 +38,6 @@ function [c] = legendre_coefficients(mu, L, gamma, order)
            c(i) = ((-1)^i/gamma^3)*(1-mu+((mu*gamma^(i+1))/(1+gamma)^(i+1)));
         end
     else
-        disp('No valid Lagrange point was selected.');
-        c = [];
+        error('No valid Lagrange point was selected');
     end
 end
