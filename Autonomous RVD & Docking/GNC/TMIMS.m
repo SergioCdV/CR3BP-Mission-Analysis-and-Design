@@ -147,10 +147,7 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
             seed = seed.';          %Accomodate new format
         end
     else
-        disp('No valid initial conditions');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
       
     %Constants 

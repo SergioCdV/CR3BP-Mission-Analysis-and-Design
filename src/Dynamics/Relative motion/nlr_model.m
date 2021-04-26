@@ -68,7 +68,7 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
         case 'Third order'
             drho = th_model(mu, s_t, s_r);                        %Relative motion equations
         otherwise
-            erro('No valid model was chosen');
+            error('No valid model was chosen');
     end
     
     %Vector field 
