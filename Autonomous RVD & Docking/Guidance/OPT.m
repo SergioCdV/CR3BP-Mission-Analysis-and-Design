@@ -115,7 +115,7 @@ P.func.dynamics = @(t,x,u)(opt_model(mu, dt, Sn(:,1:6), t, x, u));
 P.func.bndCst = @(t0,x0,tF,xF)(pathConstraint(xF));
 
 %Objective function
-P.func.pathObj = @(t,x,u)(sum(sum(u,2)));
+P.func.pathObj = @(t,x,u)(sum(sqrt(dot(u,u,2))));
 
 %Select transcription method
 method = 'trapezoid';
