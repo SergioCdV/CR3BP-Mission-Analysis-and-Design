@@ -27,7 +27,7 @@ n = 6;
 mass = 1e-10;
 
 %Time span 
-dt = 1;                             %Time step
+dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
@@ -105,25 +105,24 @@ P.bounds.control.upp = 0.1*ones(3,1);
 
 %Initial guess
 P.guess.time = [0 tf];  
-P.guess.state = [rho0.' zeros(6,1)];
+P.guess.state = [rho0.' [zeros(3,1); rho0(1,4:6).']];
 P.guess.control = [P.bounds.control.low P.bounds.control.low];
 
 %Dynamics function
-P.func.dynamics = @(t,x,u)(opt_model(mu, Sn, t, x, u));   
+P.func.dynamics = @(t,x,u)(opt_model(mu, dt, Sn(:,1:6), t, x, u));   
 
 %Boundary constraint
 P.func.bndCst = @(t0,x0,tF,xF)(pathConstraint(xF));
 
 %Objective function
-tol = 1e-3;
-P.func.pathObj = @(t,x,u)(dot(u,u,1));
+P.func.pathObj = @(t,x,u)(sum(sum(u,2)));
 
 %Select transcription method
-method = 'rungeKutta';
+method = 'trapezoid';
 switch (method)
     case 'trapezoid'
         P.options(1).method = 'trapezoid';
-        P.options(1).defaultAccuracy = 'medium';
+        P.options(1).defaultAccuracy = 'low';
         P.options(1).nlpOpt.MaxFunEvals = 2e5;
         P.options(1).nlpOpt.MaxIter = 1e5;
         P.options(2).method = 'trapezoid';
@@ -141,6 +140,7 @@ switch (method)
     case 'chebyshev'
         P.options(1).method = 'chebyshev';
         P.options(1).defaultAccuracy = 'low';
+        P.options(1).chebyshev.nColPts = 10;
         P.options(2).method = 'chebyshev';
         P.options(2).defaultAccuracy = 'low';
         P.options(2).chebyshev.nColPts = 15;
@@ -156,8 +156,10 @@ t = linspace(soln(end).grid.time(1),soln(end).grid.time(end),250);
 x = soln(end).interp.state(t);
 u = soln(end).interp.control(t);
 
+plot3(x(1,:), x(2,:), x(3,:));
+
 %% Auxiliary functions 
 function [c, ceq] = pathConstraint(xF)
     c = []; 
-    ceq = xF;
+    ceq = xF(1:3);
 end

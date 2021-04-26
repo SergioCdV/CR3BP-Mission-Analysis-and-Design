@@ -50,9 +50,9 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     
     %Add control vector
     control = varargin{1}; 
-    u = varargin{2};
     
     if (control)
+        u = varargin{2};
         drho = drho + [zeros(3,1); u];
     end
     

@@ -27,7 +27,7 @@ n = 6;
 mass = 1e-10;
 
 %Time span 
-dt = 1;                             %Time step
+dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
@@ -185,7 +185,7 @@ function [commands] = MPC_guidance(method, model, mu, s0, tspan, cn, Tmax)
     finalHorizonIndex = length(tspan);
     
     %Cost function 
-    cosfunc = @(u)(-norm(u(1:3,:)));
+    cosfunc = @(u)(dot(dot(u,u,1),dot(u,u,1)));
     
     %Linear constraints 
     A = []; 
@@ -226,7 +226,8 @@ function [c, ceq] = nonlcon(model, mu, s0, tspan, cn, u)
     %Integration of the trajectory 
     dt = tspan(2)-tspan(1); 
     for i = 1:length(tspan)
-        [~,s] = ode113(@(t,s)lr_model(mu, cn, 1, false, model, t, s, true, u(:,i)), [0 dt], S(i,:), options);
+        S(i,10:12) = S(i,10:12)+u(:,i).';
+        [~,s] = ode113(@(t,s)lr_model(mu, cn, 1, false, model, t, s, false), [0 dt], S(i,:), options);
         S(i+1,:) = s(end,:);
     end
     
