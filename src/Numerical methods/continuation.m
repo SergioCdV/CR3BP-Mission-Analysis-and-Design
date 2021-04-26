@@ -168,10 +168,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
             end
             
        otherwise
-           disp('No valid parameter was selected.');
-           X = []; 
-           T = []; 
-           stability = [];
+           error('No valid continuation parameter was selected');
     end
    
     %Output         

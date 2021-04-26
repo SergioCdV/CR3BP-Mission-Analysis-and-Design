@@ -72,10 +72,7 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
             end
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Ensure required initial conditions
@@ -162,10 +159,7 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
             end
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Ensure required initial conditions
@@ -252,10 +246,7 @@ function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
             end
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Ensure required initial conditions
@@ -343,10 +334,7 @@ function [xf, state] = Sym_DoublePlane_scheme(mu, seed, maxIter, tol)
             end
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Ensure required initial conditions
@@ -433,10 +421,7 @@ function [xf, state] = Sym_Planar_scheme(mu, seed, maxIter, tol)
             end
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        disp('No valid initial conditions were input');
     end
     
     %Ensure motion on the XY synodic plane
@@ -508,20 +493,14 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, maxIter, tol, varargin)
     
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
-       disp('No valid inputs. Correction is about to finish.');
-       xf = []; 
-       state = false;
-       return;
+       error('No valid inputs. Correction is about to finish');
     else
         local_inputs = varargin{1};
         nodes = local_inputs{1};            %Nodes to compute
         T = local_inputs{2};                %Initial period of the orbit
         
         if (nodes < 2) 
-            disp('No valid inputs. Correction is about to finish.'); 
-            xf = []; 
-            state = false;
-            return;
+            error('No valid inputs. Correction is about to finish'); 
         end
     end
     
@@ -531,10 +510,7 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, maxIter, tol, varargin)
             seed = seed.';          %Accomodate new format
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Constants 
@@ -645,10 +621,7 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin)
     
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
-       disp('No valid inputs. Correction is about to finish.');
-       xf = []; 
-       state = false;
-       return;
+       error('No valid inputs. Correction is about to finish');
     else
         local_inputs = varargin{1};
         nodes = local_inputs{1};            %Nodes to compute
@@ -656,10 +629,7 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin)
         Cref = local_inputs{3};             %Jacobi constant reference value
         
         if (nodes < 2) 
-            disp('No valid inputs. Correction is about to finish.'); 
-            xf = []; 
-            state = false;
-            return;
+            error('No valid inputs. Correction is about to finish'); 
         end
     end
     
@@ -669,10 +639,7 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin)
             seed = seed.';          %Accomodate new format
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
     
     %Constants 
@@ -782,10 +749,7 @@ function [xf, state] = PAC_Periodic_scheme(mu, y, maxIter, tol, varargin)
         
     %Assign undeclared local inputs if any. Sanity check 
     if (isempty(varargin{1}))
-       disp('No valid inputs. Correction is about to finish.');
-       xf = []; 
-       state = false;
-       return;
+       error('No valid inputs. Correction is about to finish');
     else
         local_inputs = varargin{1};
         T = local_inputs{1};                %Initial period of the orbit
@@ -804,10 +768,7 @@ function [xf, state] = PAC_Periodic_scheme(mu, y, maxIter, tol, varargin)
             seed = seed.';                  %Accomodate new format
         end
     else
-        disp('No valid initial conditions.');
-        xf = []; 
-        state = false; 
-        return;
+        error('No valid initial conditions were input');
     end
         
     %Constants 
