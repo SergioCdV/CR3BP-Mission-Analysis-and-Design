@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 25/04/21 % 
 
-%% GNC 10: Floquet Mode Safe Control%% 
+%% GNC 10: Floquet Mode Safe Control %% 
 % This script provides an interface to test the Floquet mode strategy for collision avoidance maneuvers. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
@@ -99,7 +99,7 @@ Q = eye(3);                                 %Safety ellipsoid size to avoid the 
 
 %% GNC: FMSC %%
 %Detect the object at a random reasonable time (critical parameter)
-index(2) = randi([1 index(1)-1]);                           %Collision detection time
+index(2) = randi([1 fix(index(1)/2)]);                      %Collision detection time
 
 %Analyze the trajectory and compute each maneuver
 tspanc = 0:dt:tspan(index(1))-tspan(index(2));              %Integration time
@@ -109,37 +109,56 @@ J = zeros(2,length(tspanc)-1);                              %Cost function to an
 dV = zeros(3,length(tspanc)-1);                             %Velocity impulses all along the look ahead time arc
 
 %Select the restriction level of the CAM 
-restriction = 'Worst';
-lambda(1) = 1;                                               %Safety distance
-lambda(2) = 1;                                               %Safety distance
+constrained = false;                                         %Safety distance constraint
+restriction = 'Worst';                                      %Collision risk
+lambda(1) = -1e-1;                                           %Safety distance
+lambda(2) = 1e-1;                                           %Safety distance
 
  for i = 1:length(tspanc)-1
     %Shrink the look ahead time 
     atime = tspanc(i:end);
     
     %Compute the Floquet modes at each time instant 
-    Monodromy = reshape(S(index(2)+(i-1),13:end), [6 6]);                  %State transition matrix at each instant        
-    [E, sigma] = eig(Monodromy);                                           %Eigenspectrum of the STM 
+    Monodromy = reshape(S(index(1),13:end), [6 6]);                           %State transition matrix at each instant        
+    [E, sigma] = eig(Monodromy);                                              %Eigenspectrum of the STM 
+    Phi = Monodromy*reshape(S(index(2)+(i-1),13:end), [6 6])^(-1);            %Relative STM
     
     for j = 1:size(E,2)
-        E(:,j) = exp(-(tspan(index(2)+(i-1))/T)*log(sigma(j,j)))*E(:,j);
+        E(:,j) = sigma(j,j)*E(:,j);
     end
     
     %Compute the maneuver
     switch (restriction) 
         case 'Worst'
-            STM = [E(4:6,:) -eye(3)];                                      %Correction matrix
-            error = lambda(1)*E(1:3,1);                                    %Error in the unstable direction only
-            maneuver = STM\error;                                          %Needed maneuver 
-            dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-        case 'Best'
-            STM = [E(:,1) E(:,3:end) [zeros(3,3); -eye(3)]];               %Correction matrix
-            error = lambda(1)*E(:,1);                                      %Error in the unstable directions
-            for j = 1:4
-                error = error+lambda(2)*E(:,2+j);                          %Error in the centre directions
+            safeS = lambda(1)*E(:,1);                                          %Safety constraint
+            if (constrained)
+                STM = Phi(:,4:6);                                              %Correction matrix
+                error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
+                maneuver = pinv(STM)*error;                                    %Needed maneuver 
+                dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
+            else
+                STM = [E(:,1) -Phi(:,4:6)];                                    %Correction matrix
+                delta = eye(size(STM,2));                                      %Identity matrix
+                error = S(end,7:12).';                                         %Error in the unstable directions
+                maneuver = pinv(STM)*error+lambda(1)*... 
+                           (delta-pinv(STM)*STM)*delta(:,end);                 %Needed maneuver 
+                dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
             end
-            maneuver = STM\error;                                          %Needed maneuver 
-            dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
+        case 'Best'
+            safeS = lambda(1)*E(:,1)+lambda(2).*E(:,3:end);                    %Safety constraint
+            if (constrained)
+                STM = Phi(:,4:6);                                              %Correction matrix
+                error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
+                maneuver = pinv(STM)*error;                                    %Needed maneuver 
+                dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
+            else
+                STM = [E(:,1) E(:,3:end) -Phi(:,4:6)];                         %Correction matrix
+                delta = eye(size(STM,2));                                      %Identity matrix
+                error = S(end,7:12).';                                         %Error in the unstable directions
+                maneuver = pinv(STM)*error+lambda(1)*... 
+                           (delta-pinv(STM)*STM)*delta(:,end);                 %Needed maneuver 
+                dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
+            end
         otherwise
             error('No valid case was selected');
     end
@@ -152,7 +171,7 @@ lambda(2) = 1;                                               %Safety distance
     
     %Evaluate the cost function
     J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
-    J(2,i) = norm(maneuver)+s(end,7:12)*s(end,7:12).';  
+    J(2,i) = norm(maneuver)+(1/2)*s(end,7:12)*s(end,7:12).';  
  end
 
 %Select the safest trajectory 
@@ -209,3 +228,46 @@ ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Absolute CAM motion in the configuration space');
+
+%% Auxiliary functions 
+%  for i = 1:length(tspanc)-1
+%     %Shrink the look ahead time 
+%     atime = tspanc(i:end);
+%     
+%     %Compute the Floquet modes at each time instant 
+%     Monodromy = reshape(S(index(2)+(i-1),13:end), [6 6]);                  %State transition matrix at each instant        
+%     [E, sigma] = eig(Monodromy);                                           %Eigenspectrum of the STM 
+%     
+%     for j = 1:size(E,2)
+%         E(:,j) = exp(-(tspan(index(2)+(i-1))/tspan(index(1)))*log(sigma(j,j)))*E(:,j);
+%     end
+%     
+%     %Compute the maneuver
+%     switch (restriction) 
+%         case 'Worst'
+%             STM = [E(4:6,:) -Monodromy()];                                      %Correction matrix
+%             error = lambda(1)*E(1:3,1);                                    %Error in the unstable direction only
+%             maneuver = STM\error;                                          %Needed maneuver 
+%             dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
+%         case 'Best'
+%             STM = [E(:,1) E(:,3:end) [zeros(3,3); -eye(3)]];               %Correction matrix
+%             error = lambda(1)*E(:,1);                                      %Error in the unstable directions
+%             for j = 1:4
+%                 error = error+lambda(2)*E(:,2+j);                          %Error in the centre directions
+%             end
+%             maneuver = STM\error;                                          %Needed maneuver 
+%             dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
+%         otherwise
+%             error('No valid case was selected');
+%     end
+%     
+%     %Integrate the trajectory 
+%     s0 = S(index(2)+(i-1),1:12);            %Initial conditions
+%     s0(10:12) = s0(10:12)+real(dV(:,i)).';  %Update initial conditions with the velocity change
+%     
+%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
+%     
+%     %Evaluate the cost function
+%     J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
+%     J(2,i) = norm(maneuver)+(1/2)*s(end,7:12)*s(end,7:12).';  
+%  end

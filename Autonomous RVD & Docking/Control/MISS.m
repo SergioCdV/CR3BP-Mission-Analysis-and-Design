@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 9: Multiple impulse rendezvous using single shooting STM %% 
+%% GNC 9: Multiple impulse rendezvous using the SMT, single shooting %% 
 % This script provides an interface to test the multi-impusilve rendezvous strategy using the STM of 
 % the dynamical model. 
 
@@ -83,8 +83,7 @@ GoOn = true;                                %Convergence boolean
 iter = 1;                                   %Initial iteration 
 
 %Select impulsive times 
-impulses = 2;                               %Number of impulses to be made
-tspan = 0:dt:T;                             %Integration time span
+impulses = 3;                               %Number of impulses to be made
 if (impulses ~= 0)
     times = T*rand(1,impulses);             %Times to impulse the spacecraft
     times = fix(times/dt);                  %Position along the time span to impulse the spacecraft

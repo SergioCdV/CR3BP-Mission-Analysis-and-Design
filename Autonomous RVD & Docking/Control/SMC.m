@@ -124,6 +124,16 @@ refState = zeros(n+3,1);                                    %Reference state (re
 for i = 1:length(tspan)
     e(i) = norm(Sc(i,7:12));
 end
+
+%Compute the control effort
+energy = zeros(3,1); 
+for i = 1:size(Sc,1)
+    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));      %Control law
+end
+
+for i = 1:size(u,1)
+    energy(i) = trapz(tspan, u(i,:).^2);                    %Integral of the control
+end
     
 %% Results %% 
 %Plot results 
@@ -150,8 +160,33 @@ zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
-%Configuration space error 
+%Configuration space evolution
 figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan, Sc(:,7)); 
+plot(tspan, Sc(:,8)); 
+plot(tspan, Sc(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, Sc(:,10)); 
+plot(tspan, Sc(:,11)); 
+plot(tspan, Sc(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
 plot(tspan, e); 
 xlabel('Nondimensional epoch');
 ylabel('Absolute error');
@@ -159,8 +194,8 @@ grid on;
 title('Absolute error in the configuration space (L2 norm)');
 
 %Rendezvous animation 
-if (true)
-    figure(4) 
+if (false)
+    figure(5) 
     view(3) 
     grid on;
     hold on
@@ -177,7 +212,7 @@ if (true)
         delete(T); 
         delete(V);
     end
-hold off
+    hold off
 end
 
 %% Auxiliary functions 

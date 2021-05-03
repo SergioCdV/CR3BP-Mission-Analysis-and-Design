@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 2: Two-impulsive rendezvous via STM %% 
+%% GNC 2: Two-impulsive rendezvous via STM, multiple-shooting %% 
 % This script provides an interface to test the two-impusilve rendezvous strategy using the STM of 
 % the dynamical model. 
 

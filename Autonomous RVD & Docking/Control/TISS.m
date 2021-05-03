@@ -110,7 +110,7 @@ end
 St = S;
 
 dV0(1:3,1) = dV(:,iter-1);                    %Initial rendezvous impulse 
-dVf(1:3,1) = S(end,10:12).';                  %Final rendezvous impulse 
+dVf(1:3,1) = -S(end,10:12).';                 %Final rendezvous impulse 
 
 %Total maneuver metrics 
 dV1(1:3,1) = dV0(:,1)+dVf(:,1);               %L1 norm of the impulses 
@@ -206,6 +206,7 @@ zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
+%%
 %Rendezvous animation 
 figure(3) 
 view(3) 

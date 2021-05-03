@@ -3,16 +3,10 @@
 % 01/04/21 % 
 
 %% GNC 8: Two-impulsive rendezvous using the target approach strategy %% 
-% This script provides an interface to test the two-impusilve rendezvous strategy using the STM of 
-% the dynamical model. 
+% This script provides an interface to test the target apprach strategy for the rendezvous problem. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
-
-% The first impulse is known as targetting, aimed to nullify the relative
-% position between chaser and target after some flight time tf. The second
-% impulse nullifies the relative velocity between the two to complete the
-% rendezvous.
 
 % In the relative phase space, the relative particle is driven to the
 % origin of the synodic frame.
@@ -93,18 +87,19 @@ R = eye(3);                                 %Penalty on the impulse
 Qt = eye(6);                                %Penalty on the state error
 M = 0.1*eye(6);                             %Penalty on the state noise
 Omegat = [zeros(3,3); eye(3)];              %Derivative of the state vector with respect to the impulse
+Rr = eye(3);                                %Rotational misalignment of the thrusters
 
 %Select measuring times 
-noise = false;                               %Boolean to account for state noise
+noise = true;                               %Boolean to account for state noise
 measurements = 3;                           %Number of noise measurements
 times = T*rand(1,measurements);             %Times to measure the state noise
 times = fix(times/dt);                      %Position along the time span to measure the state noise
 times = sort(times);                        %Sort the times at which the noise measurements are taken
 ns = 1e-6*ones(6,1);                        %Initial state noise 
-sigma = 1;                                  %Velocity noise dependance on the velocity impulse
+sigma = 0.01;                               %Velocity noise dependance on the velocity impulse
 
 %Cost function 
-cost = 'State';                          %Make impulses to target position
+cost = 'Position';                          %Make impulses to target position
 
 %Implementation 
 while ((GoOn) && (iter < maxIter))
@@ -116,9 +111,10 @@ while ((GoOn) && (iter < maxIter))
         nSTM = zeros(6,3); 
         for i = 1:measurements 
              dumbSTM = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);     %Noise state transition matrix
-             nSTM = nSTM + sigma*dumbSTM.'*M*dumbSTM*Omegat;                         %Accumulated state transition matrix
+             nSTM = nSTM + dumbSTM.'*M*dumbSTM*[zeros(3,3); Rr];                     %Accumulated state transition matrix
         end
-        nState = ns.'*nSTM;                                                          %Accumulated noise vector
+        nSTM = sigma^2*[zeros(6,3) [zeros(3,3); Rr]]*nSTM;                           %Accumulated state transition matrix
+        nState = sigma*ns.'*nSTM;                                                    %Accumulated noise vector
     end
 
     %Recompute initial conditions
@@ -126,11 +122,12 @@ while ((GoOn) && (iter < maxIter))
         case 'Position' 
             xf = S(end,7:9);                %Final positon state
             Phi = STM(1:3,4:6);             %Needed state transition matrix
-            Q = Qt(4:6,4:6);                %Penalty on the state error 
+            Q = Qt(1:3,1:3);                %Penalty on the state error 
             Omega = Omegat(4:6,:);          %Derivative of the state vector with respect to the impulse
             
             %Compute the STM 
-            STM = (R+Phi.'*Q*Phi*Omega);    %Jacobian of the constraint function
+            L = Omega.'*Phi.'*Q*Phi*Omega;  %Penalty on the state error 
+            STM = R+L;                      %Jacobian of the constraint function
                         
         case 'State' 
             xf = S(end,7:12);               %Final state
@@ -139,8 +136,8 @@ while ((GoOn) && (iter < maxIter))
             Omega = Omegat;                 %Derivative of the state vector with respect to the impulse
             
             %Compute the STM
-            L = Phi.'*Q*Phi*Omega;          %Penalty on the state error 
-            STM = (R+L(4:6,:));             %Jacobian of the constraint function            
+            L = Omega.'*Phi.'*Q*Phi*Omega;  %Penalty on the state error 
+            STM = R+L;                      %Jacobian of the constraint function            
             
         otherwise
             error('No valid cost function was selected');
@@ -174,7 +171,7 @@ end
 St = S; 
 
 dV0(1:3,1) = dV(:,iter-1);                    %Initial rendezvous impulse 
-dVf(1:3,1) = S(end,10:12).';                  %Final rendezvous impulse 
+dVf(1:3,1) = -S(end,10:12).';                 %Final rendezvous impulse 
 
 %Total maneuver metrics 
 dV1(1:3,1) = dV0(:,1)+dVf(:,1);               %L1 norm of the impulses 
