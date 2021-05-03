@@ -30,8 +30,8 @@
 
 function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     %State variables 
-    s_t = s(1:6);       %State of the target
-    s_r = s(7:12);      %State of the chaser
+    s_t = s(1:6);                                                  %State of the target
+    s_r = s(7:12);                                                 %State of the chaser
     
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);        %Target equations of motion
@@ -49,11 +49,12 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     end
     
     %Add control vector
-    control = varargin{1}; 
-    
-    if (control)
-        u = varargin{2};
-        drho = drho + [zeros(3,1); u];
+    if (~isempty(varargin))
+        control = varargin{1}; 
+        if (control)
+            u = varargin{2};
+            drho = drho + [zeros(3,1); u];
+        end
     end
     
     %Vector field 
@@ -64,21 +65,21 @@ end
 %Relative motion equations linearized with respect to the target
 function [drho] = target_centered(mu, s_t, s_r)
     %Constants of the system 
-    mup(1) = 1-mu;             %Reduced gravitational parameter of the first primary 
-    mup(2) = mu;               %Reduced gravitational parameter of the second primary 
+    mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary 
+    mup(2) = mu;                            %Reduced gravitational parameter of the second primary 
     
     %State variables 
-    r_t = s_t(1:3);            %Synodic position of the target
+    r_t = s_t(1:3);                         %Synodic position of the target
     
     %Synodic position of the primaries 
-    R(:,1) = [-mu; 0; 0];      %Synodic position of the first primary
-    R(:,2) = [1-mu; 0; 0];     %Synodic position of the second primary
+    R(:,1) = [-mu; 0; 0];                   %Synodic position of the first primary
+    R(:,2) = [1-mu; 0; 0];                  %Synodic position of the second primary
     
     %Relative position between the primaries and the target 
-    Ur1 = r_t-R(:,1);                       %Position of the target with respect to the first primary
-    ur1 = Ur1/norm(Ur1);                    %Unit vector of the relative position of the target with respect to the first primary
-    Ur2 = r_t-R(:,2);                       %Position of the target with respect to the first primary
-    ur2 = Ur2/norm(Ur2);                    %Unit vector of the relative position of the target with respect to the second primary
+    Ur(:,1) = r_t-R(:,1);                   %Position of the target with respect to the first primary
+    ur(:,1) = Ur(:,1)/norm(Ur(:,1));        %Unit vector of the relative position of the target with respect to the first primary
+    Ur(:,2) = r_t-R(:,2);                   %Position of the target with respect to the first primary
+    ur(:,2) = Ur(:,2)/norm(Ur(:,2));        %Unit vector of the relative position of the target with respect to the second primary
     
     %Relative acceleration (non inertial)
     O = zeros(3,3);                         %3 by 3 null matrix
@@ -86,7 +87,8 @@ function [drho] = target_centered(mu, s_t, s_r)
     Omega = [0 1 0; -1 0 0; 0 0 0];         %Hat map dyadic of the angular velocity for the synodice reference frame
     
     %Gravity acceleration
-    Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
+    Sigma = -((mup(1)/norm(Ur(:,1))^3)+(mup(2)/norm(Ur(:,2)))^3)*eye(3) ...
+            +3*((mup(1)/norm(Ur(:,1))^3)*(ur(:,1)*ur(:,1).')+(mup(2)/norm(Ur(:,2))^3)*(ur(:,2)*ur(:,2).'));
     
     %State matrix 
     A = [O I; Sigma-Omega*Omega -2*Omega];

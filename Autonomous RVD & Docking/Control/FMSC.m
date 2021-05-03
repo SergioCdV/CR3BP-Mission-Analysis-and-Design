@@ -78,7 +78,7 @@ Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
 s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspan, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -86,9 +86,9 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% Obstacle in the relative phase space 
 %Obstacle definition in space and time
-index(1) = randi([1 200]);                  %Time location of the collision 
+index(1) = randi([1 500]);                  %Time location of the collision 
 so = [S(index(1),7:9) 0 0 0];               %Phase space state of the object
-R = 1e-3;                                   %Radius of the CA sphere
+R = 5e-4;                                   %Radius of the CA sphere
 [xo, yo, zo] = sphere;                      %Collision avoidance sphere
 xo = R*xo;
 yo = R*yo;
@@ -109,9 +109,9 @@ J = zeros(2,length(tspanc)-1);                              %Cost function to an
 dV = zeros(3,length(tspanc)-1);                             %Velocity impulses all along the look ahead time arc
 
 %Select the restriction level of the CAM 
-constrained = false;                                         %Safety distance constraint
+constrained = true;                                         %Safety distance constraint
 restriction = 'Worst';                                      %Collision risk
-lambda(1) = -1e-1;                                           %Safety distance
+lambda(1) = 1e-1;                                           %Safety distance
 lambda(2) = 1e-1;                                           %Safety distance
 
  for i = 1:length(tspanc)-1
@@ -124,39 +124,40 @@ lambda(2) = 1e-1;                                           %Safety distance
     Phi = Monodromy*reshape(S(index(2)+(i-1),13:end), [6 6])^(-1);            %Relative STM
     
     for j = 1:size(E,2)
-        E(:,j) = sigma(j,j)*E(:,j);
+        if (constrained)
+            E(:,j) = sigma(j,j)*E(:,j);
+        else
+            E(:,j) = exp(-tspan(index(2)+(i-1))/tspan(index(1))*log(sigma(j,j)))*E(:,j);
+        end
     end
     
     %Compute the maneuver
     switch (restriction) 
         case 'Worst'
-            safeS = lambda(1)*E(:,1);                                          %Safety constraint
             if (constrained)
+                safeS = lambda(1)*E(:,1);                                      %Safety constraint
                 STM = Phi(:,4:6);                                              %Correction matrix
                 error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
                 maneuver = pinv(STM)*error;                                    %Needed maneuver 
                 dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
             else
-                STM = [E(:,1) -Phi(:,4:6)];                                    %Correction matrix
-                delta = eye(size(STM,2));                                      %Identity matrix
-                error = S(end,7:12).';                                         %Error in the unstable directions
-                maneuver = pinv(STM)*error+lambda(1)*... 
-                           (delta-pinv(STM)*STM)*delta(:,end);                 %Needed maneuver 
-                dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
+                w = [0; 1; 1; 1];                                              %Some random vector offerint triaxial control
+                STM = [E(:,1) -[zeros(3,3); eye(3)]];                          %Linear application
+                error = lambda(1)*rand(6,1);                                   %State error vector
+                maneuver = pinv(STM)*error;                                    %Needed maneuver
+                dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
             end
         case 'Best'
-            safeS = lambda(1)*E(:,1)+lambda(2).*E(:,3:end);                    %Safety constraint
             if (constrained)
+                safeS = lambda(1)*E(:,1)+lambda(2).*E(:,3:end);                %Safety constraint
                 STM = Phi(:,4:6);                                              %Correction matrix
                 error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
                 maneuver = pinv(STM)*error;                                    %Needed maneuver 
                 dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
             else
-                STM = [E(:,1) E(:,3:end) -Phi(:,4:6)];                         %Correction matrix
-                delta = eye(size(STM,2));                                      %Identity matrix
-                error = S(end,7:12).';                                         %Error in the unstable directions
-                maneuver = pinv(STM)*error+lambda(1)*... 
-                           (delta-pinv(STM)*STM)*delta(:,end);                 %Needed maneuver 
+                STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];               %Linear application
+                error = 1e-3*rand(6,1);                                        %State error vector
+                maneuver = STM.'*(STM*STM.')^(-1)*error;                       %Needed maneuver
                 dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
             end
         otherwise
@@ -167,7 +168,7 @@ lambda(2) = 1e-1;                                           %Safety distance
     s0 = S(index(2)+(i-1),1:12);            %Initial conditions
     s0(10:12) = s0(10:12)+real(dV(:,i)).';  %Update initial conditions with the velocity change
     
-    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
+    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
     
     %Evaluate the cost function
     J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
@@ -192,12 +193,12 @@ end
 bestCAM.Impulse = dV(:,best);                          %Needed impulse
 bestCAM.Cost = J(1,best);                              %Cost function
 
-atime = tspan(index(2)+best(end):index(2)+best+10);    %CAM integration time
+atime = tspan(index(2)+best(end):index(2)+best+20);    %CAM integration time
 s0 = S(index(2)+(best-1),1:12);                        %Initial conditions
 s0(10:12) = s0(10:12)+dV(:,best).';                    %Update initial conditions with the velocity change
 
 %Integrate the CAM trajectory
-[~, SCAM] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options); 
+[~, SCAM] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options); 
 SCAM = [S(1:index(2)+(best-1),1:12); SCAM];
 ScCAM = SCAM(:,1:6)+SCAM(:,7:12);
     
@@ -214,6 +215,7 @@ xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
+legend('Colliding object', 'CAM trajectory', 'Nominal trajectory');
 title('Relative CAM motion in the configuration space');
 
 figure(2) 
@@ -227,47 +229,30 @@ xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
+legend('Colliding object', 'CAM trajectory', 'Nominal trajectory');
 title('Absolute CAM motion in the configuration space');
 
-%% Auxiliary functions 
-%  for i = 1:length(tspanc)-1
-%     %Shrink the look ahead time 
-%     atime = tspanc(i:end);
-%     
-%     %Compute the Floquet modes at each time instant 
-%     Monodromy = reshape(S(index(2)+(i-1),13:end), [6 6]);                  %State transition matrix at each instant        
-%     [E, sigma] = eig(Monodromy);                                           %Eigenspectrum of the STM 
-%     
-%     for j = 1:size(E,2)
-%         E(:,j) = exp(-(tspan(index(2)+(i-1))/tspan(index(1)))*log(sigma(j,j)))*E(:,j);
-%     end
-%     
-%     %Compute the maneuver
-%     switch (restriction) 
-%         case 'Worst'
-%             STM = [E(4:6,:) -Monodromy()];                                      %Correction matrix
-%             error = lambda(1)*E(1:3,1);                                    %Error in the unstable direction only
-%             maneuver = STM\error;                                          %Needed maneuver 
-%             dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-%         case 'Best'
-%             STM = [E(:,1) E(:,3:end) [zeros(3,3); -eye(3)]];               %Correction matrix
-%             error = lambda(1)*E(:,1);                                      %Error in the unstable directions
-%             for j = 1:4
-%                 error = error+lambda(2)*E(:,2+j);                          %Error in the centre directions
-%             end
-%             maneuver = STM\error;                                          %Needed maneuver 
-%             dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
-%         otherwise
-%             error('No valid case was selected');
-%     end
-%     
-%     %Integrate the trajectory 
-%     s0 = S(index(2)+(i-1),1:12);            %Initial conditions
-%     s0(10:12) = s0(10:12)+real(dV(:,i)).';  %Update initial conditions with the velocity change
-%     
-%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
-%     
-%     %Evaluate the cost function
-%     J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
-%     J(2,i) = norm(maneuver)+(1/2)*s(end,7:12)*s(end,7:12).';  
-%  end
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan(1:size(SCAM,1)), SCAM(:,7)); 
+plot(tspan(1:size(SCAM,1)), SCAM(:,8)); 
+plot(tspan(1:size(SCAM,1)), SCAM(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan(1:size(SCAM,1)), SCAM(:,10)); 
+plot(tspan(1:size(SCAM,1)), SCAM(:,11)); 
+plot(tspan(1:size(SCAM,1)), SCAM(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');

@@ -81,7 +81,7 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -101,23 +101,32 @@ controlable = controlability_analysis(model, mu, S, index, Ln, gamma);
 [Sc, e] = lqrm(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
 
 %Compute the control effort
-energy = zeros(3,1); 
-u = lqr_controller(model, mu, Sc, Ln, gamma);   %Control law
-
+energy = zeros(3,2);                                       %Preallocation of the energy vector
+u = lqr_controller(model, mu, Sc, Ln, gamma);              %Control law
 for i = 1:size(u,1)
-    energy(i) = trapz(tspan, u(i,:).^2);        %Integral of the control
+    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
 end
 
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
+
 %% GNC: SDRE control law
-% [Sc, e] = sdre(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
-% 
-% %Compute the control effort
-% energy = zeros(3,1);                               %Preallocation of the energy integral
-% u = sdre_controller(model, mu, Sc, Ln, gamma);     %Control law
-% 
-% for i = 1:size(u,1)
-%     energy(i) = trapz(tspan, u(i,:).^2);           %Integral of the control
-% end
+[Sc, e] = sdre(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
+
+%Compute the control effort
+energy = zeros(3,2);                                       %Preallocation of the energy integral
+u = sdre_controller(model, mu, Sc, Ln, gamma);             %Control law
+
+for i = 1:size(u,1)
+    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
+end
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
 
 %% Results %% 
 %Plot results 
@@ -322,7 +331,7 @@ function [Sc, e] = dsdre(model, options, mu, Sn, tspan, Ln, gamma)
         u(:,i) = -K*[integrator; shiftdim(Sc(i,7:12))];                                            
 
         %Re-integrate trajectory
-        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, zeros(3,1)), [0 dt], Sc(i,:), options);
+        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke C', t, s, zeros(3,1)), [0 dt], Sc(i,:), options);
         
         %Update integrator
         fintegrator = @(t,s)(shiftdim(Sc(i,7:9)));
@@ -406,7 +415,7 @@ function [Sc, e] = dlqrm(model, options, mu, Sn, tspan, Ln, gamma)
         u(:,i) = -K*[integrator; shiftdim(Sc(i,7:12))];                                            
 
         %Re-integrate trajectory
-        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
+        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
         
         %Update integrator
         fintegrator = @(t,s)(shiftdim(Sc(i,7:9)));
@@ -481,7 +490,7 @@ function [Sc, e] = lqrm(model, options, mu, Sn, tspan, Ln, gamma)
     [K,~,~] = lqr(A,B,Q,M);
 
     %Compute the trajectory
-    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke LQR', t, s, K), tspan, slqr0, options);
+    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke LQR', t, s, K), tspan, slqr0, options);
 
     %Error in time 
     for i = 1:length(tspan)
@@ -499,7 +508,7 @@ function [Sc, e] = sdre(model, options, mu, Sn, tspan, Ln, gamma)
     slqr0 = [Sn(1,:) int];
 
     %Compute the trajectory
-    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke SDRE', t, s, model, Ln, gamma), tspan, slqr0, options);
+    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SDRE', t, s, model, Ln, gamma), tspan, slqr0, options);
 
     %Error in time 
     for i = 1:length(tspan)

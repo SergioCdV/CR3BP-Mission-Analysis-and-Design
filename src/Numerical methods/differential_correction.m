@@ -95,8 +95,8 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag
-    iter = 1;           %Initial iteration
+    GoOn = true;                %Convergence flag
+    iter = 1;                   %Initial iteration
     
     %Preallocation 
     ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
@@ -182,8 +182,8 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag 
-    iter = 1;           %Initial iteration
+    GoOn = true;                %Convergence flag 
+    iter = 1;                   %Initial iteration
     
     %Preallocation 
     ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
@@ -269,8 +269,8 @@ function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag   
-    iter = 1;           %Initial iteration
+    GoOn = true;                %Convergence flag   
+    iter = 1;                   %Initial iteration
     
     %Preallocation 
     ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
@@ -357,8 +357,8 @@ function [xf, state] = Sym_DoublePlane_scheme(mu, seed, maxIter, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag 
-    iter = 1;           %Initial iteration
+    GoOn = true;                %Convergence flag 
+    iter = 1;                   %Initial iteration
     
     %Preallocation 
     ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
@@ -445,8 +445,8 @@ function [xf, state] = Sym_Planar_scheme(mu, seed, maxIter, tol)
     flagVar = true;                                             %Integrate variational equations
     
     %Set up differential correction scheme
-    GoOn = true;        %Convergence flag 
-    iter = 1;           %Initial iteration
+    GoOn = true;                %Convergence flag 
+    iter = 1;                   %Initial iteration
     
     %Preallocation 
     ds0 = zeros(1,maxIter);     %Vector containing the initial conditions correction

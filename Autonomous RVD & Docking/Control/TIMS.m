@@ -65,7 +65,7 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -75,7 +75,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %Differential corrector set up
 S = S(1:index,:);                           %Restrict the time integration span
 T = index*dt;                               %Flight time along the arc
-nodes = 3;                                  %Number of nodes to compute
+nodes = 2;                                  %Number of nodes to compute
 GoOn = true;                                %Convergence boolean 
 iter = 1;                                   %Initial iteration 
 
@@ -202,8 +202,8 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
             end          
             S0 = shiftdim(internalSeed(m*(i-1)+1:m*i));
             S0 = [S0(1:n); Phi; S0(n+1:end); Phi];
-            [~, S] = ode113(@(t,s)nlr_model(mu, direction, true, 'Encke V', t, s), tspan, S0, options);   %New trajectory
-            F = nlr_model(mu, direction, false, 'Encke', 0, [S(end,1:n) S(end,n+n^2+1:2*n+n^2)].');       %Vector field
+            [~, S] = ode113(@(t,s)nlr_model(mu, direction, true, true, 'Encke', t, s), tspan, S0, options);   %New trajectory
+            F = nlr_model(mu, direction, false, false, 'Encke', 0, [S(end,1:n) S(end,n+n^2+1:2*n+n^2)].');    %Vector field
             
             %Build the covariance matrix                                       
             if (i ~= nodes)
@@ -252,7 +252,7 @@ function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
     %Integrate the whole trayectory
     tspan = 0:dt:sum(internalSeed(end-nodes+1:end))+Dt; 
     seed = [shiftdim(internalSeed(1:n)); Phi; shiftdim(internalSeed(n+1:2*n)); Phi];
-    [t, S] = ode113(@(t,s)nlr_model(mu, direction, true, 'Encke V', t, s), tspan, seed, options);
+    [t, S] = ode113(@(t,s)nlr_model(mu, direction, true, true, 'Encke', t, s), tspan, seed, options);
     
     %Ouput corrected trajectory 
     xf.Trajectory = S;                           %Trajectory

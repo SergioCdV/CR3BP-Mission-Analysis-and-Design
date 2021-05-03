@@ -18,18 +18,18 @@
 
 function [U] = augmented_potential(mu, r)
     %Constants of the problem 
-    mu1 = 1-mu;             %Gravitational parameters of the most massive primary
-    mu2 = mu;               %Gravitational parameters of the least massive primary 
+    mup(1) = 1-mu;                      %Gravitational parameters of the most massive primary
+    mup(2) = mu;                        %Gravitational parameters of the least massive primary 
     
     %Obtain synodic coordinates 
-    x = r(1);               %Synodic x coordinate
-    y = r(2);               %Synodic y coordinate 
-    z = r(3);               %Synodic z coordinate
+    x = r(1);                           %Synodic x coordinate
+    y = r(2);                           %Synodic y coordinate 
+    z = r(3);                           %Synodic z coordinate
     
     %Compute distance to the primaries
-    r1 = [x+mu2; y; z];     %Position vector to the most massive primary    
-    r2 = [x-mu1; y; z];     %Position vector to the least massive primary
+    r(:,1) = [x+mup(2); y; z];          %Position vector to the most massive primary    
+    r(:,2) = [x-mup(1); y; z];          %Position vector to the least massive primary
     
     %Augmented potential function 
-    U = (1/2)*(x^2+y^2)+(mu1/norm(r1))+(mu2/norm(r2));
+    U = (1/2)*(x^2+y^2)+(mup(1)/norm(r(:,1)))+(mup(2)/norm(r(:,2)));
 end

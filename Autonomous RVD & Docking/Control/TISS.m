@@ -70,7 +70,7 @@ Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
 s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspann, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -87,6 +87,9 @@ iter = 1;                           %Initial iteration
 %Preallocation 
 dV = zeros(3,maxIter);              %Targeting impulse
 
+%Initial conditions 
+S0 = s0;
+
 %First impulse: targeting 
 while ((GoOn) && (iter < maxIter))
     %Initial impulse
@@ -95,8 +98,8 @@ while ((GoOn) && (iter < maxIter))
     dV(:,iter) = STM(1:3,4:6)\error;                                %Required impulse
     
     %Dynamics integration 
-    s0(10:12) = s0(10:12)-dV(:,iter);                                                       %New initial conditions
-    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspan, s0, options); %New trajectory
+    s0(10:12) = s0(10:12)-dV(:,iter);                                                           %New initial conditions
+    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); %New trajectory
     
     %Convergence analysis
     if (norm(error) < tol)
@@ -109,14 +112,27 @@ end
 %Final trajectory 
 St = S;
 
-dV0(1:3,1) = dV(:,iter-1);                    %Initial rendezvous impulse 
-dVf(1:3,1) = -S(end,10:12).';                 %Final rendezvous impulse 
+dV0(1:3,1) = sum(dV,2);                       %Initial rendezvous impulse 
+dVf(1:3,1) = -St(end,10:12).';                %Final rendezvous impulse 
+
+St(end,10:12) = St(end,10:12)+dVf(:,1).';     %Add last impulse to the state
 
 %Total maneuver metrics 
 dV1(1:3,1) = dV0(:,1)+dVf(:,1);               %L1 norm of the impulses 
 dV2(1) = norm(dV0(:,1))+norm(dVf(:,1));       %L2 norm of the impulses 
 
 Pass(1) = ~GoOn;
+
+%Error in time 
+e = zeros(1,size(St,1));                      %Preallocation of the error vector 
+for i = 1:size(St,1)
+    e(i) = norm(St(i,7:12));
+end
+e(1) = norm(S0(7:12));                        %Compute the initial state error before the impulse
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
 
 %% GNC: one impulsive rendezvous, single shooting scheme %% 
 %Differential corrector set up
@@ -138,8 +154,8 @@ while ((GoOn) && (iter < maxIter))
     dV(:,iter) = (STM(:,4:6).'*STM(:,4:6))^(-1)*STM(:,4:6).'*error;         %Required impulse
     
     %Dynamics integration 
-    s0(10:12) = s0(10:12)-dV(:,iter);                                                       %New initial conditions
-    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspan, s0, options); %New trajectory
+    s0(10:12) = s0(10:12)-dV(:,iter);                                                           %New initial conditions
+    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); %New trajectory
     
     %Convergence analysis
     if (norm(error) < tol)
@@ -149,8 +165,8 @@ while ((GoOn) && (iter < maxIter))
     end
 end
 
-dV0(:,2) = dV(:,iter-1);                 %Initial rendezvous impulse 
-dVf(:,2) = zeros(3,1);                   %Final rendezvous impulse 
+dV0(:,2) = sum(dV,2);                    %Initial rendezvous impulse 
+dVf(:,2) = -S(end,10:12).';              %Final rendezvous impulse 
 
 %Total maneuver metrics 
 dV1(1:3,1) = dV0(:,2)+dVf(:,2);          %L1 norm of the impulses 
@@ -206,24 +222,57 @@ zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
-%%
-%Rendezvous animation 
-figure(3) 
-view(3) 
-grid on;
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
 hold on
-plot3(Sn(1:index,1), Sn(1:index,2), Sn(1:index,3), 'k-.'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
-title('Rendezvous simulation');
-for i = 1:size(St,1)
-    T = scatter3(Sn(i,1), Sn(i,2), Sn(i,3), 30, 'b'); 
-    V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
-    
-    drawnow;
-    delete(T); 
-    delete(V);
-end
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
 hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
 
+%Configuration space error 
+figure(4)
+plot(tspan, e); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error');
+grid on;
+title('Absolute error in the configuration space (L2 norm)');
+
+%Rendezvous animation 
+if (false)
+    figure(5) 
+    view(3) 
+    grid on;
+    hold on
+    plot3(St(1:index,1), St(1:index,2), St(1:index,3), 'k-.'); 
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    title('Rendezvous simulation');
+    for i = 1:size(Sc,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
+        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
+
+        drawnow;
+        delete(T); 
+        delete(V);
+    end
+    hold off
+end

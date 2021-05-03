@@ -66,7 +66,7 @@ Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
 s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), tspann, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspann, s0, options);
 Sn = S;              
 
 %Reconstructed chaser motion 
@@ -91,12 +91,18 @@ if (impulses ~= 0)
     times = [1 times size(S,1)-1];          %Impulses time
     impulses = length(times);               %Update the number of impulses to take into accoun the initial and final ones
 else
-    times = [1 size(S,1)-1];                %Simply two impulsive rendezvous strategy
+    times = [2 size(S,1)-1];                %Simply two impulsive rendezvous strategy
     impulses = length(times);               %Update the number of impulses to take into accoun the initial and final ones
 end
 
 %Cost function 
 cost = 'Position';                          %Make impulses to target the state
+
+%Initial conditions 
+S0 = s0;
+
+%Preallocation of the impulses 
+dV = zeros(3*impulses, maxIter);
 
 %Implementation 
 while ((GoOn) && (iter < maxIter))    
@@ -144,15 +150,15 @@ while ((GoOn) && (iter < maxIter))
     
     %Compute the error and the impulses 
     if (size(STM,1) == length(xf))
-        dV = -STM\xf.';                      %Impulses
+        dV(:,iter) = -STM\xf.';                      %Impulses
     else
-        dV = -STM.'*(STM*STM.')^(-1)*xf.';   %Impulses
+        dV(:,iter) = -STM.'*(STM*STM.')^(-1)*xf.';   %Impulses
     end
     
     %Reintegrate the trajectory
     for i = 1:length(times)               
         %Make the impulse
-        S(times(i),10:12) = S(times(i),10:12) + dV(1+3*(i-1):3*i,:).';
+        S(times(i),10:12) = S(times(i),10:12) + dV(1+3*(i-1):3*i,iter).';
         
         %Integration time span
         if (i ~= length(times))
@@ -162,7 +168,7 @@ while ((GoOn) && (iter < maxIter))
         end
         
         %New trajectory
-        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke V', t, s), Dt, S(times(i),:), options); 
+        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), Dt, S(times(i),:), options); 
         
         %Update new initial conditions
         S(times(i):times(i)+size(s,1)-1,:) = s;
@@ -178,12 +184,27 @@ end
 
 %Output 
 St = S; 
+dV(end+1:end+3,iter) = -St(end,10:12).';  %Docking impulse
+St(end,10:12) = zeros(1,3);               %Null relative velocity state
 
 %Total maneuver metrics 
-dV1(1:3,1) = sum(dV,1);     %L1 norm of the impulses 
-dV2(1) = norm(dV);          %L2 norm of the impulses 
+dV = sum(dV,2);
+dV = reshape(dV, [3 impulses+1]);         %Reshape the impulses array
+dV1(1:3,1) = sum(dV,2);                   %L1 norm of the impulses 
+dV2(1) = sum(sqrt(dot(dV,dV,2)));         %L2 norm of the impulses 
 
 Pass = ~GoOn;
+
+%Error in time 
+e = zeros(1,size(St,1));                  %Preallocation of the error
+for i = 1:size(St,1)
+    e(i) = norm(St(i,7:12));
+end
+e(1) = norm(S0(7:12));                    %Initial error before the burn
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
 
 %% Results %% 
 disp('SIMULATION RESULTS: ')
@@ -219,19 +240,52 @@ zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
+plot(tspan, e); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error');
+grid on;
+title('Absolute error in the configuration space (L2 norm)');
+
 %Rendezvous animation 
 if (false)
-    figure(3) 
+    figure(5) 
     view(3) 
     grid on;
     hold on
-    plot3(Sn(1:index,1), Sn(1:index,2), Sn(1:index,3), 'k-.'); 
+    plot3(St(1:index,1), St(1:index,2), St(1:index,3), 'k-.'); 
     xlabel('Synodic x coordinate');
     ylabel('Synodic y coordinate');
     zlabel('Synodic z coordinate');
     title('Rendezvous simulation');
-    for i = 1:size(St,1)
-        T = scatter3(Sn(i,1), Sn(i,2), Sn(i,3), 30, 'b'); 
+    for i = 1:size(Sc,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
         V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
 
         drawnow;

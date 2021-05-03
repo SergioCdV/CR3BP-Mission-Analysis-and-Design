@@ -20,16 +20,16 @@
 
 function [cn] = relegendre_coefficients(mu, r_t, order)
     %Characteristics of the system 
-    mu1 = 1-mu;                         %Reduced gravitational parameter of the first primary
-    mu2 = mu;                           %Reduced gravitational parameter of the second primary
-    R1 = [-mu; 0; 0];                   %Synodic position of the first primary
-    R2 = [1-mu; 0; 0];                  %Synodic position of the second primary
+    mup(1) = 1-mu;                         %Reduced gravitational parameter of the first primary
+    mup(2) = mu;                           %Reduced gravitational parameter of the second primary
+    R(:,1) = [-mu; 0; 0];                  %Synodic position of the first primary
+    R(:,2) = [1-mu; 0; 0];                 %Synodic position of the second primary
     
     %Preallocation of the coefficients 
     cn = zeros(1, order);
     
     %Main computation
     for i = 2:order
-        cn(i) = mu1/norm(R1-r_t)^(i+1)+mu2/norm(R2-r_t)^(i+1);
+        cn(i) = (mup(1)/norm(R(:,1)-r_t)^(i+1))+(mup(2)/norm(R(:,2)-r_t)^(i+1));
     end
 end

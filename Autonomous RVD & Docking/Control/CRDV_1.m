@@ -1,15 +1,12 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 01/04/21 % 
+% 25/04/21 % 
 
-%% GNC 8: Two-impulsive rendezvous using the target approach strategy %% 
-% This script provides an interface to test the target apprach strategy for the rendezvous problem. 
+%% GNC 11: Complete rendezvous mission example 1 %% 
+% This script provides an interface to test the general control scheme for a rendezvous, docking and undocking mission. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
-
-% In the relative phase space, the relative particle is driven to the
-% origin of the synodic frame.
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
 % points reference frame as defined by Howell, 1984.
@@ -22,11 +19,16 @@ set_graphics();
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
+%Phase space dimension 
+n = 6; 
+
+%Spacecraft mass 
+mass = 1e-10;
+
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.6;                           %Rendezvous time
-tspan = 0:dt:tf;                    %Integration time span
-tspann = 0:dt:2*pi;                 %Integration time span
+tf = [0.6 pi pi+0.1];               %Switching times
+tspan = 0:dt:tf(3);                 %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -34,7 +36,8 @@ L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %Differential corrector set up
-maxIter = 50;                       %Maximum number of iterations
+nodes = 10;                         %Number of nodes for the multiple shooting corrector
+maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
@@ -52,8 +55,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%% Modelling in the synodic frame %% 
-index = fix(tf/dt);                                         %Rendezvous point
+%% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
@@ -63,14 +65,16 @@ Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
 s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspann, s0, options);
-Sn = S;              
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% GNC: two impulsive rendezvous, generalized targetting approach %%
+%% First phase: long-range rendezvous using the TITA approach
 %Differential corrector set up
+index = fix(tf(1)/dt);                      %First event: end of the long-range rendezvous phase
+tspan = 0:dt:tf(1);                         %Initial integration time
 maxIter = 100;                              %Maximum number of iterations
 tol = 1e-5;                                 %Differential corrector tolerance
 S = S(1:index,:);                           %Restrict the time integration span
@@ -170,73 +174,73 @@ while ((GoOn) && (iter < maxIter))
 end
 
 %Output 
-St = S; 
-
+St1 = S;                                     %Integrated trajectory
 dV0(1:3,1) = sum(dV,2);                      %Initial rendezvous impulse 
 dVf(1:3,1) = -S(end,10:12).';                %Final rendezvous impulse 
+St1(end,10:12) = St1(end,10:12)+dVf.';       %Docking burn condition
 
-St(end,10:12) = St(end,10:12)+dVf.';         %Docking burn condition
+%% Second phase: docking and coordinated flight 
+%Integration time 
+tspan = 0:dt:tf(2)-tf(1); 
 
-%Total maneuver metrics 
-dV1(1:3,1) = dV0(:,1)+dVf(:,1);              %L1 norm of the impulses 
-dV2(1) = norm(dV0(:,1))+norm(dVf(:,1));      %L2 norm of the impulses 
+%Initial conditions 
+s0 = St1(end,:); 
 
-Pass = ~GoOn;
+%Reference state 
+refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
 
-%Compute the error 
-e = zeros(1,size(St,1));                     %Preallocation of the error vector 
-for i = 1:size(St,1)
-    e(i) = norm(St(i,7:12)); 
-end
-e(1) = norm(S0(7:12));                       %Initial error before the burn
+%Re-integrate trajectory
+[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke SMC', t, s, refState), tspan, s0, options);
 
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+%% Third phase: undocking 
+%Integration time 
+tspan = 0:dt:tf(3)-tf(2)-dt; 
 
-%% Results %% 
-disp('SIMULATION RESULTS: ')
-if (Pass)
-    disp('   Two impulsive rendezvous was achieved');
-    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV0(1,1), dV0(2,1), dV0(3,1));
-    fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dVf(1,1), dVf(2,1), dVf(3,1));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dV1(1,1), dV1(2,1), dV1(3,1));
-    fprintf('   Delta V budget (L2 norm): %.4e \n', dV2(:,1));
-else
-    disp('    Two impulsive rendezvous was not achieved');
-end
+%Initial conditions 
+s0 = St2(end,:); 
 
-%Plot results 
-figure(1) 
-view(3) 
-hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3)); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
-hold off
-legend('Target motion', 'Chaser motion'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
-grid on;
-title('Reconstruction of the natural chaser motion');
+%Select the restriction level of the CAM 
+lambda(1) = 1e-1;                                           %Safety distance
+lambda(2) = 1e-1;                                           %Safety distance
 
-%Plot relative phase trajectory
+%Compute the Floquet modes at each time instant 
+Monodromy = reshape(s0(13:end), [6 6]);                     %State transition matrix at each instant        
+[E, sigma] = eig(Monodromy);                                %Eigenspectrum of the STM 
+
+%Compute the maneuver
+STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];             %Linear application
+error = lambda(1)*rand(6,1);                                 %State error vector
+maneuver = STM.'*(STM*STM.')^(-1)*error;                     %Needed maneuver
+dV = real(maneuver(end-2:end));                              %Needed change in velocity
+
+%Integrate the CAM trajectory
+s0(10:12) = s0(10:12)+dV.';                                  %Update initial conditions with the velocity change
+
+[~, St3] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+
+%% Final results 
+St = [St1; St2; St3];   %Complete trajectory 
+tspan = 0:dt:tf(3)+dt;  %Total integration time
+
+%% Plotting
 figure(2) 
 view(3) 
-plot3(St(:,7), St(:,8), St(:,9)); 
+hold on 
+plot3(St(:,7), St(:,8), St(:,9), 'r'); 
+hold off
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
-title('Relative motion in the configuration space');
+title('Relative motion trajectory in the configuration space');
 
 %Configuration space evolution
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,7)); 
-plot(tspan, St(:,8)); 
-plot(tspan, St(:,9)); 
+plot(tspan(1:size(St,1)), St(:,7)); 
+plot(tspan(1:size(St,1)), St(:,8)); 
+plot(tspan(1:size(St,1)), St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinate');
@@ -245,42 +249,12 @@ legend('x coordinate', 'y coordinate', 'z coordinate');
 title('Relative position evolution');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,10)); 
-plot(tspan, St(:,11)); 
-plot(tspan, St(:,12)); 
+plot(tspan(1:size(St,1)), St(:,10)); 
+plot(tspan(1:size(St,1)), St(:,11)); 
+plot(tspan(1:size(St,1)), St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinate');
 grid on;
 legend('x velocity', 'y velocity', 'z velocity');
 title('Relative velocity evolution');
-
-%Configuration space error 
-figure(4)
-plot(tspan, e); 
-xlabel('Nondimensional epoch');
-ylabel('Absolute error');
-grid on;
-title('Absolute error in the configuration space (L2 norm)');
-
-%Rendezvous animation 
-if (false)
-    figure(5) 
-    view(3) 
-    grid on;
-    hold on
-    plot3(St(1:index,1), St(1:index,2), St(1:index,3), 'k-.'); 
-    xlabel('Synodic x coordinate');
-    ylabel('Synodic y coordinate');
-    zlabel('Synodic z coordinate');
-    title('Rendezvous simulation');
-    for i = 1:size(Sc,1)
-        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
-        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
-
-        drawnow;
-        delete(T); 
-        delete(V);
-    end
-    hold off
-end

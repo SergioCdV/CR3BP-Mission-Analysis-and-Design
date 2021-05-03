@@ -16,20 +16,20 @@
 
 function [T] = jacobi_gradient(mu, state)
     %Constants of the system 
-    mu1 = 1-mu;                         %Reduced gravitational parameter of the first primary
-    mu2 = mu;                           %Reduced gravitational parameter of the secnd primary
+    mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary
+    mup(2) = mu;                            %Reduced gravitational parameter of the second primary
     
     %State variables 
-    x = state(1);                       %Synodic x coordinate
-    y = state(2);                       %Synodic y coordinate
-    z = state(3);                       %Synodic z coordinate
-    v = state(4:end);                   %Synodic velocity vector
+    x = state(1);                           %Synodic x coordinate
+    y = state(2);                           %Synodic y coordinate
+    z = state(3);                           %Synodic z coordinate
+    v = state(4:end);                       %Synodic velocity vector
     
     %Main procedure 
-    r1 = [(x+mu2); y; z];               %Relative position vector to the first primary
-    r2 = [(x-mu1); y; z];               %Relative position vector to the secondary primary
-    dU1 = mu1/norm(r1)^3*r1;            %Acceleration due to the first primary
-    dU2 = mu2/norm(r2)^3*r2;            %Accleration due to the second primary
-    dU = [x; y; 0]-dU1-dU2;             %Augmented potential gradient
-    T = 2*[dU; -v];                     %Jacobi Constant gradient vector 
+    r(:,1) = [x+mup(2); y; z];              %Relative position vector to the first primary
+    r(:,2) = [x-mup(1); y; z];              %Relative position vector to the second primary
+    dU1 = mup(1)/norm(r(:,1))^3*r(:,1);     %Acceleration due to the first primary
+    dU2 = mup(2)/norm(r(:,2))^3*r(:,2);     %Accleration due to the second primary
+    dU = [x; y; 0]-dU1-dU2;                 %Augmented potential gradient
+    T = 2*[dU; -v];                         %Jacobi Constant gradient vector 
 end

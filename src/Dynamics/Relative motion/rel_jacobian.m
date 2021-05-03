@@ -11,20 +11,20 @@
 
 function [J] = rel_jacobian(mu, s)
     %System parameters 
-    mup(1) = 1-mu;                  %Reduced gravitational parameter of the first primary
-    mup(2) = mu;                    %Reduced gravitational parameter of the second primary
-    R(1:3,1) = [-mu; 0; 0];         %Synodic position of the first primary
-    R(1:3,2) = [1-mu; 0; 0];        %Synodic position of the second primary
+    mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary
+    mup(2) = mu;                        %Reduced gravitational parameter of the second primary
+    R(1:3,1) = [-mu; 0; 0];             %Synodic position of the first primary
+    R(1:3,2) = [1-mu; 0; 0];            %Synodic position of the second primary
        
     %State variables 
-    r_t = s(1:3);                   %Position of the target 
-    rho = s(7:9);                   %Relative position
+    r_t = s(1:3);                       %Position of the target 
+    rho = s(7:9);                       %Relative position
     
     %Relative position to the primaries 
-    r(:,1) = r_t-R(:,1);            %Target position to the first primary
-    r(:,2) = r_t-R(:,2);            %Target position to the second primary
-    rc(:,1) = rho+r(:,1);           %Chaser position to the first primary
-    rc(:,2) = rho+r(:,2);           %Chaser position to the second primary
+    r(:,1) = r_t-R(:,1);                %Target position to the first primary
+    r(:,2) = r_t-R(:,2);                %Target position to the second primary
+    rc(:,1) = rho+r(:,1);               %Chaser position to the first primary
+    rc(:,2) = rho+r(:,2);               %Chaser position to the second primary
     
     %Variational equations
     O = zeros(3,3);                     %3 by 3 null matrix
@@ -39,10 +39,13 @@ function [J] = rel_jacobian(mu, s)
             %Derivative of the Encke acceleration
             gamma = 0;                                                        %Encke acceleration
             for k = 1:length(mup)
+                %Encke's variables
                 q = -dot(2*r(:,k)+rho,rho)/norm(rc(:,k))^2;                   %Encke variable
                 f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));                          %Encke coefficient
+                
                 %Derivative of the Encke coefficient
-                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(2*(r(:,k)+rho),rho)/norm(rc(:,k))^2)*rc(i,k);                             
+                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(2*(r(:,k)+rho),rho)/norm(rc(:,k))^2)*rc(i,k); 
+                
                 %Encke acceleration
                 if (i == j)
                     gamma = gamma + (mup(k)/norm(r(:,k))^3)*((1+f)+df*rc(j,k));             
@@ -60,11 +63,13 @@ function [J] = rel_jacobian(mu, s)
         end
     end
     
+    %Symmetry constraint
     for i = 1:size(H,1)
         for j = 1:size(H,2)
             H(j,i) = H(i,j);
         end
     end
     
-    J = [O I; H Omega];                 %Jacobian of the system 
+    %Jacobian of the system 
+    J = [O I; H Omega];                 
 end

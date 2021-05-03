@@ -79,7 +79,7 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -101,7 +101,7 @@ for i = 1:length(tspan)
     u(:,i) = hybrid_controller(mu, refState, Sc(i,:));
 
     %Re-integrate trajectory
-    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], S(i,:), options);
+    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke C', t, s, u(:,i)), [0 dt], S(i,:), options);
     
     %Update initial conditions
     Sc(i+1,:) = s(end,:);
@@ -118,7 +118,7 @@ e = zeros(1,length(tspan));                                 %Error to rendezvous
 refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
 
 %Re-integrate trajectory
-[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke SMC', t, s, refState), tspan, s0, options);
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SMC', t, s, refState), tspan, s0, options);
 
 %Error in time 
 for i = 1:length(tspan)
@@ -126,15 +126,20 @@ for i = 1:length(tspan)
 end
 
 %Compute the control effort
-energy = zeros(3,1); 
+energy = zeros(3,2); 
 for i = 1:size(Sc,1)
-    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));      %Control law
+    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));     %Control law
 end
 
 for i = 1:size(u,1)
-    energy(i) = trapz(tspan, u(i,:).^2);                    %Integral of the control
+    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
 end
-    
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
+
 %% Results %% 
 %Plot results 
 figure(1) 
@@ -233,10 +238,10 @@ function [T] = hybrid_controller(mu, refState, x)
     dv = v-refState(4:6);      %Velocity error
     
     %Torque computation
-    s = dv+lambda*dr;                                                   %Sliding surface
-    f = nlr_model(mu, true, false, 'Encke C', 0, x.', zeros(3,1));      %Relative CR3BP dynamics
-    ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);               %Reachability condition function
-    T = refState(7:9)-f(10:12)-lambda*dv-ds;                            %Control vector
+    s = dv+lambda*dr;                                                          %Sliding surface
+    f = nlr_model(mu, true, false, false, 'Encke C', 0, x.', zeros(3,1));      %Relative CR3BP dynamics
+    ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);                      %Reachability condition function
+    T = refState(7:9)-f(10:12)-lambda*dv-ds;                                   %Control vector
 end
 
 %Saturation function

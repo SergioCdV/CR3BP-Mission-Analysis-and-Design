@@ -22,33 +22,32 @@
 
 function [Jacobian] = abs_jacobian(mu, s) 
     %Define the phase space vector
-    x = s(1);               %Synodyc x coordinate
-    y = s(2);               %Synodyc y coordinate 
-    z = s(3);               %Synodyc z coordinate 
+    x = s(1);                       %Synodyc x coordinate
+    y = s(2);                       %Synodyc y coordinate 
+    z = s(3);                       %Synodyc z coordinate 
     
     %Relevant system parameters
-    mu1 = 1-mu;             %First primary normalized position
-    mu2 = mu;               %Second primary normalized position
-    r1 = [(x+mu2); y; z];   %Relative position vector to the first primary
-    r2 = [(x-mu1); y; z];   %Relative position vector to the secondary primary
-    R1 = norm(r1);          %Distance to the first primary
-    R2 = norm(r2);          %Distance to the secondary primary
+    mup(1) = 1-mu;                  %First primary normalized position
+    mup(2) = mu;                    %Second primary normalized position
+    r(:,1) = [x+mup(2); y; z];      %Relative position vector to the first primary
+    r(:,2) = [x-mup(1); y; z];      %Relative position vector to the secondary primary
+    R(1) = norm(r(:,1));            %Distance to the first primary
+    R(2) = norm(r(:,2));            %Distance to the secondary primary
     
     %First variations of the augmented potential function (Hessian of the potential)
-    Ux = 1-(mu1/R1^3)*(1-3*((x+mu2)/R1)^2)-(mu2/R2^3)*(1-3*((x-mu1)/R2)^2); 
-    Uy = 1-(mu1/R1^3)*(1-3*(y/R1)^2)-(mu2/R2^3)*(1-3*(y/R2)^2);
-    Uz = -(mu1/R1^3)*(1-3*(z/R1)^2)-(mu2/R2^3)*(1-3*(z/R2)^2);
-    Uxy = 3*y*((mu1/R1^5)*(x+mu2)+(mu2/R2^5)*(x-mu1));
-    Uyx = Uxy;
-    Uxz = 3*z*((mu1/R1^5)*(x+mu2)+(mu2/R2^5)*(x-mu1));
-    Uzx = Uxz; 
-    Uyz = 3*y*((mu1/R1^5)*z+(mu2/R2^5)*z);
-    Uzy = Uyz;
+    G(1,1) = 1-(mup(1)/R(1)^3)*(1-3*((x+mup(2))/R(1))^2)-(mup(2)/R(2)^3)*(1-3*((x-mup(1))/R(2))^2); 
+    G(2,2) = 1-(mup(1)/R(1)^3)*(1-3*(y/R(1))^2)-(mup(2)/R(2)^3)*(1-3*(y/R(2))^2);
+    G(3,3) = -(mup(1)/R(1)^3)*(1-3*(z/R(1))^2)-(mup(2)/R(2)^3)*(1-3*(z/R(2))^2);
+    G(1,2) = 3*y*((mup(1)/R(1)^5)*(x+mup(2))+(mup(2)/R(2)^5)*(x-mup(1)));
+    G(2,1) = G(1,2);
+    G(1,3) = 3*z*((mup(1)/R(1)^5)*(x+mup(2))+(mup(2)/R(2)^5)*(x-mup(1)));
+    G(3,1) = G(1,3); 
+    G(2,3) = 3*y*((mup(1)/R(1)^5)*z+(mup(2)/R(2)^5)*z);
+    G(3,2) = G(2,3);
 
     %Compute the first variational equations evaluated at the reference
-    O = zeros(3,3); 
-    I = eye(3);
-    G = [Ux Uxy Uxz; Uyx Uy Uyz; Uzx Uzy Uz];
-    K = [0 2 0; -2 0 0; 0 0 0];
-    Jacobian = [O I; G K];                             %Jacobian of the system   
+    O = zeros(3,3);                    %Null matrix
+    I = eye(3);                        %Identity matrix
+    K = [0 2 0; -2 0 0; 0 0 0];        %Coriolis Dyadic
+    Jacobian = [O I; G K];             %Jacobian of the system   
 end

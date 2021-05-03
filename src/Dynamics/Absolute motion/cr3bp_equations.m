@@ -32,53 +32,36 @@
 
 function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
     %Constants 
-    n = 6;                  %Phase space dimension 
+    n = 6;       %Phase space dimension 
     
     %Define the initial phase space vector
-    x = s(1);               %Synodyc x coordinate
-    y = s(2);               %Synodyc y coordinate 
-    z = s(3);               %Synodyc z coordinate 
-    V = s(4:6);             %Synodic velocity vector
+    x = s(1);                       %Synodyc x coordinate
+    y = s(2);                       %Synodyc y coordinate 
+    z = s(3);                       %Synodyc z coordinate 
+    V = s(4:6);                     %Synodic velocity vector
     
     %Relevant system parameters
-    mu1 = 1-mu;             %First primary normalized position
-    mu2 = mu;               %Second primary normalized position
-    r1 = [(x+mu2); y; z];   %Relative position vector to the first primary
-    r2 = [(x-mu1); y; z];   %Relative position vector to the secondary primary
-    R1 = norm(r1);          %Distance to the first primary
-    R2 = norm(r2);          %Distance to the secondary primary
+    mup(1) = 1-mu;                  %First primary normalized position
+    mup(2) = mu;                    %Second primary normalized position
+    r(:,1) = [(x+mup(2)); y; z];    %Relative position vector to the first primary
+    r(:,2) = [(x-mup(1)); y; z];    %Relative position vector to the secondary primary
+    R(1) = norm(r(:,1));            %Distance to the first primary
+    R(2) = norm(r(:,2));            %Distance to the secondary primary
     
     %Compute the time flow of the system (depending on the time direction)
     if (direction == -1)
-        gamma = [x-2*V(2); y+2*V(1); 0];                    %Inertial acceleration
+        gamma = [x-2*V(2); y+2*V(1); 0];                                %Inertial acceleration
     else
-        gamma = [x+2*V(2); y-2*V(1); 0];                    %Inertial acceleration
+        gamma = [x+2*V(2); y-2*V(1); 0];                                %Inertial acceleration
     end
-    F = [V; gamma-mu1/R1^3*r1-mu2/R2^3*r2];                 %Time flow of the system
+    F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       %Time flow of the system
     
     %Compute the variational equations if needed
     if (flagVar)
         %Compute the initial STM
-        Phi = reshape(s(n+1:end), [n n]);
-        
-        %First variations of the augmented potential function (Hessian of the potential)
-        Ux = 1-(mu1/R1^3)*(1-3*((x+mu2)/R1)^2)-(mu2/R2^3)*(1-3*((x-mu1)/R2)^2); 
-        Uy = 1-(mu1/R1^3)*(1-3*(y/R1)^2)-(mu2/R2^3)*(1-3*(y/R2)^2);
-        Uz = -(mu1/R1^3)*(1-3*(z/R1)^2)-(mu2/R2^3)*(1-3*(z/R2)^2);
-        Uxy = 3*y*((mu1/R1^5)*(x+mu2)+(mu2/R2^5)*(x-mu1));
-        Uyx = Uxy;
-        Uxz = 3*z*((mu1/R1^5)*(x+mu2)+(mu2/R2^5)*(x-mu1));
-        Uzx = Uxz; 
-        Uyz = 3*y*((mu1/R1^5)*z+(mu2/R2^5)*z);
-        Uzy = Uyz;
-        
-        %Compute the first variational equations evaluated at the reference
-        O = zeros(3,3); 
-        I = eye(3);
-        G = [Ux Uxy Uxz; Uyx Uy Uyz; Uzx Uzy Uz];
-        K = [0 2 0; -2 0 0; 0 0 0];
-        Jacob = [O I; G K];                             %Jacobian of the system   
-        dphi = Jacob*Phi;                               %Variational equations
+        Phi = reshape(s(n+1:end), [n n]);       %State transition matrix
+        J = abs_jacobian(mu,s);                 %Jacobian of the system 
+        dphi = J*Phi;                       	%Variational equations
         dphi = reshape(dphi, [n^2 1]); 
         
         %Update the differential configuration space vector

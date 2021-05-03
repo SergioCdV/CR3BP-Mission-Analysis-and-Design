@@ -23,16 +23,14 @@ function [V] = inertial2synodic(epoch, v, direction)
     
     %Compute rotation matrix
     Q = [cos(epoch) sin(epoch) 0; -sin(epoch) cos(epoch) 0; 0 0 1];
-            
-    %Main computations
     
     %Position transformation
     if (length(v) == 3)
         if (direction == 0)
-            V = Q*v;    %Apply transformation
+            V = Q*v;                            %Apply transformation
         elseif (direction == 1)
             Q = Q.';                    
-            V = Q*v;    %Apply transformation
+            V = Q*v;                            %Apply transformation
         else
             error('No valid direction was selected');
         end

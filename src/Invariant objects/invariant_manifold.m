@@ -61,24 +61,24 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
     monodromy = reshape(r(end,n+1:end), n, n);
     
     %Eigenvalues and eigenvectors of the monodromy matrix
-    [W, ~] = eig(monodromy);                    %Eigenvector and eigenvalues
-    mV0 = W(:,eigenV);                          %Selected eigenvector
+    [W, ~] = eig(monodromy);                        %Eigenvector and eigenvalues
+    mV0 = W(:,eigenV);                              %Selected eigenvector
     
     %Select insertion points along the orbit from which compute the manifold fibers
-    M0 = zeros(rho, n);                         %Preallocate for speed
-    h = round((T-1)/rho);                       %Spatial step
+    M0 = zeros(rho, n);                             %Preallocate for speed
+    h = round((T-1)/rho);                           %Spatial step
     for i = 1:rho
         %Position and time in the periodic orbit 
-        orbitT = (i-1)*h+1;                     %Orbit independent variables (t or theta, using a time law)
-        orbitX0 = r(orbitT,1:n);                %Orbit point position
+        orbitT = (i-1)*h+1;                         %Orbit independent variables (t or theta, using a time law)
+        orbitX0 = r(orbitT,1:n);                    %Orbit point position
         
         %STM at that point and time
         Phi = reshape(r(orbitT,n+1:end), [n n]);
         
         %Initial conditions of the manifold fiber
-        mV = Phi*mV0;                           %Pushed and propagate the selected eigenvector
-        mV = mV/norm(mV);                       %Normalized propagated selected eigenvector
-        M0(i,:) = orbitX0+epsilon*mV.';         %Manifold initial conditions
+        mV = Phi*mV0;                               %Pushed and propagate the selected eigenvector
+        mV = mV/norm(mV);                           %Normalized propagated selected eigenvector
+        M0(i,:) = orbitX0+epsilon*mV.';             %Manifold initial conditions
     end
     
     %Complete manifold integration 

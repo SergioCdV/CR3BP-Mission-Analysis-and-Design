@@ -29,17 +29,17 @@
 
 % New versions: 
 
-function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
+function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, varargin)
     %Constants 
     m = 6;                                                        %Individual phase space dimension
     
     %State variables 
     if (flagVar)
-        method_ID = 'Encke V';
         s_t = s(1:m+m^2);                                         %State of the target
+        s_r = s(m+m^2+1:end);                                     %State of the relative particle
     else
         s_t = s(1:6);                                             %State of the target
-        s_r = s(7:12);                                            %State of the relative particle
+        s_r = s(7:end);                                           %State of the relative particle
     end
     
     %Equations of motion of the target
@@ -49,8 +49,6 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
     switch (method_ID)
         case 'Encke'
             drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
-        case 'Encke V'
-            drho = EnckeV_method(mu, flagVar, s);                 %Relative motion equations
         case 'Encke C'
             drho = EnckeC_method(mu, s, varargin);                %Relative motion equations
         case 'Encke LQR'
@@ -59,16 +57,23 @@ function [ds] = nlr_model(mu, direction, flagVar, method_ID, t, s, varargin)
             drho = EnckeSDRE_method(mu, s, varargin);             %Relative motion equations
         case 'Encke SMC'    
             drho = EnckeSMC_method(mu, s, varargin);              %Relative motion equations
-        case 'Encke OPT'    
-            drho = EnckeOPT_method(mu, s, varargin);              %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
-            drho = so_model(mu, s_t, s_r);                        %Relative motion equations 
+            drho = second_order_model(mu, s_t, s_r);              %Relative motion equations 
         case 'Third order'
-            drho = th_model(mu, s_t, s_r);                        %Relative motion equations
+            drho = third_order_model(mu, s_t, s_r);               %Relative motion equations
         otherwise
             error('No valid model was chosen');
+    end
+    
+    %Relative variational equations
+    if (relFlagVar)
+        Phi = reshape(s_r(7:end), [m m]);               %State transition matrix
+        J = rel_jacobian(mu, [s_t(1:6); s_r(1:3)]);     %Relative Jacobian matrix
+        dphi = J*Phi;                                   %New state transition matrix
+        dphi = reshape(dphi, [m^2 1]);                  %Differential vector on the state transition matrix
+        drho = [drho; dphi];                            %Complete relative dynamics vector field
     end
     
     %Vector field 
@@ -106,7 +111,7 @@ function [drho] = full_model(mu, s_t, s_r)
 end
 
 %Second order relative motion equations 
-function [drho] = so_model(mu, s_t, s_r)  
+function [drho] = second_order_model(mu, s_t, s_r)  
     %State variables 
     r_t = s_t(1:3);                             %Position vector of the target
     x = s_r(1);                                 %Synodic x coordinate of the relative position
@@ -132,7 +137,7 @@ function [drho] = so_model(mu, s_t, s_r)
 end
 
 %Third order relative motion equations 
-function [drho] = th_model(mu, s_t, s_r)  
+function [drho] = third_order_model(mu, s_t, s_r)  
     %State variables 
     r_t = s_t(1:3);                             %Position vector of the target
     x = s_r(1);                                 %Synodic x coordinate of the relative position
@@ -189,7 +194,7 @@ function [drho] = Encke_method(mu, s_t, s_r)
 end
 
 %Full nonlinear relative motion equations and first variational system via Encke's method
-function [drho] = EnckeV_method(mu, flagVar, s)
+function [drho] = variational_method(mu, flagVar, s)
     %System parameters 
     m = 6;                                       %Phase space dimension
     
@@ -382,22 +387,4 @@ function [drho] = EnckeSMC_method(mu, s, varargin)
     
     %Add control vector
     drho = drho + [0; 0; 0; u];                                 
-end
-
-%Full nonlinear relative motion equations with control vector for optimization purposes
-function [drho] = EnckeOPT_method(mu, s, varargin)
-    %System parameters 
-    m = 6;                                   %Phase space dimension
-    
-    %Control vector 
-    aux = varargin{1};
-    u = aux{1};
-    
-    %State variables
-    s_t = s(1:m);                            %Target state 
-    s_r = s(m+1:2*m);                        %Relative state
-
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
-    drho = drho + [0; 0; 0; u];                                 %Add control vector
 end

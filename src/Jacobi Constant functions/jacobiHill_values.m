@@ -23,6 +23,9 @@ function [J] = JacobiHill_values(mu)
     %Obtain libration points coordinates 
     L = libration_points(mu);
     
+    %Preallocation 
+    J = zeros(size(L,2),1);
+    
     %Compute critical value 
     for i = 1:size(L,2)
         r = shiftdim(L(:,i));           %Libration point position vector

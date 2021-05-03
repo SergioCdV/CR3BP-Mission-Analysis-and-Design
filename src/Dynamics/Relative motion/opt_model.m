@@ -31,25 +31,25 @@
 
 function [drho] = opt_model(mu, dt, Sn, t, x, u)
     %Constants of the system 
-    mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
-    mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
+    mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary 
+    mup(2) = mu;                        %Reduced gravitational parameter of the second primary 
     
     %State variables 
-    index = fix(1+t/dt);          %Temporal index
-    r_t = Sn(index,1:3).';        %Synodic position of the target
-    r_r = x(1:3,:);               %Synodic relative position 
-    v_r = x(4:6,:)+u;             %Synodic relative velocity 
+    index = fix(1+t/dt);                %Temporal index
+    r_t = Sn(index,1:3).';              %Synodic position of the target
+    r_r = x(1:3,:);                     %Synodic relative position 
+    v_r = x(4:6,:)+u;                   %Synodic relative velocity 
     
     %Synodic position of the primaries 
-    R(1:3,1) = [-mu; 0; 0];       %Synodic position of the first primary
-    R(1:3,2) = [1-mu; 0; 0];      %Synodic position of the second primary
+    R(1:3,1) = [-mu; 0; 0];             %Synodic position of the first primary
+    R(1:3,2) = [1-mu; 0; 0];            %Synodic position of the second primary
     
     %Encke acceleration method
     gamma = [2*v_r(2,:)+r_r(1,:); -2*v_r(1,:)+r_r(2,:); zeros(1,size(r_r,2))];
-    for i = 1:length(mu_r)
+    for i = 1:length(mup)
         q = -dot(2*(r_t(1:3,:)-R(:,i))+r_r(1:3,:),r_r(1:3,:))/norm(r_t(1:3,:)+r_r(1:3,:)-R(:,i))^2;
         f = q(1,:).*(3*(1+q(1,:))+q(1,:).^2)./(1+(1+q(1,:)).^(3/2));
-        gamma = gamma - (mu_r(i)./norm(r_t(1:3,:)-R(:,i)).^3).*(f(1,:).*(r_t(1:3,:)-R(:,i))+(1+f(1,:)).*r_r(1:3,:));
+        gamma = gamma - (mup(i)./norm(r_t(1:3,:)-R(:,i)).^3).*(f(1,:).*(r_t(1:3,:)-R(:,i))+(1+f(1,:)).*r_r(1:3,:));
     end
     
     %Equations of motion 

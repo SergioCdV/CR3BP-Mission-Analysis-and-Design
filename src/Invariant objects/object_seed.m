@@ -61,7 +61,7 @@ function [seed, T] = lyapunov_seed(mu, parameters)
         
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);
+    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
     wv  = sqrt(c2);                                             %Out of plane frequency
     kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
@@ -87,12 +87,12 @@ function [seed, T] = lyapunov_seed(mu, parameters)
         error('No valid Lagrange point was selected');
     end
     
-    x = gamma*x+(1-mu+k*gamma);         %X synodic coordinate
-    y = gamma*y;                        %Y synodic coordinate
-    z = gamma*z;                        %Z synodic coordinate
-    vx = gamma*vx;                      %Vx synodic velocity
-    vy = gamma*vy;                      %Vy synodic velocity
-    vz = gamma*vz;                      %Vz synodic velocity 
+    x = gamma*x+(1-mu+k*gamma);             %Synodic X coordinate
+    y = gamma*y;                            %Synodic Y coordinate
+    z = gamma*z;                            %Synodic Z coordinate
+    vx = gamma*vx;                          %Synodic x velocity
+    vy = gamma*vy;                          %Synodic y velocity
+    vz = gamma*vz;                          %Synodic z velocity 
     
     %Output seed
     seed = [x.' y.' z.' vx.' vy.' vz.'];    %Seed trajectory
@@ -101,14 +101,14 @@ end
 %Halo linear seed orbit
 function [seed, T] = halo_seed(mu, parameters)
     %Constants 
-    dtheta = 1e-3;          %Step in the angular variable
+    dtheta = 1e-3;              %Step in the angular variable
     
     %Parameters of the orbit 
-    n = parameters(1);      %+1 for northern halo, -1 for southern halo
-    Az = parameters(2);     %Out-of-plane amplitude
-    L = parameters(3);      %Lagrange point identifier
-    gamma = parameters(4);  %Lagrange point coordinate
-    m = parameters(5);      %Number of periods
+    n = parameters(1);          %+1 for northern halo, -1 for southern halo
+    Az = parameters(2);         %Out-of-plane amplitude
+    L = parameters(3);          %Lagrange point identifier
+    gamma = parameters(4);      %Lagrange point coordinate
+    m = parameters(5);          %Number of periods
     
     %Independent variable     
     tau = 0:dtheta:2*pi*m;
@@ -203,20 +203,20 @@ end
 %Quasi-period torus linear seed
 function [seed, T] = torus_seed(mu, parameters)
     %Constants 
-    rho = 10000;            %Number of points per period
+    rho = 10000;                        %Number of points per period
     
     %Parameters of the Lyapunov orbit
-    Ax = parameters(1);     %In-plane trajectory
-    Az = parameters(2);     %Out-of-plane trajectory     
-    phi = parameters(3);    %In-plane phase
-    psi = parameters(4);    %Out-of-plane phase
-    L = parameters(5);      %Lagrange point identifier
-    gamma = parameters(6);  %Lagrange point coordinate
-    n = parameters(7);      %Number of periods to generate
+    Ax = parameters(1);                 %In-plane trajectory
+    Az = parameters(2);                 %Out-of-plane trajectory     
+    phi = parameters(3);                %In-plane phase
+    psi = parameters(4);                %Out-of-plane phase
+    L = parameters(5);                  %Lagrange point identifier
+    gamma = parameters(6);              %Lagrange point coordinate
+    n = parameters(7);                  %Number of periods to generate
         
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);
+    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
     wv  = sqrt(c2);                                             %Out of plane frequency
     kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
@@ -242,20 +242,20 @@ function [seed, T] = torus_seed(mu, parameters)
         error('No valid Lagrange point was selected');
     end
     
-    x = gamma*x+(1-mu+k*gamma);         %X synodic coordinate
-    y = gamma*y;                        %Y synodic coordinate
-    z = gamma*z;                        %Z synodic coordinate
-    vx = gamma*vx;                      %Vx synodic velocity
-    vy = gamma*vy;                      %Vy synodic velocity
-    vz = gamma*vz;                      %Vz synodic velocity 
+    x = gamma*x+(1-mu+k*gamma);             %Synodic x coordinate
+    y = gamma*y;                            %Synodic y coordinate
+    z = gamma*z;                            %Synodic z coordinate
+    vx = gamma*vx;                          %Synodic x velocity
+    vy = gamma*vy;                          %Synodic y velocity
+    vz = gamma*vz;                          %Synodic z velocity 
     
     %Output seed
     seed = [x.' y.' z.' vx.' vy.' vz.'];    %Seed trajectory
     
     %Correct the orbit to generate a periodic one 
-    tol = 1e-10;            %Differential corrector scheme
-    algorithm = 'Planar';   %Differential corrector algorithm
-    n = 50;                 %Maximum number of iterations
+    tol = 1e-10;                                    %Differential corrector scheme
+    algorithm = 'Planar';                           %Differential corrector algorithm
+    n = 50;                                         %Maximum number of iterations
     
     [seed, ~] = differential_correction(algorithm, mu, seed, n, tol); 
     T = seed.Period;
