@@ -2,8 +2,8 @@
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
 
-%% GNC 6: MPC guidance-control law %% 
-% This script provides an interface to test MPC control law rendezvous strategies for
+%% GNC 12: APF guidance-control law %% 
+% This script provides an interface to test Artificial Potential Functions guidance laws for
 % rendezvous missions.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
@@ -84,44 +84,8 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% MPC guidance scheme
-%Set up of the optimization
-method = 'NPL';
-model = 'Fixed libration';
+%% APF guidance scheme
 
-%Environment characteristics 
-cn = legendre_coefficients(mu, Ln, gamma, 2);   %Legendre coefficients
-
-%Thruster characteristics 
-Tmax = 0.1;
-
-%Preallocation 
-Sc = zeros(length(tspan),length(s0));           %Preallocate the trajectory
-u = zeros(3,length(tspan));                     %Preallocate the control vector
-e = zeros(1,length(tspan));                     %Preallocate the error vector
-
-Sc(1,:) = s0;                                   %Initial conditions
-
-for i = 1:1
-    %Shrink the horizon 
-    Dt = tspan(i:end); 
-    
-    %Compute the control law 
-    U = MPC_guidance(method, model, mu, Sc(i,:), Dt, cn, Tmax);
-%     u(:,i) = U(:,1); 
-% 
-%     %Re-integrate the trajectory 
-%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
-% 
-%     %Update initial conditions
-%     Sc(i+1,:) = s(end,:);
-%     
-%     %Update the error 
-%     e(i) = norm(s(end,:));
-end
-
-%Shrink the integrated trajectory
-Sc = Sc(1:end-1,:);
 
 %% Results %% 
 %Plot results 
@@ -179,60 +143,3 @@ hold off
 end
 
 %% Auxiliary functions
-%MPC optimization function
-function [commands] = MPC_guidance(method, model, mu, s0, tspan, cn, Tmax)
-    %Constants 
-    finalHorizonIndex = length(tspan);
-    
-    %Cost function 
-    cosfunc = @(u)(dot(dot(u,u,1),dot(u,u,1)));
-    
-    %Linear constraints 
-    A = []; 
-    b = []; 
-    Aeq = []; 
-    beq = [];
-    
-    switch (method)
-        case 'Genetic algorithm'
-            dof = length(tspan);
-            PopSize = 100;          %Population size for each generation
-            MaxGenerations = 10;    %Maximum number of generations for the evolutionary algorithm
-            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations, 'ConstraintTolerance', 1e-1, 'PlotFcn', @gaplotbestf);
-            lb = zeros(3*finalHorizonIndex,1);
-            ub = Tmax*ones(3*finalHorizonIndex,1);
-            commands = ga(@(u)cosfunc(u), dof, A, b, Aeq, beq, lb, ub, @(u)nonlcon(model, mu, s0, tspan, cn, u), options);
-        case 'NPL'
-            lb = zeros(3,finalHorizonIndex);
-            ub = Tmax*ones(3,finalHorizonIndex);
-            u0 = Tmax*ones(3,length(tspan));
-            commands = fmincon(@(u)cosfunc(u), u0, A, b, Aeq, beq, lb, ub, @(u)nonlcon(model, mu, s0, tspan, cn, u));
-        otherwise 
-            error('No valid method was chosen');
-    end
-end
-
-%Nonlinear constraints
-function [c, ceq] = nonlcon(model, mu, s0, tspan, cn, u)
-    %Approximation 
-    n = 6;                              %Dimension of the state vector
-    
-    %Set up 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
-    
-    %Preallocation 
-    S = zeros(length(tspan), 2*n);      %Preallocation of the trajectory
-    S(1,:) = s0;
-    
-    %Integration of the trajectory 
-    dt = tspan(2)-tspan(1); 
-    for i = 1:length(tspan)
-        S(i,10:12) = S(i,10:12)+u(:,i).';
-        [~,s] = ode113(@(t,s)lr_model(mu, cn, 1, false, model, t, s, false), [0 dt], S(i,:), options);
-        S(i+1,:) = s(end,:);
-    end
-    
-    %Nonlinear constraints
-    c = [];                         %Empty nonlinear inequalities
-    ceq = S(end,n+1:2*n);           %Rendezvous conditions
-end

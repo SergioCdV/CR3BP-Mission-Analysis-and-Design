@@ -113,20 +113,20 @@ ISE = trapz(tspan, e.^2);
 IAE = trapz(tspan, abs(e));
 
 %% GNC: SDRE control law
-[Sc, e] = sdre(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
-
-%Compute the control effort
-energy = zeros(3,2);                                       %Preallocation of the energy integral
-u = sdre_controller(model, mu, Sc, Ln, gamma);             %Control law
-
-for i = 1:size(u,1)
-    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
-    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
-end
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+% [Sc, e] = sdre(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
+% 
+% %Compute the control effort
+% energy = zeros(3,2);                                       %Preallocation of the energy integral
+% u = sdre_controller(model, mu, Sc, Ln, gamma);             %Control law
+% 
+% for i = 1:size(u,1)
+%     energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
+%     energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
+% end
+% 
+% %Compute the error figures of merit 
+% ISE = trapz(tspan, e.^2);
+% IAE = trapz(tspan, abs(e));
 
 %% Results %% 
 %Plot results 
