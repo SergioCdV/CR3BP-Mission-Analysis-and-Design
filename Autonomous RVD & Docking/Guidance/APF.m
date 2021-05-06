@@ -78,14 +78,18 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
 %% APF guidance scheme
+%Compute some random objects  in the relative phase space 
+So = rand(3,3);
 
+%Compute the guidance law
+Sg = apf_guidance('Steady', false, Sn(1,7:12), So, dt, zeros(3,1));
 
 %% Results %% 
 %Plot results 
@@ -143,3 +147,61 @@ hold off
 end
 
 %% Auxiliary functions
+%Guidance law function 
+function [Sg, phi] = apf_guidance(dynamics, safe_corridor, state, obstacles_states, dt, Sg0)
+    %Constants 
+    m = 6;              %State dimension 
+    Q = eye(m/2);       %Penalty on the distance to the origin
+    R = eye(m/2);       %Penalty on the distance to the obstacles 
+    
+    chi = deg2rad(45);  %Safety corridor angle
+    rho = 1e-4;         %Safety distance to the docking port
+    
+    %Integration options 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);   
+    
+    %Sanity check on dimension 
+    if (size(state,1) ~= m)
+        state = state.';
+    end
+    
+    %Compute the attractive APF value
+    switch (dynamics)
+        case 'Steady'
+            phi = (1/2) * state(1:3).'*Q*state(1:3);        %Attractive steady APF
+            dPhi = Q*state(1:3);                            %Gradient of the APF 
+            hPhi = Q;                                       %Hessian of the APF 
+        case 'Unsteady'
+        otherwise
+            error('No valid APF dynamics were selected');
+    end
+
+    %Compute the repulsive APF values
+    for j = 1:size(obstacles_states,2)
+        %Relative distance to each obstacle
+        rel_state = state(1:3)-obstacles_states(1:3,j);       
+
+        %Repulsive APF
+        phi = phi + (1/2) * (state(1:3).'*Q*state(1:3))/(rel_state.'*R*rel_state-1); 
+        dPhi = dPhi + (rel_state.'*R*rel_state-1)^(-2)*((rel_state.'*R*rel_state-1)*Q*state(1:3) ...
+                                                        -(state(1:3).'*Q*state(1:3))*R*rel_state);
+        hPhi = hPhi - 2*((rel_state.'*R*rel_state-1)*Q*state(1:3)-(state(1:3).'*Q*state(1:3))*R*rel_state)*...
+                       (rel_state.'*R*rel_state-1)^(-3*)*R*rel_state
+    end
+
+    %Compute the safety APF value
+    if (safe_corridor)
+        f = state(2)^2+state(3)^2-((state(1)^2*tan(chi))/(2*rho-state(1)));     %Corridor surface
+        phi = phi + exp(-(1/2)*norm(f));                                        %Safety APF
+        dPhi = dPhi + (1/2) * exp(-(1/2)*norm(f)); 
+    end
+
+    %Compute the guidance trajectory
+    [~,r] = ode45(@(t,r)(-dPhi), [0 dt], Sg0, options);         %Reference position integration 
+    Sg(1:3) = r(end,:).';                                       %Reference position
+    Sg(4:6) = -dPhi;                                            %Reference velocity
+    Sg(7:9) = -dPhi.'*hPhi;                                     %Reference acceleration
+    
+    %Sanity check on dimension 
+    Sg = Sg.'; 
+end
