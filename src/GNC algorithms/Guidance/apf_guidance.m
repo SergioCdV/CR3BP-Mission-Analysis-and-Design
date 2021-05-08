@@ -1,10 +1,11 @@
-%% Autonomous RVD and docking in the CR3BP %% 
+%% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 08/05/21
 % File: apf_guidance.m 
 % Issue: 0 
+% Validated: 08/05/21
 
-%% Artificial Potential functions %%
+%% Artificial Potential Functions guidance %%
 % This script contains the function to compute the guidance law by means of APFs.
 
 % Inputs: - string dynamics, to select the dsired type of APF algorithm
