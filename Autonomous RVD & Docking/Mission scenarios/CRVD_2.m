@@ -186,11 +186,8 @@ tspan = 0:dt:tf(2)-tf(1);
 %Initial conditions 
 s0 = St1(end,:); 
 
-%Reference state 
-refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
-
 %Re-integrate trajectory
-[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke SMC', t, s, refState), tspan, s0, options);
+[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke SMC', t, s, false), tspan, s0, options);
 
 %% Third phase: undocking 
 %Integration time 
