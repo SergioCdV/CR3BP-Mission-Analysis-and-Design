@@ -42,6 +42,8 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         s_r = s(7:end);                                           %State of the relative particle
     end
     
+    s_aux = [s_t; s_r];                                           %Phase space vector
+    
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);       %Target equations of motion
     
@@ -50,13 +52,13 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         case 'Encke'
             drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
         case 'Encke C'
-            drho = EnckeC_method(mu, s, varargin);                %Relative motion equations
+            drho = EnckeC_method(mu, s_aux, varargin);            %Relative motion equations
         case 'Encke LQR'
-            drho = EnckeLQR_method(mu, s, varargin);              %Relative motion equations
+            drho = EnckeLQR_method(mu, s_aux, varargin);          %Relative motion equations
         case 'Encke SDRE'    
-            drho = EnckeSDRE_method(mu, s, varargin);             %Relative motion equations
+            drho = EnckeSDRE_method(mu, s_aux, varargin);         %Relative motion equations
         case 'Encke SMC'    
-            drho = EnckeSMC_method(mu, s, varargin);              %Relative motion equations
+            drho = EnckeSMC_method(mu, s_aux, varargin);          %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order'
@@ -193,34 +195,6 @@ function [drho] = Encke_method(mu, s_t, s_r)
             gamma];
 end
 
-%Full nonlinear relative motion equations and first variational system via Encke's method
-function [drho] = variational_method(mu, flagVar, s)
-    %System parameters 
-    m = 6;                                       %Phase space dimension
-    
-    %State variables 
-    if (flagVar)
-        s_t = s(1:m);                            %Target state 
-        s_r = s(m+m^2+1:2*m+m^2);                %Relative state
-        ds = reshape(s(2*m+m^2+1:end), [m m]);   %State transition matrix
-    else
-        s_t = s(1:6);                            %Target state 
-        s_r = s(7:12);                           %Relative state
-        ds = reshape(s(13:end), [m m]);          %State transition matrix
-    end
-
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);
-    
-    %Variational equations
-    J = rel_jacobian(mu, s);            %Jacobian of the system
-    ds = J*ds;                          %Variational equations 
-    ds = reshape(ds, [m^2 1]);          %Variational vector field 
-    
-    %Final vector field 
-    drho = [drho; ds]; 
-end
-
 %Full nonlinear relative motion equations with control vector
 function [drho] = EnckeC_method(mu, s, varargin)
     %System parameters 
@@ -246,7 +220,7 @@ function [drho] = EnckeLQR_method(mu, s, varargin)
     
     %Control vector 
     aux = varargin{1};
-    K = aux{1};
+    K = aux{1};                              %LQR gain
     
     %State variables
     s_t = s(1:m);                            %Target state 
@@ -343,7 +317,7 @@ function [drho] = EnckeSMC_method(mu, s, varargin)
     
     %Control vector 
     aux = varargin{1};
-    refState = aux{1};                      %Reference state to track
+    guidance_switch = aux{1};               %Reference state to track
     
     %State variables
     s_t = s(1:m);                           %Target state 
@@ -351,6 +325,21 @@ function [drho] = EnckeSMC_method(mu, s, varargin)
         
     %Compute the integration of the relative motion equations 
     drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
+    
+    %Guidance law
+    switch (guidance_switch)
+        case 'APF'
+            dynamics = aux{2}.DynamicsFlag;              %Steady or unsteady APF
+            safety_corridor = aux{2}.SafeCorridor;       %Safety corridor boolean
+            So = aux{2}.Obstacles;                       %Obstacles position
+            dt = aux{3};                                 %Time step of the simulation 
+            
+            %Guidance law
+            refState = apf_guidance(dynamics, safety_corridor, s_r(1:3), So, dt, s_r(1:3));
+            
+        otherwise 
+            refState = zeros(m+3,1);        %No guidance law
+    end
     
     %Compute the control law
     lambda = 1;                %General loop gain

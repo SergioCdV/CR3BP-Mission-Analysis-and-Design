@@ -118,7 +118,7 @@ e = zeros(1,length(tspan));                                 %Error to rendezvous
 refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
 
 %Re-integrate trajectory
-[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SMC', t, s, refState), tspan, s0, options);
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SMC', t, s, false), tspan, s0, options);
 
 %Error in time 
 for i = 1:length(tspan)
