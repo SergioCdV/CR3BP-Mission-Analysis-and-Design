@@ -21,6 +21,7 @@
 %         - scalar rho, a number of fibers/trajectories to compute on the
 %           manifold.
 %         - scalar time, to integrate the dynamics
+%         - string Poincare_map, specifying pre-configured halt integration conditions
 
 % Output: - vector field M, containing the manifold evolution for each
 %           fiber. 
@@ -30,38 +31,61 @@
 
 % New versions:
 
-function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
+function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
     %General constants 
     flagVar = false;             %No STM integration needed
     n = 6;                       %Phase space dimension
-    epsilon = 1e-5;              %Displacement of the initial conditions  
+    epsilon = 1e-3;              %Displacement of the initial conditions  
     T = size(r,1);               %Orbit period in nondimensinal units
     
     %Integration tolerances
     RelTol = 2.25e-14; 
     AbsTol = 1e-22;
-    options = odeset('RelTol', RelTol, 'AbsTol', AbsTol);
+    
+    if (isempty(varargin))
+        options = odeset('RelTol', RelTol, 'AbsTol', AbsTol);
+    else
+        switch (varargin{1})
+            case 'First primary'  
+                map = @(t,s)fp_crossing(t,s,mu);                   %Poincaré map defined by the first primary
+            case 'Secondary primary' 
+                map = @(t,s)sp_crossing(t,s,mu);                   %Poincaré map defined by the secondary primary
+            otherwise
+                error('No valid Poincaré map was selected'); 
+        end
+        
+        options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', map);
+        
+        %New integration times
+        dt = tspan(2)-tspan(1);                             %Time step
+        tspan = 0:dt:10*pi;                                 %New integration time
+    end
     
     %Integration and manifold parameters     
     if (manifold == 'U')
-        direction = 1;          %Forward integration
-        eigenV = 1;             %Unstable eigenvector
+        direction = 1;                                      %Forward integration
+        eigenV = 1;                                         %Unstable eigenvector
+        
+        if (branch == 'L')
+            epsilon = -epsilon;
+        end
     elseif (manifold == 'S')
-        direction = -1;         %Backward integration
-        eigenV = 2;             %Stable eigenvector
+        direction = 1;                                      %Backward integration
+        eigenV = n;                                         %Stable eigenvector
+        tspan = tspan(end):-tspan(2)+tspan(1):tspan(1);     %Reverse the integration time
+        
+        if (branch == 'R')
+            epsilon = -epsilon;
+        end
     else
         error('No valid manifold was selected'); 
     end
-    
-    if (branch == 'L')
-        epsilon = -epsilon;
-    end
-    
+        
     %Monodromy matrix from the trayectory r
     monodromy = reshape(r(end,n+1:end), n, n);
     
     %Eigenvalues and eigenvectors of the monodromy matrix
-    [W, ~] = eig(monodromy);                        %Eigenvector and eigenvalues
+    [W, ~] = eigs(monodromy);                       %Eigenvector and eigenvalues
     mV0 = W(:,eigenV);                              %Selected eigenvector
     
     %Select insertion points along the orbit from which compute the manifold fibers
@@ -76,16 +100,18 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan)
         Phi = reshape(r(orbitT,n+1:end), [n n]);
         
         %Initial conditions of the manifold fiber
-        mV = Phi*mV0;                               %Pushed and propagate the selected eigenvector
+        mV = Phi*mV0;                               %Push and propagate the selected eigenvector
         mV = mV/norm(mV);                           %Normalized propagated selected eigenvector
         M0(i,:) = orbitX0+epsilon*mV.';             %Manifold initial conditions
     end
     
     %Complete manifold integration 
-    M = zeros(rho, length(tspan), size(M0,2));
     for i = 1:rho
-    	[~, auxM] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), ...
-                            tspan, M0(i,:), options);
-        M(i,:,:) = auxM;
+    	[t, auxM] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, M0(i,:), options);
+        
+        %Save results
+        M.Trajectory(i,1:size(auxM,1),1:size(auxM,2)) = auxM; 
+        M.TOF(i) = t(end);
+        M.ArcLength(i) = length(t);
     end 
 end

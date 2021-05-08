@@ -12,7 +12,7 @@
 % Inputs: - string algorithm, selecting the differential correction scheme to use. 
 %         - double mu, the reduced gravitational parameter of the system.
 %         - object seed, which vary depending on the algorithm in use. 
-%         - int n, number of maximum allowed corrections.
+%         - int maxIter, number of maximum allowed corrections.
 %         - double tol, tolerance to stop the correction. 
 
 % Outputs: - vector xf, converged/last corrected trajectory.
@@ -22,8 +22,7 @@
 %          Single shooting with symmetric constraints is employed for computing Lyapunov and Halo orbits, 
 %          although convergence may be worse. Torus invariant curves are corrected via the method by Scheers and Haapala.
 
-% New versions: torus correction. Use monodromy properties to correct
-% error. Review all.
+% New versions: torus correction. Use monodromy properties to correct error.
 
 function [xf, state] = differential_correction(algorithm, mu, seed, maxIter, tol, varargin)            
     %Implement the selected scheme 
@@ -45,9 +44,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, maxIter, tol
         case 'Periodic PAC Multiple Shooting'
             [xf, state] = PAC_Periodic_scheme(mu, seed, maxIter, tol, varargin);
         otherwise
-            disp('No valid option was selected.');
-            xf = [];
-            state = false;
+            error('No valid option was selected');
     end
 end
 

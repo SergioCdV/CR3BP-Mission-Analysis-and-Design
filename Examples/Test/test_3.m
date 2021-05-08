@@ -33,7 +33,7 @@ lyapunov_seed = object_seed(mu, param, 'Lyapunov');         %Lyapunov seed
 
 %Time integration
 Tf = 20*pi;                                                 %Final time
-dt = 0.01;                                                  %Time step of 1 second
+dt = 1e-3;                                                  %Time step of 1 second
 tspan = 0:dt:Tf;                                            %Integration time span
 
 %Differential correction scheme set up
@@ -45,11 +45,11 @@ tol = 1e-5;                                                 %Tolerance
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
 %Manifold computation
-rho = 40;                    %Number of manifold fibers to compute
-manifold_ID = 'U';           %Unstable manifold (U or S)
+rho = 1;                    %Number of manifold fibers to compute
+manifold_ID = 'S';           %Unstable manifold (U or S)
 manifold_branch = 'L';       %Left branch of the manifold (L or R)
 
-Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, 0:dt:2*pi);
+Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
 
 %% Plotting and results 
 figure(1) 
@@ -63,9 +63,9 @@ grid on;
 
 figure(2)
 hold on 
-for i = 1:size(Manifold,1)
-    ManifoldAux = shiftdim(Manifold(i,:,:));
-    plot3(ManifoldAux(:,1), ManifoldAux(:,2), ManifoldAux(:,3), 'm');
+for i = 1:size(Manifold.Trajectory,1)
+    ManifoldAux = shiftdim(Manifold.Trajectory(i,:,:));
+    plot3(ManifoldAux(1:Manifold.ArcLength(i),1), ManifoldAux(1:Manifold.ArcLength(i),2), ManifoldAux(1:Manifold.ArcLength(i),3), 'm');
 end
 plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
 % plot3(L(1,1), L(2,1), L(3,1), 'ok');

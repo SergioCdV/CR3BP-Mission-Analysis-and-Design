@@ -9,7 +9,7 @@
 % This function contains a handle function to define orbital events to stop integration.
 
 function [Pos, isterminal, dir] = x_crossing(~, x)
-    %Event defining
+    %Event definition
     Pos = x(2);         %X axis crossing
     isterminal = 1; 
     dir = -1;           %Direction of the crossing

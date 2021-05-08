@@ -66,19 +66,13 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
         
         %Update the differential configuration space vector
         dr = [F; dphi];
-        
-        %Reverse the flow for backward integration
-        if (direction == -1)
-            dr = -dr;
-        end
-        
     else
         %Update the differential configuration space vector
         dr = F;  
-        
-        %Reverse the flow for backward integration
-        if (direction == -1)
-            dr = -dr;
-        end
+    end
+    
+    %Reverse the flow for backward integration
+    if (direction == -1)
+        dr = -dr;
     end
 end

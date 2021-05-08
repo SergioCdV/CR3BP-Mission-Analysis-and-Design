@@ -35,9 +35,7 @@ function [x, state] = continuation(object_number, method, parametrization, Objec
                 case 'Torus' 
                     [x, state] = SP_Torus_continuation(object_number, parametrization, Object, corrector, setup);
                 otherwise 
-                    disp('No valid object was selected.')
-                    x = [];
-                    state = false;
+                    error('No valid object was selected')
             end
         case 'PAC' 
             switch(Object{1})
@@ -46,14 +44,10 @@ function [x, state] = continuation(object_number, method, parametrization, Objec
                 case 'Torus' 
                     [x, state] = PA_Torus_continuation(object_number, parametrization, Object{2}, corrector, setup);
                 otherwise 
-                    disp('No valid object was selected.')
-                    x = [];
-                    state = false;
+                    error('No valid object was selected')
             end
         otherwise 
-            disp('No valid algorithm was selected.');
-            x = [];
-            state = false;
+            error('No valid algorithm was selected.');
     end
 end
 
