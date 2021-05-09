@@ -98,6 +98,13 @@ end
 %Cost function 
 cost = 'Position';                          %Make impulses to target the state
 
+%Minimum-norm constraint
+constrained = true; 
+constraint = 0.1;
+
+%Weighted least squares
+W = eye(size(STM,2));           %Weighted least squares solution 
+
 %Initial conditions 
 S0 = s0;
 
@@ -149,11 +156,15 @@ while ((GoOn) && (iter < maxIter))
     end
     
     %Compute the error and the impulses 
-    if (size(STM,1) == length(xf))
-        dV(:,iter) = -STM\xf.';                      %Impulses
+    if (constrained) && (iter > 1)
+        lambda = ((impulses*constraint)/norm(dV(:,iter-1)))^(4);
     else
-        dV(:,iter) = -STM.'*(STM*STM.')^(-1)*xf.';   %Impulses
+        lambda = 0;
     end
+    
+    w = [zeros(3,1); ones(size(dV,1)-6,1); zeros(3,1)];
+    dV(:,iter) = -inv(W)*STM.'*(STM*W*STM.')^(-1)*xf.' ...
+                 +0*(eye(size(STM,2))-pinv(STM)*STM)*w;   %Impulses
     
     %Reintegrate the trajectory
     for i = 1:length(times)               

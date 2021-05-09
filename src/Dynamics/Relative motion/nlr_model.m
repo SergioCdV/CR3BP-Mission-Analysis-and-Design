@@ -39,29 +39,20 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         s_r = s(m+m^2+1:end);                                     %State of the relative particle
     else
         s_t = s(1:6);                                             %State of the target
-        s_r = s(7:end);                                           %State of the relative particle
+        s_r = s(7:end);                                           %State of the relative particle  
     end
-    
-    s_aux = [s_t; s_r];                                           %Phase space vector
-    
+
     %Equations of motion of the target
     ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);       %Target equations of motion
+    s_t = s_t(1:6);                                               %Eliminate the variational state
     
     %Equations of motion of the relative state 
     switch (method_ID)
         case 'Encke'
-            drho = Encke_method(mu, s_t, s_r);                    %Relative motion equations
-        case 'Encke C'
-            drho = EnckeC_method(mu, s_aux, varargin);            %Relative motion equations
-        case 'Encke LQR'
-            drho = EnckeLQR_method(mu, s_aux, varargin);          %Relative motion equations
-        case 'Encke SDRE'    
-            drho = EnckeSDRE_method(mu, s_aux, varargin);         %Relative motion equations
-        case 'Encke SMC'    
-            drho = EnckeSMC_method(mu, s_aux, varargin);          %Relative motion equations
+            drho = Encke_method(mu, s_t, s_r, varargin);          %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
-        case 'Second order'
+        case 'Second order' 
             drho = second_order_model(mu, s_t, s_r);              %Relative motion equations 
         case 'Third order'
             drho = third_order_model(mu, s_t, s_r);               %Relative motion equations
@@ -72,7 +63,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     %Relative variational equations
     if (relFlagVar)
         Phi = reshape(s_r(7:end), [m m]);               %State transition matrix
-        J = rel_jacobian(mu, [s_t(1:6); s_r(1:3)]);     %Relative Jacobian matrix
+        J = rel_jacobian(mu, [s_t; s_r(1:3)]);          %Relative Jacobian matrix
         dphi = J*Phi;                                   %New state transition matrix
         dphi = reshape(dphi, [m^2 1]);                  %Differential vector on the state transition matrix
         drho = [drho; dphi];                            %Complete relative dynamics vector field
@@ -168,7 +159,7 @@ function [drho] = third_order_model(mu, s_t, s_r)
 end
 
 %Full nonlinear relative motion equations via Encke's method
-function [drho] = Encke_method(mu, s_t, s_r)
+function [drho] = Encke_method(mu, s_t, s_r, varargin)
     %Constants of the system 
     mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
     mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
@@ -193,187 +184,22 @@ function [drho] = Encke_method(mu, s_t, s_r)
     %Equations of motion 
     drho = [v_r; 
             gamma];
-end
-
-%Full nonlinear relative motion equations with control vector
-function [drho] = EnckeC_method(mu, s, varargin)
-    %System parameters 
-    m = 6;                                   %Phase space dimension
     
-    %Control vector 
-    aux = varargin{1};
-    u = aux{1};
-    
-    %State variables
-    s_t = s(1:m);                            %Target state 
-    s_r = s(m+1:2*m);                        %Relative state
-
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
-    drho = drho + [0; 0; 0; u];                                 %Add control vector
-end
-
-%Full nonlinear relative motion equations with a continuous LQR PID controller
-function [drho] = EnckeLQR_method(mu, s, varargin)
-    %System parameters 
-    m = 6;                                   %Phase space dimension
-    
-    %Control vector 
-    aux = varargin{1};
-    K = aux{1};                              %LQR gain
-    
-    %State variables
-    s_t = s(1:m);                            %Target state 
-    s_r = s(m+1:2*m);                        %Relative state
-    int = s(end-2:end);                      %Integrator control vector
-    
-    %Compute the control law 
-    u = -K*[int; s_r];
-
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
-    dint = s_r(1:3);                                            %Integrator field flow
-    drho = drho + [0; 0; 0; u];                                 %Add control vector
-    drho = [drho; dint];
-end
-
-%Full nonlinear relative motion equations with a continuous SDRE PID controller
-function [drho] = EnckeSDRE_method(mu, s, varargin)
-    %System parameters 
-    m = 6;                                  %Phase space dimension
-    
-    %Control vector 
-    aux = varargin{1};
-    model = aux{1};                         %Model to be used
-    Ln = aux{2};                            %Libration point
-    gamma = aux{3};                         %Relative distance of the libration point to the primary
-    
-    %State variables
-    s_t = s(1:m);                           %Target state 
-    r_t = s_t(1:3);                         %Target position
-    s_r = s(m+1:2*m);                       %Relative state
-    int = s(end-2:end);                     %Integrator control vector
-    
-    %Approximation 
-    n = 6;                                  %Dimension of the state vector
-    order = 2;                              %Order of the approximation 
-
-    %Model coefficients 
-    mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary 
-    mup(2) = mu;                            %Reduced gravitational parameter of the second primary 
-    R(:,1) = [-mu; 0; 0];                   %Synodic position of the first primary
-    R(:,2) = [1-mu; 0; 0];                  %Synodic position of the second primary
-
-    %Linear model matrices
-    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
-    Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
-    
-    %Cost function matrices 
-    Q = diag(ones(1,n+3));                          %Cost weight on the state error
-    M = eye(n/2);                                   %Cost weight on the spent energy
-
-    %Select linear model 
-    switch (model)
-        case 'Fixed point'
-            cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
-            c2 = cn(2); 
-            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-        case 'Moving point' 
-            rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
-            c2 = rc(2); 
-            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-        case 'Target' 
-            %Relative position between the primaries and the target 
-            Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
-            ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
-            Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
-            ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
-            %Evaluate the linear model 
-            Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-        otherwise 
-            error('No valid linear model was selected'); 
-    end
-
-    %Linear state model
-    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];  
-
-    %Compute the feedback control law
-    [K,~,~] = lqr(A,B,Q,M);
-    
-    %Compute the control law 
-    u = -K*[int; s_r];
-
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
-    dint = s_r(1:3);                                            %Integrator field flow
-    drho = drho + [0; 0; 0; u];                                 %Add control vector
-    drho = [drho; dint];
-end
-
-%Full nonlinear relative motion equations for SMC purposes 
-function [drho] = EnckeSMC_method(mu, s, varargin)   
-    %System parameters 
-    m = 6;                                  %Phase space dimension
-    
-    %Control vector 
-    aux = varargin{1};
-    guidance_switch = aux{1};               %Reference state to track
-    
-    %State variables
-    s_t = s(1:m);                           %Target state 
-    s_r = s(m+1:2*m);                       %Relative state
+    %GNC handler 
+    aux = varargin{1};                                  %GNC handling structure (cell array)
+    if (~isempty(aux))
+        GNC = aux{1};                                   %GNC handling structure (structure)
         
-    %Compute the integration of the relative motion equations 
-    drho = Encke_method(mu, s_t, s_r);                          %Natural vector field flow
-    
-    %Guidance law
-    switch (guidance_switch)
-        case 'APF'
-            dynamics = aux{2}.DynamicsFlag;              %Steady or unsteady APF
-            safety_corridor = aux{2}.SafeCorridor;       %Safety corridor boolean
-            So = aux{2}.Obstacles;                       %Obstacles position
-            dt = aux{3};                                 %Time step of the simulation 
-            
-            %Guidance law
-            refState = apf_guidance(dynamics, safety_corridor, s_r(1:3), So, dt, s_r(1:3));
-            
-        otherwise 
-            refState = zeros(m+3,1);        %No guidance law
-    end
-    
-    %Compute the control law
-    lambda = 1;                %General loop gain
-    epsi = 1;                  %Reachability condition gain
-    alpha = 0.9;               %Reachability condition exponent
-    delta = 0.1;               %Boundary layer width
-    
-    %Attitude state
-    r = s_r(1:3);              %Instanteneous position vector
-    v = s_r(4:6);              %Instanteneous velocity vector
-    
-    %Compute the position and velocity errors
-    dr = r-refState(1:3);      %Position error
-    dv = v-refState(4:6);      %Velocity error
-    
-    %Control computation
-    S = dv+lambda*dr;          %Sliding surface
-    
-    %Compute a bang bang saturation law, given the boundary layer delta 
-    U = zeros(length(S),1);
-    for i = 1:size(S)
-        if (S(i) > delta)
-            U(i) = 1; 
-        elseif (S(i) < -delta)
-            U(i) = -1; 
-        else
-            U(i) = (1/delta)*S(i);
+        %Integrate the relative position for the PID controller
+        switch (GNC.Algorithms.Control)
+            case 'SDRE'
+                drho = [drho; s_r(1:3)];
+            case 'LQR'
+                drho = [drho; s_r(1:3)];
         end
+        
+        %GNC scheme
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:6).');     %Compute the control law
+        drho(4:6) = drho(4:6)+u;                                  %Add the control vector       
     end
-    
-    ds = epsi*(norm(S)^(alpha)*U+S);         %Reachability condition function
-    f = drho(4:6);                           %Relative CR3BP dynamics
-    u = refState(7:9)-f-lambda*dv-ds;        %Control vector
-    
-    %Add control vector
-    drho = drho + [0; 0; 0; u];                                 
 end

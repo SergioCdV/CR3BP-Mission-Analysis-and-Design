@@ -180,6 +180,15 @@ dVf(1:3,1) = -S(end,10:12).';                %Final rendezvous impulse
 St1(end,10:12) = St1(end,10:12)+dVf.';       %Docking burn condition
 
 %% Second phase: docking and coordinated flight 
+%GNC algorithms definition 
+GNC.Algorithms.Guidance = '';               %Guidance algorithm
+GNC.Algorithms.Navigation = '';             %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';             %Control algorithm
+GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
+GNC.Control.Dimension = 3;                  %Dimension of the control law
+GNC.System.mu = mu;                         %System reduced gravitational parameter
+GNC.Control.SMC.Parameters = [1 1 0.9 0.1]; %Controller parameters
+
 %Integration time 
 tspan = 0:dt:tf(2)-tf(1); 
 
@@ -187,7 +196,7 @@ tspan = 0:dt:tf(2)-tf(1);
 s0 = St1(end,:); 
 
 %Re-integrate trajectory
-[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke SMC', t, s, false), tspan, s0, options);
+[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
 
 %% Third phase: undocking 
 %Integration time 

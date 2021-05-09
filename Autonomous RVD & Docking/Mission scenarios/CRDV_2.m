@@ -27,7 +27,7 @@ mass = 1e-10;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = [0.6 pi pi+0.1];               %Switching times
+tf = [0.6 1 1.1];                   %Switching times
 tspan = 0:dt:tf(3);                 %Integration time span
 
 %CR3BP constants 
@@ -180,6 +180,20 @@ dVf(1:3,1) = -S(end,10:12).';                %Final rendezvous impulse
 St1(end,10:12) = St1(end,10:12)+dVf.';       %Docking burn condition
 
 %% Second phase: docking and coordinated flight 
+%GNC algorithms definition 
+GNC.Algorithms.Guidance = 'APF';                                        %Guidance algorithm
+GNC.Algorithms.Navigation = '';                                         %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';                                         %Control algorithm
+GNC.Guidance.Dimension = 9;                                             %Dimension of the guidance law
+GNC.Control.Dimension = 3;                                              %Dimension of the control law
+GNC.System.mu = mu;                                                     %System reduced gravitational parameter
+GNC.Guidance.APF.Dynamics = 'Steady';                                   %APF guidance scheme
+GNC.Guidance.APF.SafeCorridor.Safety = false;                           %Safety corridor boolean
+GNC.Guidance.APF.SafeCorridor.Parameters = [deg2rad(10) 1e-8 0.5 32];   %Safety corridor boolean
+GNC.Guidance.TimeStep = dt;                                             %Time step of the simulation
+GNC.Guidance.APF.Obstacles = 1e-3*rand(3,3);                            %Obstacle location
+GNC.Control.SMC.Parameters = [1 1 0.9 0.1];                             %Controller parameters
+
 %Integration time 
 tspan = 0:dt:tf(2)-tf(1); 
 
@@ -187,7 +201,7 @@ tspan = 0:dt:tf(2)-tf(1);
 s0 = St1(end,:); 
 
 %Re-integrate trajectory
-[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke SMC', t, s, false), tspan, s0, options);
+[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
 
 %% Third phase: undocking 
 %Integration time 
@@ -224,6 +238,7 @@ figure(2)
 view(3) 
 hold on 
 plot3(St(:,7), St(:,8), St(:,9), 'r'); 
+scatter3(GNC.Guidance.APF.Obstacles(1), GNC.Guidance.APF.Obstacles(2), GNC.Guidance.APF.Obstacles(3))
 hold off
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');

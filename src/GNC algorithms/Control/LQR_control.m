@@ -26,7 +26,7 @@
 
 % New versions: 
 
-function [u] = LQR_control(model, mu, Sn, Ln, gamma, Q, M)
+function [u] = LQR_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
     %Approximation 
     n = 6;                                          %Dimension of the state vector
     order = 2;                                      %Order of the approximation 
@@ -38,7 +38,7 @@ function [u] = LQR_control(model, mu, Sn, Ln, gamma, Q, M)
     R(:,2) = [1-mu; 0; 0];                          %Synodic position of the second primary
 
     %Linear model matrices
-    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
+    B = [zeros(n/2); eye(n/2); zeros(n/2)];         %Linear model input matrix 
     Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
     
     %Preallocation 
@@ -83,12 +83,12 @@ function [u] = LQR_control(model, mu, Sn, Ln, gamma, Q, M)
     end
 
     %Linear state model
-    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];  
+    A = [zeros(3) eye(3) zeros(3); Sigma Omega zeros(3); eye(3) zeros(3) zeros(3)];  
 
     %Compute the feedback control law
     [K,~,~] = lqr(A,B,Q,M);
     
-    for i = 1:size(Sn,2)
-        u(:,i) = -K*shiftdim(Sn(i,:));
+    for i = 1:size(Sn,1)
+        u(:,i) = -K*(Sn(i,:)-Sg(i,:)).';
     end
 end

@@ -91,36 +91,56 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 model = 'Target';
 controlable = controlability_analysis(model, mu, S, index, Ln, gamma);
 
-%% GNC: LQR control law %%
-[Sc, e] = lqrm(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
+%% GNC algorithms definition 
+GNC.Algorithms.Guidance = '';                   %Guidance algorithm
+GNC.Algorithms.Navigation = '';                 %Navigation algorithm
+GNC.Algorithms.Control = 'LQR';                 %Control algorithm
 
-%Compute the control effort
-energy = zeros(3,2);                                       %Preallocation of the energy vector
-u = lqr_controller(model, mu, Sc, Ln, gamma);              %Control law
-for i = 1:size(u,1)
-    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
-    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
+GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
+GNC.Control.Dimension = 3;                      %Dimension of the control law
+
+GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
+GNC.System.Libration = [Ln gamma];              %Libration point ID
+
+GNC.Control.LQR.Model = model;                  %LQR model
+GNC.Control.SDRE.Model = model;                 %SDRE model
+GNC.Control.LQR.Q = eye(9);                     %Penalty on the state error
+GNC.Control.LQR.M = eye(3);                     %Penalty on the control effort
+GNC.Control.LQR.Reference = Sn(index,1:3);      %Penalty on the control effort
+GNC.Control.SDRE.Q = eye(9);                    %Penalty on the state error
+GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
+
+%% GNC: SDRE/LQR control law
+%Preallocation 
+e = zeros(1,length(tspan));         %Error to rendezvous 
+
+%Initial conditions 
+int = zeros(1,3);                   %Integral of the relative position
+slqr0 = [Sn(1,:) int];              %Initial conditions
+
+%Compute the trajectory
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
+
+%Error in time 
+for i = 1:length(tspan)
+    e(i) = norm(Sc(i,7:12));
 end
 
 %Compute the error figures of merit 
 ISE = trapz(tspan, e.^2);
 IAE = trapz(tspan, abs(e));
 
-%% GNC: SDRE control law
-% [Sc, e] = sdre(model, options, mu, Sn(1:index,:), tspan, Ln, gamma);
-% 
-% %Compute the control effort
-% energy = zeros(3,2);                                       %Preallocation of the energy integral
-% u = sdre_controller(model, mu, Sc, Ln, gamma);             %Control law
-% 
-% for i = 1:size(u,1)
-%     energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
-%     energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
-% end
-% 
-% %Compute the error figures of merit 
-% ISE = trapz(tspan, e.^2);
-% IAE = trapz(tspan, abs(e));
+%Compute the control effort
+energy = zeros(3,2);                                       %Preallocation of the energy integral
+
+%Control law
+[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end));
+
+%Control integrals
+for i = 1:size(u,1)
+    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
+end
 
 %% Results %% 
 %Plot results 
@@ -174,9 +194,9 @@ title('Relative velocity evolution');
 
 %Configuration space error 
 figure(4)
-plot(tspan, e); 
+plot(tspan, log(e)); 
 xlabel('Nondimensional epoch');
-ylabel('Absolute error');
+ylabel('Absolute error (log)');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
 
@@ -228,13 +248,13 @@ function [controlable] = controlability_analysis(model, mu, Sn, index, Ln, gamma
         
         %Select linear model 
         switch (model)
-            case 'Fixed point'
+            case 'Steady libration point'
                 cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
                 c2 = cn(2); 
                 Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-            case 'Moving point' 
-                rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
-                c2 = rc(2); 
+            case 'Unsteady libration point' 
+                cn = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
+                c2 = cn(2); 
                 Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
             case 'Target' 
                 %Relative position between the primaries and the target 
@@ -290,11 +310,11 @@ function [Sc, e] = lqrm(model, options, mu, Sn, tspan, Ln, gamma)
 
     %Select linear model 
     switch (model)
-        case 'Fixed point'
+        case 'Steady libration point'
             cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
             c2 = cn(2); 
             Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-        case 'Moving point' 
+        case 'Unsteady libration point' 
             rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
             c2 = rc(2); 
             Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
@@ -322,142 +342,5 @@ function [Sc, e] = lqrm(model, options, mu, Sn, tspan, Ln, gamma)
     %Error in time 
     for i = 1:length(tspan)
         e(i) = norm(Sc(i,7:12));
-    end
-end
-
-%Implement a SDRE control law 
-function [Sc, e] = sdre(model, options, mu, Sn, tspan, Ln, gamma)
-    %Preallocation 
-    e = zeros(1,length(tspan));         %Error to rendezvous 
-
-    %Initial conditions 
-    int = zeros(1,3);
-    slqr0 = [Sn(1,:) int];
-
-    %Compute the trajectory
-    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SDRE', t, s, model, Ln, gamma), tspan, slqr0, options);
-
-    %Error in time 
-    for i = 1:length(tspan)
-        e(i) = norm(Sc(i,7:12));
-    end
-end
-
-%LQR controller
-function [u] = lqr_controller(model, mu, Sn, Ln, gamma)
-    %Approximation 
-    n = 6;                              %Dimension of the state vector
-    order = 2;                          %Order of the approximation 
-
-    %Model coefficients 
-    mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary 
-    mup(2) = mu;                        %Reduced gravitational parameter of the second primary 
-    R(:,1) = [-mu; 0; 0];               %Synodic position of the first primary
-    R(:,2) = [1-mu; 0; 0];              %Synodic position of the second primary
-
-    %Linear model matrices
-    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
-    Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
-    
-    %Cost function matrices 
-    Q = diag(ones(1,n+3));                          %Cost weight on the state error
-    M = eye(n/2);                                   %Cost weight on the spent energy
-
-    %Preallocation 
-    u = zeros(3,size(Sn,1));                        %Control law
-    
-    %State coefficients 
-    r_t = Sn(end,1:3).';                            %Synodic position of the target
-
-    %Select linear model 
-    switch (model)
-        case 'Fixed point'
-            cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
-            c2 = cn(2); 
-            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-        case 'Moving point' 
-            rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
-            c2 = rc(2); 
-            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-        case 'Target' 
-            %Relative position between the primaries and the target 
-            Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
-            ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
-            Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
-            ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
-            %Evaluate the linear model 
-            Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-        otherwise 
-            error('No valid linear model was selected'); 
-    end
-
-    %Linear state model
-    A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];  
-
-    %Compute the feedback control law
-    [K,~,~] = lqr(A,B,Q,M);
-    
-    for i = 1:size(Sn,1)
-        u(:,i) = -K*[shiftdim(Sn(i,13:15)); shiftdim(Sn(i,7:12))];
-    end
-end
-
-%SDRE controller 
-function [u] = sdre_controller(model, mu, Sn, Ln, gamma)
-   %Approximation 
-    n = 6;                              %Dimension of the approximation
-    order = 2;                          %Order of the approximation 
-
-    %Model coefficients 
-    mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary 
-    mup(2) = mu;                        %Reduced gravitational parameter of the second primary 
-    R(:,1) = [-mu; 0; 0];               %Synodic position of the first primary
-    R(:,2) = [1-mu; 0; 0];              %Synodic position of the second primary
-    
-    %Linear model matrices
-    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
-    Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
-    
-    %Cost function matrices 
-    Q = diag(ones(1,n+3));                          %Cost weight on the state error
-    M = eye(n/2);                                   %Cost weight on the spent energy
-
-    %Preallocation 
-    u = zeros(3,size(Sn,1));                     %Control law
-
-    %Compute the trajectory
-    for i = 1:size(Sn,1)
-        %State coefficients 
-        r_t = Sn(i,1:3).';                          %Synodic position of the target
-
-        %Select linear model 
-        switch (model)
-            case 'Fixed point'
-                cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
-                c2 = cn(2); 
-                Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-            case 'Moving point' 
-                rc = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
-                c2 = rc(2); 
-                Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-            case 'Target' 
-                %Relative position between the primaries and the target 
-                Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
-                ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
-                Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
-                ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
-
-                %Evaluate the linear model 
-                Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-            otherwise 
-                error('No valid linear model was selected'); 
-        end
-
-        %Linear state model
-        A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega]; 
-
-        %Compute the feedback control law
-        [K,~,~] = dlqr(A,B,Q,M);
-        u(:,i) = -K*[shiftdim(Sn(i,13:15)); shiftdim(Sn(i,7:12))];  
     end
 end

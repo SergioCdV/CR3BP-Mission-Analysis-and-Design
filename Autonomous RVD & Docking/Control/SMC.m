@@ -83,62 +83,48 @@ s0 = [r_t0 rho0].';                                         %Initial conditions 
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                  %Reconstructed chaser motion via Encke method
 
-%% GNC: discrete SMC control law %%
-%Preallocation 
-Sc = zeros(length(tspan), 2*n);                             %Relative orbit trajectory
-Sc(1,:) = Sn(1,:);                                          %Initial relative state
-u = zeros(3,length(tspan));                                 %Control law
-e = zeros(1,length(tspan));                                 %Error to rendezvous 
+%% GNC algorithms definition 
+GNC.Algorithms.Guidance = '';               %Guidance algorithm
+GNC.Algorithms.Navigation = '';             %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';             %Control algorithm
 
-%Reference state 
-refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
+GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
+GNC.Control.Dimension = 3;                  %Dimension of the control law
 
-%Compute the trajectory
-for i = 1:length(tspan)
-    %Compute the control law 
-    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));
+GNC.System.mu = mu;                         %System reduced gravitational parameter
 
-    %Re-integrate trajectory
-    [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke C', t, s, u(:,i)), [0 dt], S(i,:), options);
-    
-    %Update initial conditions
-    Sc(i+1,:) = s(end,:);
-        
-    %Error in time 
-    e(i) = norm(s(end,7:12));
-end
+GNC.Control.SMC.Parameters = [1 1 0.9 0.1]; %Controller parameters
 
 %% GNC: SMC control law %%
 % %Preallocation 
-e = zeros(1,length(tspan));                                 %Error to rendezvous 
-
-%Reference state 
-refState = zeros(n+3,1);                                    %Reference state (rendezvous condition)
+e = zeros(1,length(tspan));             %Error to rendezvous 
+energy = zeros(3,2);                    %Energy vector preallocation
 
 %Re-integrate trajectory
-[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke SMC', t, s, false), tspan, s0, options);
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
 %Error in time 
 for i = 1:length(tspan)
     e(i) = norm(Sc(i,7:12));
 end
 
-%Compute the control effort
-energy = zeros(3,2); 
-for i = 1:size(Sc,1)
-    u(:,i) = hybrid_controller(mu, refState, Sc(i,:));     %Control law
-end
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);                                  %Integral of the square error                             
+IAE = trapz(tspan, abs(e));                                %Integral of the absolute value of the error
 
+%Compute the control effort
+parameters = GNC.Control.SMC.Parameters;                   %Controller parameters
+
+%Control law
+[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12));    
+   
+%Control integrals
 for i = 1:size(u,1)
     energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
     energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
 end
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
 
 %% Results %% 
 %Plot results 
@@ -192,7 +178,7 @@ title('Relative velocity evolution');
 
 %Configuration space error 
 figure(4)
-plot(tspan, e); 
+plot(tspan, log(e)); 
 xlabel('Nondimensional epoch');
 ylabel('Absolute error');
 grid on;
@@ -218,43 +204,4 @@ if (false)
         delete(V);
     end
     hold off
-end
-
-%% Auxiliary functions 
-%Control algorithms
-function [T] = hybrid_controller(mu, refState, x)
-    %SMC parameters 
-    lambda = 1;                %General loop gain
-    epsi = 1;                  %Reachability condition gain
-    alpha = 0.9;               %Reachability condition exponent
-    delta = 1e-2;              %Boundary layer width
-    
-    %Attitude state
-    r = x(7:9).';              %Instanteneous position vector
-    v = x(10:12).';            %Instanteneous velocity vector
-    
-    %Compute the position and velocity errors
-    dr = r-refState(1:3);      %Position error
-    dv = v-refState(4:6);      %Velocity error
-    
-    %Torque computation
-    s = dv+lambda*dr;                                                          %Sliding surface
-    f = nlr_model(mu, true, false, false, 'Encke C', 0, x.', zeros(3,1));      %Relative CR3BP dynamics
-    ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);                      %Reachability condition function
-    T = refState(7:9)-f(10:12)-lambda*dv-ds;                                   %Control vector
-end
-
-%Saturation function
-function [U] = saturation(s, delta)
-    %Compute a bang bang saturation law, given the boundary layer delta 
-    U = zeros(1,length(s));
-    for i = 1:size(s)
-        if (s(i) > delta)
-            U(i) = 1; 
-        elseif (s(i) < -delta)
-            U(i) = -1; 
-        else
-            U(i) = (1/delta)*s(i);
-        end
-    end
 end
