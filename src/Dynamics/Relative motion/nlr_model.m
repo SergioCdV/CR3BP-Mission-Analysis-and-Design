@@ -192,6 +192,12 @@ function [drho] = Encke_method(mu, s_t, s_r, varargin)
         
         %Integrate the relative position for the PID controller
         switch (GNC.Algorithms.Control)
+            case 'TISS'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'MISS'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'TITA'
+                error('No valid control algorithm was selected for integration purposes')
             case 'SDRE'
                 drho = [drho; s_r(1:3)];
             case 'LQR'

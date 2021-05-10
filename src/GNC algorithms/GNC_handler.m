@@ -49,6 +49,68 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn)
         
     %Control module
     switch (control)
+        case 'TISS'
+            %System characteristics 
+            mu = GNC.System.mu;                             %Systems's reduced gravitational parameter
+            
+            %Controller parameters 
+            TOF = GNC.Control.TISS.TOF;                     %Rendezvous time of flight 
+            tol = GNC.Control.TISS.Tolerance;               %Differential corrector tolerance 
+            cost_function = GNC.Control.TISS.Cost;          %Cost function for the differential corrector scheme
+            two_impulsive = GNC.Control.TISS.Impulses;      %Number of impulses for the differential corrector scheme
+            
+            %Initial conditions 
+            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            
+            switch (cost_function)
+                case 'Position'
+                   G = Sg(1:3);
+                case 'Velocity' 
+                   G = Sg(4:6); 
+                case 'State'
+                   G = Sg; 
+                otherwise
+                    error('No valid cost function was selected');
+            end
+            
+            %Compute the control scheme
+            [~, u, ~] = TISS_control(mu, TOF, s0, tol, cost_function, G, two_impulsive); 
+           
+        case 'MISS'
+            %System characteristics 
+            mu = GNC.System.mu;                             %Systems's reduced gravitational parameter
+            
+            %Controller parameters 
+            TOF = GNC.Control.MISS.TOF;                     %Rendezvous time of flight 
+            tol = GNC.Control.MISS.Tolerance;               %Differential corrector tolerance 
+            cost_function = GNC.Control.MISS.Cost;          %Cost function for the differential corrector scheme
+            impulses = GNC.Control.MISS.Impulses;           %Impulses definition for the differential corrector scheme
+            
+            %Initial conditions 
+            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            
+            %Compute the control scheme
+            [~, u, ~] = TISS_control(mu, TOF, s0, tol, cost_function, impulses);
+            
+        case 'TITA'
+            %System characteristics 
+            mu = GNC.System.mu;                             %Systems's reduced gravitational parameter
+            
+            %Controller parameters 
+            TOF = GNC.Control.TITA.TOF;                     %Rendezvous time of flight 
+            tol = GNC.Control.TITA.Tolerance;               %Differential corrector tolerance 
+            cost_function = GNC.Control.TITA.Cost;          %Cost function for the differential corrector scheme
+            two_impulsive = GNC.Control.TITA.Impulses;      %Number of impulses for the differential corrector scheme
+            penalties = GNC.Control.TITA.Penalties;         %Controller penalties policy
+            target_points = GNC.Control.TITA.Targets;       %Target points for stationkeeping
+            thruster_model = GNC.Control.TITA.Thruster;     %Thruster error model
+            
+            %Initial conditions 
+            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            
+            %Compute the control scheme
+            [~, u, ~] = TITA_control(mu, TOF, s0, tol, cost_function, two_impulsive, penalties, target_points, thruster_model); 
+            
         case 'LQR'     
             %System characteristics 
             mu = GNC.System.mu;                 %Systems's reduced gravitational parameter
