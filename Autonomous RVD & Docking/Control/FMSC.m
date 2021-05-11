@@ -22,9 +22,6 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
 tspan = 0:dt:2*pi;                  %Integration time span

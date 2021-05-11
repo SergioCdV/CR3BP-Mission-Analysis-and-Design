@@ -105,8 +105,8 @@ end
 e(1) = norm(Sn(1,7:12));                    %Initial error before the burn
 
 %Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
+IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
 
 %% Results %% 
 disp('SIMULATION RESULTS: ')

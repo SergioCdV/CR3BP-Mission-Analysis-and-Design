@@ -154,7 +154,7 @@ function [Sc, dV, state] = TITA_control(mu, TOF, s0, tol, cost_function, sd, two
             s0(7:12) = s0(7:12)+ns;                                %New noisy initial conditions
         else
             e = (xf-sd)*Q*Phi*Omega;                               %Error state (deviation from the rendezvous condition)
-            dV(:,iter) = STM\e.';                                  %Needed impulse
+            dV(:,iter) = pinv(STM.')*e.';                          %Needed impulse
             s0(10:12) = s0(10:12)-dV(:,iter);                      %New initial conditions 
         end
 

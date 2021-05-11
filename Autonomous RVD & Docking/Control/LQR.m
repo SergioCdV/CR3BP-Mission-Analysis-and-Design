@@ -127,11 +127,11 @@ for i = 1:length(tspan)
 end
 
 %Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
+IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
 
 %Compute the control effort
-energy = zeros(3,2);                                       %Preallocation of the energy integral
+energy = zeros(3,2);                        %Preallocation of the energy integral
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end));

@@ -58,7 +58,6 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Modelling in the synodic frame %% 
-index = fix(tf/dt);                                         %Rendezvous point
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
@@ -73,22 +72,36 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% GNC: two impulsive rendezvous, multiple shooting scheme %%
 %Differential corrector set up
-S = S(1:index,:);                           %Restrict the time integration span
-T = index*dt;                               %Flight time along the arc
+tol = 1e-8;                                 %Differential corrector tolerance
 nodes = 2;                                  %Number of nodes to compute
-GoOn = true;                                %Convergence boolean 
-iter = 1;                                   %Initial iteration 
+cost_function = 'Position';                 %Targeting rendezvous
 
-cost = 'Position';                          %Targeting rendezvous
+[St, dV, state] = TIMS_control(mu, tf, S, tol, nodes, cost_function, true);
 
-%Preallocation 
-dV = zeros(3,maxIter);                      %Targeting impulse
+dVl1(1:3,1) = sum(dV,2);                    %L1 norm of the impulses 
+dVl2(1) = sum(sqrt(dot(dV,dV,2)));          %L2 norm of the impulses 
 
-%Implementation 
-[S, state] = MS_rendezvous(mu, S, T, nodes, maxIter, tol, cost);      %Trajectory optimization
-St = S.Trajectory;                                                    %Final computed trajectory
+%Error in time 
+e = zeros(1,size(St,1));                    %Preallocation of the error
+for i = 1:size(St,1)
+    e(i) = norm(St(i,7:12));
+end
+e(1) = norm(Sn(1,7:12));                    %Initial error before the burn
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
+IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
 
 %% Results %% 
+disp('SIMULATION RESULTS: ')
+if (state.State)
+    disp('   Multi impulsive rendezvous was achieved');
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
+    fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
+else
+    disp('    Multi impulsive rendezvous was not achieved');
+end
+
 %Plot results 
 figure(1) 
 view(3) 
@@ -106,26 +119,59 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(St(:,43), St(:,44), St(:,45)); 
+plot3(St(:,7), St(:,8), St(:,9)); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error  (log)');
+grid on;
+title('Absolute error in the configuration space (L2 norm)');
+
 %Rendezvous animation 
 if (false)
-    figure(3) 
+    figure(5) 
     view(3) 
     grid on;
     hold on
-    plot3(Sn(1:index,1), Sn(1:index,2), Sn(1:index,3), 'k-.'); 
+    plot3(St(:,1), St(:,2), St(:,3), 'k-.'); 
     xlabel('Synodic x coordinate');
     ylabel('Synodic y coordinate');
     zlabel('Synodic z coordinate');
     title('Rendezvous simulation');
     for i = 1:size(St,1)
-        T = scatter3(Sn(i,1), Sn(i,2), Sn(i,3), 30, 'b'); 
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
         V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
 
         drawnow;
@@ -134,137 +180,3 @@ if (false)
     end
     hold off
 end
-
-%% Auxiliary functions %% 
-function [xf, state] = MS_rendezvous(mu, seed, T, nodes, maxIter, tol, cost)
-    %Constants 
-    m = 12;                         %Complete phase space dimension 
-    n = 6;                          %Individual phase space dimension
-    
-    %Sanity check on the initial seed dimensions
-    if (size(seed,2) == m) || (size(seed,1) == m)
-        if (size(seed,2) == m)
-            seed = seed.';          %Accomodate new format
-        end
-    else
-        error('No valid initial conditions were input');
-    end
-      
-    %Constants 
-    Phi = eye(n);                           %Initial STM  
-    Phi = reshape(Phi, [n^2 1]);            %Initial STM 
-    dt = 1e-4;                              %Integration time step
-    h = fix(size(seed,2)/nodes)-1;          %Temporal index step
-    Dt = T/nodes;                           %Time step between arcs
-    
-    switch (cost)
-        case 'Position'
-            constraints = 3;                %Additional constraints to continuity (targeting rendezvous)
-        case 'Velocity'
-            constraints = 3;                %Additional constraints to continuity (relative position rendezvous)
-        otherwise
-            constraints = 6;                %Additional constraints to continuity (full rendezvous)
-    end
-        
-    %Preallocate internal patch points seeds 
-    internalSeed = zeros((m+1)*nodes-1,1);        
-    
-    %Divide the orbit into the internal nodes
-    for i = 1:nodes
-        internalSeed(m*(i-1)+1:m*i) = seed(1:m,(i-1)*h+1);
-        if (i ~= nodes)
-            internalSeed(end-(nodes-1)+i) = Dt;
-        end
-    end    
-    
-    %Set up integration 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration conditions and tolerances                     
-    direction = 1;                                              %Forward integration
-    
-    %Set up differential correction scheme
-    GoOn = true;                                                %Convergence flag
-    iter = 1;                                                   %Initial iteration
-    
-    %Preallocation 
-    ds0 = zeros(size(internalSeed,1),maxIter);                  %Vector containing the initial conditions correction
-    e = zeros(m*(nodes-1)+constraints,1);                       %Error vector  
-    A = zeros(m*(nodes-1)+constraints, m*nodes);                %STM matrix
-    B = zeros(m*(nodes-1)+constraints, nodes-1);                %Dynamics matrix
-        
-    %Main computation 
-    while (GoOn) && (iter < maxIter)        
-        for i = 1:nodes
-            %Proceed with the integration
-            if (i ~= nodes)
-                tspan = 0:dt:internalSeed(end-(nodes-1)+i);  
-            else
-                tspan = 0:dt:Dt;
-            end          
-            S0 = shiftdim(internalSeed(m*(i-1)+1:m*i));
-            S0 = [S0(1:n); Phi; S0(n+1:end); Phi];
-            [~, S] = ode113(@(t,s)nlr_model(mu, direction, true, true, 'Encke', t, s), tspan, S0, options);   %New trajectory
-            F = nlr_model(mu, direction, false, false, 'Encke', 0, [S(end,1:n) S(end,n+n^2+1:2*n+n^2)].');    %Vector field
-            
-            %Build the covariance matrix                                       
-            if (i ~= nodes)
-                %Continuity constraint
-                STM = [reshape(S(end,n+1:n+n^2),[n n]) zeros(n,n); ...
-                       zeros(n,n) reshape(S(end,2*n+n^2+1:end),[n n])];                 %Subarc STM
-                A(m*(i-1)+1:m*i,m*(i-1)+1:m*i) = STM;                                   %Subarc STM
-                A(m*(i-1)+1:m*i,m*i+1:m*(i+1)) = -eye(m);                               %Continuity constraint matrix
-                B(m*(i-1)+1:m*i,i) = F(1:end);                                          %Dynamics matrix
-                
-                %Compute the continuity error
-                e(m*(i-1)+1:m*i) = shiftdim([S(end,1:n) S(end,n+n^2+1:2*n+n^2)].'-internalSeed(m*i+1:m*(i+1)));  
-            else
-                %Rendezvous error
-                STM = reshape(S(end,2*n+n^2+1:end),[n n]);                               %Corresponding STM
-                switch (cost)
-                    case 'Position'
-                        e(end-constraints+1:end) = shiftdim(S(end,n+n^2+1:n+n^2+3)).';   %Relative phase space vector to the origin
-                        A(end-constraints+1:end,end-constraints+1:end) = STM(1:3,4:6);   %Constraint matrix
-                    case 'Velocity'
-                        e(end-constraints+1:end) = shiftdim(S(end,n+n^2+4:2*n+n^2)).';   %Relative phase space vector to the origin
-                        A(end-constraints+1:end,end-constraints+1:end) = STM(4:6,4:6);   %Constraint matrix
-                    otherwise
-                        e(end-n+1:end) = shiftdim(S(end,n+n^2+1:2*n+n^2)).';             %Relative phase space vector to the origin
-                        A(end-constraints+1:end,end-2:end) = STM(:,4:6);                 %Constraint matrix
-                end
-            end     
-        end
-        
-        %Full covariance matrix 
-        C = [A B];
-                
-        %Compute the correction 
-        ds0(:,iter) = C.'*(C*C.')^(-1)*e;               %Compute the variation (under-determined case)
-        
-        %Convergence analysis 
-        norm(e)
-        if (norm(e) <= tol)
-            GoOn = false;
-        else
-            internalSeed = internalSeed-ds0(:,iter);    %Update initial conditions
-            iter = iter+1;                              %Update iteration
-        end       
-    end
-    
-    %Integrate the whole trayectory
-    tspan = 0:dt:sum(internalSeed(end-nodes+1:end))+Dt; 
-    seed = [shiftdim(internalSeed(1:n)); Phi; shiftdim(internalSeed(n+1:2*n)); Phi];
-    [t, S] = ode113(@(t,s)nlr_model(mu, direction, true, true, 'Encke', t, s), tspan, seed, options);
-    
-    %Ouput corrected trajectory 
-    xf.Trajectory = S;                           %Trajectory
-    xf.Period = t(end);                          %Orbit period
-    
-    if (GoOn)
-        xf.Impulses = ds0(:,iter);               %Needed impulses to correct the trajectory
-    else
-        xf.Impulses = ds0(:,iter-1);             %Needed impulses to correct the trajectory
-    end
-        
-    %Ouput differential correction scheme convergence results
-    state = ~GoOn;
-end
-
