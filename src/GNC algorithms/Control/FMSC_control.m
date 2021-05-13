@@ -8,25 +8,26 @@
 %% Floquet Mode Safe Control %%
 % This script contains the function to compute the control law by means of an FMSC controller.
 
-% Inputs: - string model, selecting the linear model to compute the linear state
-%           transition matrix of the system
-%         - scalar mu, the reduced gravitational parameter of the CR3BP
+% Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
-%         - array St, the target orbit reference state 
-%         - array Sg, the guidance law to follow
-%         - array Sn, the system state
-%         - scalar Ln, the libration point number. It may be left 0 if the
-%           target orbit is not librating around any Lagrange point
-%         - scalar gamma, the relative distance of the Ln point to the
-%           nearest primary. Again, it may be left as 0 if needed
-%         - matrices Q and M, penalizing on the state error and the control
-%           effort
+%         - scalar TOC, the time of flight for the collision condition
+%         - vector so, the relative state of the colliding object
+%         - matrix Q, a positive definite matrix projecting the quadratic
+%           form of the error to the colliding object
+%         - vector s0, initial conditions of both the target and the
+%           relative particle
+%         - scalar tol, the differential corrector scheme tolerance for the
+%           constrained maneuver
+%         - structure constraint, specifying any constraint on the maneuver
+%         - string resctriction, specifying the type of required maneuver 
 
-% Output: - vector u, the computed control law
+% Output: - array Sc, the rendezvous relative trajectory
+%         - array dVf, containing the required impulse located at the best
+%           instant
 
 % New versions: 
 
-function [Sc, dV, state] = FMSC_control(mu, TOC, s0, constraint, restriction)
+function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, Q, s0, tol, constraint, restriction)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -35,12 +36,8 @@ function [Sc, dV, state] = FMSC_control(mu, TOC, s0, constraint, restriction)
         s0 = s0.';
     end
     
-    %Preallocation 
-    J = zeros(2,length(tspanc)-1);                              %Cost function to analyze
-    dV = zeros(length(tspanc)-1,3);                             %Velocity impulses all along the look ahead time arc
-
     %Select the restriction level of the CAM 
-    constrained = constraint.Constrained;
+    constrained = constraint.Constrained;                       %Select the type of maneuver
     lambda = constraint.SafeDistance;                           %Safety distance
     
     %Integration tolerance and setup 
@@ -49,76 +46,112 @@ function [Sc, dV, state] = FMSC_control(mu, TOC, s0, constraint, restriction)
     dt = 1e-3;                                                  %Integration time step  
     tspan = 0:dt:TOC;                                           %Integration time span
     
-    %Set up the differential corrector
-    maxIter = 100;                                     %Maximum number of iterations
-    GoOn = true;                                       %Convergence boolean 
-    iter = 1;                                          %Initial iteration 
-    
     %Initial conditions and integration
-    Phi = eye(m);                                      %Initial STM 
-    Phi = reshape(Phi, [m^2 1]);                       %Reshape the initial STM
-    s0 = [s0; Phi];                                    %Complete phase space + linear variational initial conditions
+    Phi = eye(m);                                               %Initial STM 
+    Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
+    s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
     
-    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+    
+    %Preallocation 
+    J = zeros(2,length(tspan)-1);                               %Cost function to analyze
+    dVf = zeros(3,length(tspan)-1);                             %Velocity impulse
+    
+    %Differential corrector setup
+    maxIter = 100;                              %Maximum number of iterations
+    
+    for i = 1:1
+        %Integration set up 
+        atime = tspan(i:end);                   %New time span
+        s0 = Sn(i,:);                           %Initial conditions
+        
+        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
+        
+        %Differential corrector setup
+        GoOn = true;                            %Convergence boolean
+        iter = 1;                               %Initial iteration
+        
+        while ((GoOn) && (iter < maxIter))
+            %Compute the Floquet modes at each time instant 
+            Monodromy = reshape(S(end,13:end), [m m]);                     %State transition matrix at each instant 
+            Monodromy = Monodromy*reshape(S(1,13:end), [m m])^(-1);        %Relative STM
 
-    for i = 1:length(tspanc)-1
-        %Shrink the look ahead time 
-        atime = tspan(i:end);
+            [E, ~] = eig(Monodromy);                                       %Eigenspectrum of the STM 
+            for j = 1:size(E,2)
+                E(:,j) = E(:,j)/norm(E(:,j));                              %Normalize unit basis
+            end
 
-        %Compute the Floquet modes at each time instant 
-        Monodromy = reshape(Sn(end,13:end), [m m]);                     %State transition matrix at each instant        
-        [E, sigma] = eig(Monodromy);                                    %Eigenspectrum of the STM 
-        Phi = Monodromy*reshape(S(i,13:end), [m m])^(-1);               %Relative STM
-
-        for j = 1:size(E,2)
+            %Compute the maneuver
             if (constrained)
-                E(:,j) = sigma(j,j)*E(:,j);
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
+                STM = eye(3);                                                   %Correction matrix
             else
-                E(:,j) = exp(-tspan(i)/tspan(end)*log(sigma(j,j)))*E(:,j);
+                error = s0(7:12).';                                             %State error vector
+                switch (restriction)
+                    case 'Best'
+                        STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];        %Linear application
+                    case 'Worst'
+                        STM = [E(:,1) -[zeros(3,3); eye(3)]];                   %Linear application
+                    otherwise
+                        error('No valid case was selected');
+                end
+            end
+
+            %Compute the maneuver
+            maneuver = pinv(STM)*error;        %Needed maneuver
+            dV = real(maneuver(end-2:end));    %Needed change in velocity
+
+            %Integrate the trajectory 
+            s0(10:12) = s0(10:12)+real(dV).';  %Update initial conditions with the velocity impulse
+            [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
+            
+            %Convergence analysis for the constrained case 
+            if (constrained)
+                if (norm(error) < tol)
+                    GoOn = false;
+                else
+                    iter = iter+1;
+                end
+            else
+                GoOn = false;
             end
         end
-
-        %Compute the maneuver
-        switch (restriction) 
-            case 'Worst'
-                if (constrained)
-                    safeS = lambda(1)*E(:,1);                                      %Safety constraint
-                    STM = Phi(:,4:6);                                              %Correction matrix
-                    error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
-                    maneuver = pinv(STM)*error;                                    %Needed maneuver 
-                    dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-                else
-                    w = [0; 1; 1; 1];                                              %Some random vector offerint triaxial control
-                    STM = [E(:,1) -[zeros(3,3); eye(3)]];                          %Linear application
-                    error = lambda(1)*rand(6,1);                                   %State error vector
-                    maneuver = pinv(STM)*error;                                    %Needed maneuver
-                    dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
-                end
-            case 'Best'
-                if (constrained)
-                    safeS = lambda(1)*E(:,1)+lambda(2).*E(:,3:end);                %Safety constraint
-                    STM = Phi(:,4:6);                                              %Correction matrix
-                    error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
-                    maneuver = pinv(STM)*error;                                    %Needed maneuver 
-                    dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-                else
-                    STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];               %Linear application
-                    error = 1e-3*rand(6,1);                                        %State error vector
-                    maneuver = STM.'*(STM*STM.')^(-1)*error;                       %Needed maneuver
-                    dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
-                end
-            otherwise
-                error('No valid case was selected');
-        end
-
-        %Integrate the trajectory 
-        s0 = Sn(i,1:12);                        %Initial conditions
-        s0(10:12) = s0(10:12)+real(dV(i,:)).';  %Update initial conditions with the velocity change
-
-        [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);
         
         %Evaluate the cost function
-        J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
-        J(2,i) = norm(maneuver)+(1/2)*s(end,7:12)*s(end,7:12).';  
-     end
+        dVf(:,i) = (s0(10:12)-Sn(i,10:12)).';
+        J(1,i) = (1/2)*(S(end,7:9)-so(1,1:3))*Q*(S(end,7:9)-so(1,1:3)).';
+        J(2,i) = norm(dVf(:,i))+(1/2)*S(end,7:12)*S(end,7:12).';  
+    end
+     
+    %Select the minimum dV maneuver maximizing the relative distance to the colliding object
+    tol = 1e-10;
+    best = 1; 
+    for i = 1:size(J,2)
+        if (J(1,i)-J(1,best) > tol)
+            best = i;
+        elseif (J(1,i)-J(1,best) < tol)
+            %Do nothing, just the other extreme case
+        else
+            %Minimize the second cost function 
+            if (J(2,i) < J(2,best))
+                best = i;
+            end
+        end
+    end
+
+    %Integrate the CAM trajectory
+    tm = tspan(best(end));                            %Time to perform the maneuver since detection
+    atime = 0:dt:TOC-tm;                              %CAM integration time
+    
+    if (isempty(atime))
+        atime = tspan;
+        s0 = Sn(1,1:12); 
+        s0(10:12) = s0+dVf(:,1).';                    %Update initial conditions with the velocity change
+    else
+        s0 = Sn(best(end),1:12);
+        s0(10:12) = s0(10:12)+dVf(:,best(end)).';     %Update initial conditions with the velocity change
+    end
+    
+    dVf = dVf(:,best(end));
+    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);
 end
