@@ -92,7 +92,7 @@ function [Sc, dV, state] = TIMS_control(mu, TOF, seed, tol, nodes, cost_function
         for i = 1:nodes
             %Proceed with the integration
             if (i ~= nodes)
-                tspan = 0:dt:internalSeed(end-(nodes-1)+i);  
+                tspan = 0:dt:internalSeed(end-(nodes-1)+i); 
             else
                 tspan = 0:dt:Dt;
             end          
@@ -100,7 +100,6 @@ function [Sc, dV, state] = TIMS_control(mu, TOF, seed, tol, nodes, cost_function
             S0 = [S0(1:n); Phi; S0(n+1:end); Phi];
             [~, S] = ode113(@(t,s)nlr_model(mu, direction, true, true, 'Encke', t, s), tspan, S0, options);   %New trajectory
             F = nlr_model(mu, direction, false, false, 'Encke', 0, [S(end,1:n) S(end,n+n^2+1:2*n+n^2)].');    %Vector field
-            
             %Build the covariance matrix                                       
             if (i ~= nodes)
                 %Continuity constraint
@@ -135,14 +134,13 @@ function [Sc, dV, state] = TIMS_control(mu, TOF, seed, tol, nodes, cost_function
         C = [A B];
                 
         %Compute the correction 
-        ds0(:,iter) = pinv(C)*e;                        %Compute the variation (under-determined case)
+        ds0(:,iter) = -pinv(C)*e;                        %Compute the variation (under-determined case)
         
         %Convergence analysis 
-        norm(e)
         if (norm(e) < tol)
             GoOn = false;
         else
-            internalSeed = internalSeed-ds0(:,iter);    %Update initial conditions
+            internalSeed = internalSeed+ds0(:,iter);    %Update initial conditions
             iter = iter+1;                              %Update iteration
         end       
     end
