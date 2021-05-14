@@ -83,7 +83,7 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, Q, s0, tol, constraint, restr
 
             %Compute the maneuver
             if (constrained)
-                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2));                  %Safety constraint
                 STM = eye(3);                                                   %Correction matrix
             else
                 error = s0(7:12).';                                             %State error vector
@@ -98,8 +98,12 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, Q, s0, tol, constraint, restr
             end
 
             %Compute the maneuver
-            maneuver = pinv(STM)*error;        %Needed maneuver
-            dV = real(maneuver(end-2:end));    %Needed change in velocity
+            maneuver = pinv(STM)*error;            %Needed maneuver
+            if (constrained)
+                dV = real(maneuver);               %Needed change in velocity
+            else
+                dV = real(maneuver(end-2:end));    %Needed change in velocity
+            end
 
             %Integrate the trajectory 
             s0(10:12) = s0(10:12)+real(dV).';  %Update initial conditions with the velocity impulse

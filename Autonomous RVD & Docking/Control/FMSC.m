@@ -85,7 +85,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %Obstacle definition in space and time
 index(1) = randi([1 2000]);                 %Time location of the collision 
 index(2) = 20;                              %Detection time
-so = [S(index(1),7:9) 0 0 0];               %Phase space state of the object
+so = [S(1942,7:9) 0 0 0];               %Phase space state of the object
 R = 5e-4;                                   %Radius of the CA sphere
 [xo, yo, zo] = sphere;                      %Collision avoidance sphere
 xo = R*xo;
@@ -97,11 +97,11 @@ Q = eye(3);                                 %Safety ellipsoid size to avoid the 
 
 %% GNC: FMSC %% 
 %Select the collision time (randomly)
-TOC = tspan(index(1));                  %Time of collision
-constraint.Constrained = true;         %No constraints on the maneuver
-constraint.SafeDistance = 1e-6;         %Safety distance at the collision time
+TOC = tspan(1942);                  %Time of collision
+constraint.Constrained = false;         %No constraints on the maneuver
+constraint.SafeDistance = 1e-4;         %Safety distance at the collision time
 
-[Sc, dV, tm] = FMSC_control(mu, pi, so, eye(3), S(1,1:12), 1e-5, constraint, 'Worst');
+[Sc, dV, tm] = FMSC_control(mu, TOC, so, eye(3), S(1,1:12), 1e-5, constraint, 'Best');
 
 Sc = [S(1:index(2),1:12); Sc(:,1:12)];  %Complete trajectory
 ScCAM = Sc(:,1:3)+Sc(:,7:9);            %Chaser CAM trajectory
