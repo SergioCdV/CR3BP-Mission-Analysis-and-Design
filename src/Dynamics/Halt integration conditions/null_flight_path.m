@@ -10,11 +10,10 @@
 
 function [Pos, isterminal, dir] = null_flight_path(~, x, R)
     %Constants 
-    x = x(1:6)-[R; zeros(3,1)];                               %Relative state vector to the primary of interest
-    v = cross(x(1:3), x(4:6));                           %Velocity vector 
+    x = x(1:6)-[R; zeros(3,1)];                                      %Relative state vector to the primary of interest
     
     %Event definition
-    Pos = acos(norm(v)/(norm(x(1:3))*norm(x(4:6))));     %Flight path angle        
+    Pos = asin(-dot(x(1:3),x(4:6)))/(norm(x(1:3))*norm(x(4:6)));     %Flight path angle        
     isterminal = 1; 
-    dir = 0;                                             %Direction of the crossing
+    dir = 0;                                                         %Direction of the crossing
 end

@@ -37,10 +37,10 @@ end
 %Compute a HOI transfer using the stable manifold, as detailed in Barden, 1994
 function [xf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIter, tol, varargin)
     %Constants 
-    m = 6;          %Phase space dimension
+    m = 6;                                      %Phase space dimension
     
     %Parking orbit definition 
-    Primary = parking_orbit.Primary;        %Primary associated to the parking orbit   
+    Primary = parking_orbit.Primary;            %Primary associated to the parking orbit   
     switch (Primary)
         case 'First'
             R = [-mu; 0; 0];                    %Primary location in the configuration space
@@ -56,8 +56,8 @@ function [xf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIter, to
             error('No valid primary was selected');
     end
     
-    hd = parking_orbit.Altitude;            %Parking orbit altitude
-    thetad = parking_orbit.Theta;           %True anomaly at the TTI
+    hd = parking_orbit.Altitude;                %Parking orbit altitude
+    thetad = parking_orbit.Theta;               %True anomaly at the TTI
     
     %Integrate the stable manifold backwards and check it intersects the whereabouts of the parking orbit
     manifold = 'S';                                                                 %Integrate the stable manifold
@@ -95,12 +95,14 @@ function [xf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIter, to
     end
     
     %Integration tolerances                  
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)null_flight_path(t,s,R));
-        
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)null_flight_path(t,s,R));     %New stopping event
+    [~, Sn] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, Sn(1,:), options);                %Natural trajectory
+    St = Sn;         
+    
     %Continuation loop
     while (h_index <= length(range))
         %Preallocation of the maneuver 
-        dV = zeros(2,maxIter); 
+        dV = zeros(3,maxIter); 
         
         %Selection of the desired values 
         hd = range(h_index);
@@ -108,43 +110,44 @@ function [xf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIter, to
         %Main correction process
         while ((GoOn) && (iter < maxIter))
             %Compute the error
-            h = norm(St(end,1:3)-R);                                        %Final altitude
-            theta = atan2(St(end,2), St(end,1)-R(1));                       %Final 3D true anomaly
+            Sr = St(end,1:6).'-[R; zeros(3,1)];                             %Relative state vector to the primary of interest
+            h = norm(Sr(1:3));                                              %Final altitude
+            theta = atan2(Sr(2), Sr(1));                                    %Final 3D true anomaly
             e = [h-hd; theta-thetad];                                       %Error vector
             
             %Dynamics at the end point of the trajectory
             STM = reshape(St(end,m+1:end),[m m]);                           %State transition matrix
             F = cr3bp_equations(mu, 1, false, 0, St(end,1:6).');            %Dynamics vector field
             
-            %Compute the cosine of the flight path angle
-            Sr = St(end,1:6).'-[R; zeros(3,1)];                             %Relative state vector to the primary of interest
-            v = cross(Sr(1:3),Sr(4:6));                                     %Velocity vector 
-            fcosine = norm(v)/(norm(Sr(1:3))*norm(Sr(4:6)));                %Cosine of the flight path angle
+            %Compute the sine of the flight path angle
+            fsine = -dot(Sr(1:3),Sr(4:6))/(norm(Sr(1:3))*norm(Sr(4:6)));    %Sine of the flight path angle
+            gamma = asin(fsine);                                            %Flight path angle
             
             %Compute the sensibility matrix
-            dvH = (Sr(1:2)).'/norm(Sr(1:2))*STM(1:2,4:5);                   %Derivative of the altitude with respect to the initial velocity
-            dvTheta = ([-Sr(2) Sr(1)]/norm(Sr(1:2))^2)*STM(1:2,4:5);        %Derivative of the 3D true anomaly with respect to the initial velocity
-            dtH = Sr(1:2).'/norm(Sr(1:2))*F(1:2);                           %Derivative of the altitude with respect to the end time
-            dtTheta = ([-Sr(2) Sr(1)]/norm(Sr(1:2))^2)*F(1:2);              %Derivative of the 3D true anomaly with respect to the end time
+            dvH = (Sr(1:3)).'/norm(Sr(1:3))*STM(1:3,4:6);                   %Derivative of the altitude with respect to the initial velocity
+            dvTheta = ([-Sr(2) Sr(1) 0]/norm(Sr(1:2))^2)*STM(1:3,4:6);      %Derivative of the 3D true anomaly with respect to the initial velocity
+            dtH = Sr(1:3).'/norm(Sr(1:3))*F(1:3);                           %Derivative of the altitude with respect to the end time
+            dtTheta = ([-Sr(2) Sr(1) 0]/norm(Sr(1:3))^2)*F(1:3);            %Derivative of the 3D true anomaly with respect to the end time
             
             %Derivatives of the flight path angle
-            S1 = [0 -Sr(6) Sr(5); Sr(6) 0 -Sr(4); -Sr(5) Sr(4) 0];
-            S2 = [0 -Sr(3) Sr(2); Sr(3) 0 -Sr(1); -Sr(2) Sr(1) 0];
-            dsGamma(1:3) = ((norm(Sr(1:3))*v.'/norm(v)*S1-norm(Sr)*Sr(1:3).'/norm(Sr(1:3)))/norm(Sr(1:3))^2)/norm(St(end,4:6));
-            dsGamma(4:6) = ((norm(Sr(4:6))*v.'/norm(v)*S2-norm(Sr)*Sr(4:6).'/norm(Sr(4:6)))/norm(Sr(4:6))^2)/norm(St(end,1:3));
-            dtGamma = -(1/sqrt(1-fcosine^2))*dsGamma*F;                     %Derivative of the flight path angle with respect to the end time
-            dvGamma = -(1/sqrt(1-fcosine^2))*dsGamma*STM(:,4:5);            %Derivative of the flight path angle with respect to the initial velocity           
+            dsGamma = (-1/sqrt(1-gamma^2))*(1/(norm(Sr(1:3))*norm(Sr(4:6))))* ...
+                      [(Sr(4:6)+dot(Sr(1:3),Sr(4:6))*Sr(1:3)).'/norm(Sr(1:3)) ...
+                       (Sr(1:3)+dot(Sr(1:3),Sr(4:6))*Sr(4:6)).'/norm(Sr(4:6))];  
+            dtGamma = dsGamma*F(1:6);                                               %Derivative with respect to time
+            dsGamma = dsGamma*STM(:,4:6);                                           %Derivative with respect to the velocity
             
-            Sigma = [dvH; dvTheta]-[dtH; dtTheta]*dvGamma(1:2)/dtGamma;
+            %Sensibility matrix
+            Sigma = [dvH; dvTheta]-[dtH; dtTheta]*dsGamma/dtGamma;
             
             %Compute the initial conditions
-            dV(:,iter) = Sigma\e;                       %Computed maneuver
-            s0(4:5) = s0(4:5)-dV(:,iter);               %New initial conditions
+            dV(:,iter) = -pinv(Sigma)*e;                %Computed maneuver
+            s0(4:6) = s0(4:6)+dV(:,iter);               %New initial conditions
             
             %Re-integrate the trajectory 
             [~, St] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);
             
             %Convergence analysis 
+            norm(e)
             if (norm(e) < tol)
                 GoOn = false;
             else
