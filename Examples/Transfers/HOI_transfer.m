@@ -70,5 +70,6 @@ hold on
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3));
 plot3(transfer_orbit.Trajectory(:,1), transfer_orbit.Trajectory(:,2), transfer_orbit.Trajectory(:,3));
 hold off
+grid on;
 title('Halo Orbit Insertion transfer orbit')
 legend('Halo target orbit', 'Parking orbit')
