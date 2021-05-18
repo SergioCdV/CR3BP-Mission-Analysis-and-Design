@@ -25,14 +25,14 @@ Az = 50e6;                                                  %Orbit amplitude out
 Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 param = [Ax Az 0 0 Ln gamma m];                             %Lyapunov orbit parameters
 lyapunov_seed = object_seed(mu, param, 'Lyapunov');         %Lyapunov seed     
 
 %Time integration
-Tf = 20*pi;                                                 %Final time
+Tf = 2*pi;                                                 %Final time
 dt = 1e-3;                                                  %Time step of 1 second
 tspan = 0:dt:Tf;                                            %Integration time span
 
@@ -45,9 +45,9 @@ tol = 1e-5;                                                 %Tolerance
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
 %Manifold computation
-rho = 1;                    %Number of manifold fibers to compute
-manifold_ID = 'S';           %Unstable manifold (U or S)
-manifold_branch = 'L';       %Left branch of the manifold (L or R)
+rho = 10;                    %Number of manifold fibers to compute
+manifold_ID = 'U';           %Unstable manifold (U or S)
+manifold_branch = 'R';       %Left branch of the manifold (L or R)
 
 Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
 

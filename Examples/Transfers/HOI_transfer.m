@@ -38,7 +38,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -49,19 +49,18 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %% Generation of the transfer trajectory
 %Definition of the parking orbit 
-parking_orbit.Primary = 'First';                                                %Parking orbit primary
-parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 36000e3, 'Position', 0);    %Parking orbit altitude
-parking_orbit.Theta = -pi/2;                                                    %Parking orbit true anomaly at TTI
+parking_orbit.Primary = 'Secondary';                                                %Parking orbit primary
+parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 200e3, 'Position', 0);    %Parking orbit altitude
 
 %Redefinition with addtional parameters of the target orbit 
 target_orbit.tspan = tspan;                                                     %Original integration time
 
 %Transfer orbit
-[transfer_orbit, ~] = transfer_correction('HOI transfer', mu, parking_orbit, target_orbit, maxIter, tol);
+[transfer_orbit, dV, state] = transfer_correction('HOI transfer', mu, parking_orbit, target_orbit, maxIter, tol);
 
 %% Plot results 
 figure(1) 
@@ -72,4 +71,4 @@ plot3(transfer_orbit.Trajectory(:,1), transfer_orbit.Trajectory(:,2), transfer_o
 hold off
 grid on;
 title('Halo Orbit Insertion transfer orbit')
-legend('Halo target orbit', 'Parking orbit')
+legend('Halo target orbit', 'Transfer orbit')

@@ -21,7 +21,8 @@
 
 % Methods: 
 
-% New versions: 
+% New versions: select how many passes are allowed before stopping the
+%               integration (the p-the Poincare image)
 
 function [xf, dVf, state] = transfer_correction(algorithm, mu, parking_orbit, target_orbit, maxIter, tol, varargin)            
     %Implement the selected scheme 
@@ -57,13 +58,12 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     end
     
     hd = parking_orbit.Altitude;                %Parking orbit altitude
-    thetad = parking_orbit.Theta;               %True anomaly at the TTI
     
     %Integrate the stable manifold backwards and check it intersects the whereabouts of the parking orbit
     manifold = 'S';                                                                 %Integrate the stable manifold
     seed = target_orbit.Trajectory;                                                 %Periodic orbit seed
     tspan = target_orbit.tspan;                                                     %Original integration time
-    rho = 100;                                                                      %Density of fibres to analyze
+    rho = 10;                                                                      %Density of fibres to analyze
     S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);            %Initial trajectories
     
     %Relative distance to the primary of interest
@@ -82,21 +82,22 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     tspan = TOF:-dt:0;                                                                  %Integration time
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', event);             %Integration tolerances  
     [~, Sn] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);     %Natural trajectory
+    St = Sn;
         
     %Single shooting differential corrector setup 
     GoOn = true;                                                          %Convergence boolean 
     iter = 1;                                                             %Initial iteration
     h_index = 1;                                                          %Altitude range index
     
+    %Altitude range to continuate the solution on
     if (min(distance) < hd)
-        range = linspace(1.05*min(distance), hd, 20);                     %Altitude range to continuate the solution on
+        range = linspace(1.05*min(distance), hd, fix(sqrt(min(distance)/hd))+1);                     
     else
-        range = linspace(0.95*min(distance), hd, 20);                     %Altitude range to continuate the solution on
+        range = linspace(0.95*min(distance), hd, fix(sqrt(min(distance)/hd))+1);                    
     end
     
     %Integration tolerances                  
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)null_flight_path(t, s, R));    %New stopping event
-    St = Sn;
     
     %Continuation loop
     while (h_index <= length(range))
@@ -111,10 +112,9 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
             %Compute the error
             Sr = St(end,1:6).'-[R; zeros(3,1)];                             %Relative state vector to the primary of interest
             h = norm(Sr(1:3));                                              %Final altitude
-            theta = atan2(Sr(2), Sr(1));                                    %Final 3D true anomaly
                         
             %Error vector
-            e = [h-hd];                              
+            e = h-hd;                              
             
             %Dynamics at the end point of the trajectory
             STM = reshape(St(end,m+1:end),[m m]);                           %State transition matrix
@@ -122,9 +122,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
             
             %Compute the sensibility matrix
             dvH = (Sr(1:3)).'/norm(Sr(1:3))*STM(1:3,4:6);                   %Derivative of the altitude with respect to the initial velocity
-            dvTheta = ([-Sr(2) Sr(1) 0]/norm(Sr(1:2))^2)*STM(1:3,4:6);      %Derivative of the 3D true anomaly with respect to the initial velocity
             dtH = Sr(1:3).'/norm(Sr(1:3))*F(1:3);                           %Derivative of the altitude with respect to the end time
-            dtTheta = ([-Sr(2) Sr(1) 0]/norm(Sr(1:3))^2)*F(1:3);            %Derivative of the 3D true anomaly with respect to the end time
             
             %Derivatives of the flight path angle
             dsGamma = [-Sr(4:6).' -Sr(1:3).'];                              %Derivative with respect to the state
@@ -132,11 +130,11 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
             dsGamma = dsGamma*STM(:,4:6);                                   %Derivative with respect to the velocity
             
             %Sensibility matrix
-            Sigma = [dvH]-[dtH]*dsGamma/dtGamma;
+            Sigma = dvH-(dtH/dtGamma)*dsGamma;
             
             %Compute the initial conditions
-            dV(:,iter) = -pinv(Sigma)*e;                %Computed maneuver
-            s0(4:6) = s0(4:6)+dV(1:3,iter);             %New initial conditions
+            dV(:,iter) = -pinv(Sigma)*e;              %Computed the required min norm maneuver
+            s0(4:6) = s0(4:6)+dV(1:3,iter);           %New initial conditions
             
             %Re-integrate the trajectory 
             [~, St] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);
@@ -160,7 +158,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     end
     
     %Compute the needed maneuver 
-    dVf = Sn(end,4:6).'-s0(4:6);                    %Total in-plane velocity change
+    dVf = Sn(1,4:6).'-s0(4:6);                      %Total in-plane velocity change
     
     %Final output 
     xf.Trajectory = St;                             %Final trajectory
