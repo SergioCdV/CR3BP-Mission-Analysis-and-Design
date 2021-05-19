@@ -78,50 +78,25 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% MPC guidance scheme
+%% Optimal control guidance scheme
 %Set up of the optimization
-method = 'NPL';
-model = 'Fixed libration';
-
-%Environment characteristics 
-cn = legendre_coefficients(mu, Ln, gamma, 2);   %Legendre coefficients
+method = 'NPL';                                 %Method to solve the problem
+impulses = 3;                                   %Number of impulses
+TOF = tspan(end);                               %Time of flight
+cost_function = 'Position';                     %Target a position rendezvous
 
 %Thruster characteristics 
-Tmax = 0.1;
+Tmin = 0;                                       %Minimum thrust capability (in velocity impulse)
+Tmax = 0.1;                                     %Maximum thrust capability (in velocity impulse)
 
-%Preallocation 
-Sc = zeros(length(tspan),length(s0));           %Preallocate the trajectory
-u = zeros(3,length(tspan));                     %Preallocate the control vector
-e = zeros(1,length(tspan));                     %Preallocate the error vector
-
-Sc(1,:) = s0;                                   %Initial conditions
-
-for i = 1:1
-    %Shrink the horizon 
-    Dt = tspan(i:end); 
-    
-    %Compute the control law 
-    U = MPC_guidance(method, model, mu, Sc(i,:), Dt, cn, Tmax);
-%     u(:,i) = U(:,1); 
-% 
-%     %Re-integrate the trajectory 
-%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke C', t, s, u(:,i)), [0 dt], Sc(i,:), options);
-% 
-%     %Update initial conditions
-%     Sc(i+1,:) = s(end,:);
-%     
-%     %Update the error 
-%     e(i) = norm(s(end,:));
-end
-
-%Shrink the integrated trajectory
-Sc = Sc(1:end-1,:);
+%Main computation 
+[Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses, method);
 
 %% Results %% 
 %Plot results 
@@ -179,13 +154,102 @@ hold off
 end
 
 %% Auxiliary functions
-%MPC optimization function
-function [commands] = MPC_guidance(method, model, mu, s0, tspan, cn, Tmax)
+%Optimization function 
+function [Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses, method)
     %Constants 
-    finalHorizonIndex = length(tspan);
+    m = 6;                                  %Phase space dimension
     
+    %Sanity check on the dimension 
+    if (size(s0,1) ~= 2*m)
+        s0 = s0.';                          %Initial conditions
+    end
+    
+    %Differential corrector setup
+    tol = 1e-10;                            %Differential corrector setup 
+    maxIter = 20;                           %Maximum number of iterations
+    iter = 1;                               %Initial iteration
+    GoOn = true;                            %Convergence boolean
+    
+    %Integration setup 
+    RelTol = 2.25e-14; 
+    AbsTol = 1e-22; 
+    options = odeset('RelTol', RelTol, 'AbsTol', AbsTol);
+    
+    %Initial integration    
+    Phi = eye(m);                           %Initial STM
+    Phi = reshape(Phi, [m^2 1]);            %Reshape the initial STM
+    s0 = [s0; Phi];                         %Complete initial conditions
+    dt = 1e-3;                              %Time step
+    tspan = 0:dt:TOF;                       %Integration time span
+    
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    St = Sn; 
+    
+    %Preallocation 
+    dV = zeros(maxIter,3,length(tspan));    %Velocity impulses preallocation all along the TOF orbit arc
+    
+    %Main computation 
+    while ((GoOn) && (iter < maxIter))
+        %Compute the commands 
+        [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, length(tspan), St, impulses, method); 
+        
+        time_indexes = sort(time_indexes);      %Sort the firings times 
+        
+        k = 1;                                  %Target initial maneuver
+        for i = 1:length(tspan)
+            if ((i == time_indexes(k)) && (k <= impulses))
+                dV(iter,:,i) = commands(:,i);   %Save the firing at each particular moment
+                k = k+1;                        %Target the new firing
+            end
+        end
+        
+        %Recompute the trajectory 
+        k = 1;                                  %Target initial maneuver
+        for i = 1:length(tspan)-1
+            if ((i == time_indexes(k)) && (k <= impulses))
+                St(i,10:12) = St(i,10:12) + commands(:,k);    %Add the maneuver
+                k = k+1;                                      %Target the new maneuver
+            end
+            
+            %New integration
+            [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], St(i,:), options);
+            
+            %Next initial conditions
+            St(i+1,:) = Saux(end,:);
+        end
+        
+        %Compute the rendezvous error
+        switch (cost_function)
+            case 'Position'
+                e = St(end,7:9).';      
+            case 'Velocity'
+                e = St(end,10:12).'; 
+            case 'State'
+                e = St(end,7:12).'; 
+            otherwise
+                error('No valid cost function was chosen');
+        end
+        
+        %Convergence analysis
+        if (norm(e) < tol)
+            GoOn = false;
+        else
+            iter = iter+1;
+        end
+    end
+    
+    %Output 
+    dV = sum(dV,1);                 %Control law at each discrete point over time
+    Sg = St;                        %Optimal control trajectory
+    state.State = ~GoOn;            %Convergence state
+    state.Error = norm(e);          %Final error 
+    state.Iterations = iter;        %Final number of iterations
+end
+
+%Core optimization function
+function [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, TOF, trajectory, impulses, method)    
     %Cost function 
-    cosfunc = @(u)(dot(dot(u,u,1),dot(u,u,1)));
+    costfunc = @(u)(sum(dot(u,u,2)));        %Minimize the control law expense
     
     %Linear constraints 
     A = []; 
@@ -193,46 +257,76 @@ function [commands] = MPC_guidance(method, model, mu, s0, tspan, cn, Tmax)
     Aeq = []; 
     beq = [];
     
+    %Upper and lower bounds
+    lb = [zeros(1,impulses) Tmin*ones(1,3*impulses)];         %Lower bound
+    ub = [TOF*ones(1,impulses) Tmax*ones(1,3*impulses)];      %Upper bound
+    
     switch (method)
         case 'Genetic algorithm'
-            dof = length(tspan);
+            %General set up
+            dof = impulses*(3+1);   %Three-dimensional control vector for each instant
             PopSize = 100;          %Population size for each generation
             MaxGenerations = 10;    %Maximum number of generations for the evolutionary algorithm
-            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations, 'ConstraintTolerance', 1e-1, 'PlotFcn', @gaplotbestf);
-            lb = zeros(3*finalHorizonIndex,1);
-            ub = Tmax*ones(3*finalHorizonIndex,1);
-            commands = ga(@(u)cosfunc(u), dof, A, b, Aeq, beq, lb, ub, @(u)nonlcon(model, mu, s0, tspan, cn, u), options);
+            
+            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations, ...
+                                   'ConstraintTolerance', 1e-1, 'PlotFcn', @gaplotbestf);
+                            
+            %Compute the commands
+            solution = ga(@(u)costfunc(u), dof, A, b, Aeq, beq, lb, ub, ...
+                          @(u)nonlcon(cost_function, impulses, trajectory, u), options);
+            
+            time_indexes = solution(1,impulses);                            %Times at which the firings are perfomed
+            commands = reshape(solution(1,impulses+1), 3, impulses);        %Control law
+            
         case 'NPL'
-            lb = zeros(3,finalHorizonIndex);
-            ub = Tmax*ones(3,finalHorizonIndex);
-            u0 = Tmax*ones(3,length(tspan));
-            commands = fmincon(@(u)cosfunc(u), u0, A, b, Aeq, beq, lb, ub, @(u)nonlcon(model, mu, s0, tspan, cn, u));
+            %Initial guess
+            sol0 = [zeros(1,impulses) Tmax*ones(1,3*impulses)];        
+            
+            %Compute the commands
+            solution = fmincon(@(u)costfunc(u), sol0, A, b, Aeq, beq, lb, ub, ...
+                               @(u)nonlcon(cost_function, impulses, trajectory, u));
+            
+            time_indexes = solution(1,impulses);                            %Times at which the firings are perfomed
+            commands = reshape(solution(1,impulses+1), 3, impulses);        %Control law
+            
         otherwise 
             error('No valid method was chosen');
     end
 end
 
 %Nonlinear constraints
-function [c, ceq] = nonlcon(model, mu, s0, tspan, cn, u)
-    %Approximation 
-    n = 6;                              %Dimension of the state vector
+function [c, ceq] = nonlcon(cost_function, impulses, trajectory, x)
+    %Constants 
+    m = 6;                  %Phase space dimension
+    tol = 1e-5;             %Rendezvous tolerance
+    tol = tol*ones(m,1);    %State tolerance
     
-    %Set up 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+    %Natural STM map
+    Monodromy = reshape(trajectory(end,2*m+1:end), [m m]);          %Final STM
+    error = trajectory(end,1:m).';                                  %Final state, also the error to rendezvous
     
-    %Preallocation 
-    S = zeros(length(tspan), 2*n);      %Preallocation of the trajectory
-    S(1,:) = s0;
-    
-    %Integration of the trajectory 
-    dt = tspan(2)-tspan(1); 
-    for i = 1:length(tspan)
-        S(i,10:12) = S(i,10:12)+u(:,i).';
-        [~,s] = ode113(@(t,s)lr_model(mu, cn, 1, false, model, t, s, false), [0 dt], S(i,:), options);
-        S(i+1,:) = s(end,:);
+    %Generate the inequality function
+    control = zeros(m,1);                                           %Total control effort
+    for i = 1:impulses
+        index = x(i);                                               %Time index to perform the firings
+        u = reshape(x(1,impulses+index:impulses+index+3),3,1);      %Control law
+        STM = reshape(trajectory(index,2*m+1:end), [m m]);          %STM from the initial time to the time ti
+        STM = Monodromy*STM^(-1);                                   %Relative STM from time ti to TOF
+        control = control + STM(:,4:6)*u;                           %Accumulated control effort                       
     end
     
     %Nonlinear constraints
-    c = [];                         %Empty nonlinear inequalities
-    ceq = S(end,n+1:2*n);           %Rendezvous conditions
+    c = control+error-tol;                  %Target the complete rendezvous
+    switch (cost_function)
+        case 'Position'
+            c = c(1:3);                     %Target a position rendezvous
+        case 'Velocity'
+            c = c(4:6);                     %Target a velocity rendezvous
+        case 'State'
+
+        otherwise 
+            error('No valid cost function was chosen');
+    end
+    
+    ceq = [];                               %Empty equality constraint
 end
