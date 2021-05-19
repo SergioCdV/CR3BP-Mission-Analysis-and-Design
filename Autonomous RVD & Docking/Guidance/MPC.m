@@ -23,12 +23,9 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 2*pi;                          %Rendezvous time
+tf = 0.6;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -86,19 +83,42 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% Optimal control guidance scheme
 %Set up of the optimization
-method = 'NPL';                                 %Method to solve the problem
-impulses = 3;                                   %Number of impulses
-TOF = tspan(end);                               %Time of flight
-cost_function = 'Position';                     %Target a position rendezvous
+method = 'Genetic algorithm';                 %Method to solve the problem
+impulses = 5;                                 %Number of impulses
+TOF = tspan(end);                             %Time of flight
+cost_function = 'State';                   %Target a position rendezvous
 
 %Thruster characteristics 
-Tmin = 0;                                       %Minimum thrust capability (in velocity impulse)
-Tmax = 0.1;                                     %Maximum thrust capability (in velocity impulse)
+Tmin = -0.1;                                  %Minimum thrust capability (in velocity impulse)
+Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
-[Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses, method);
+[St, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses, method);
+
+dVl1(1:3,1) = sum(dV,2);                      %L1 norm of the impulses 
+dVl2(1) = sum(sqrt(dot(dV,dV,2)));            %L2 norm of the impulses 
+
+%Error in time 
+e = zeros(1,size(St,1));                      %Preallocation of the error
+for i = 1:size(St,1)
+    e(i) = norm(St(i,7:12));
+end
+e(1) = norm(Sn(1,7:12));                      %Initial error before the burn
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
 
 %% Results %% 
+disp('SIMULATION RESULTS: ')
+if (state.State)
+    disp('   Multi impulsive rendezvous was achieved');
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
+    fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
+else
+    disp('    Multi impulsive rendezvous was not achieved');
+end
+
 %Plot results 
 figure(1) 
 view(3) 
@@ -116,41 +136,66 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(Sc(:,7), Sc(:,8), Sc(:,9)); 
+plot3(St(:,7), St(:,8), St(:,9)); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
-%Configuration space error 
+%Configuration space evolution
 figure(3)
-plot(tspan, e); 
+subplot(1,2,1)
+hold on
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
+hold off
 xlabel('Nondimensional epoch');
-ylabel('Absolute error');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error  (log)');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
 
 %Rendezvous animation 
 if (false)
-    figure(4) 
+    figure(5) 
     view(3) 
     grid on;
     hold on
-    plot3(Sc(1:index,1), Sc(1:index,2), Sc(1:index,3), 'k-.'); 
+    plot3(St(:,1), St(:,2), St(:,3), 'k-.'); 
     xlabel('Synodic x coordinate');
     ylabel('Synodic y coordinate');
     zlabel('Synodic z coordinate');
     title('Rendezvous simulation');
-    for i = 1:size(Sc,1)
-        T = scatter3(Sc(i,1), Sc(i,2), Sc(i,3), 30, 'b'); 
-        V = scatter3(Sc(i,1)+Sc(i,7), Sc(i,2)+Sc(i,8), Sc(i,3)+Sc(i,9), 30, 'r');
+    for i = 1:size(St,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
+        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
 
         drawnow;
         delete(T); 
         delete(V);
     end
-hold off
+    hold off
 end
 
 %% Auxiliary functions
@@ -165,8 +210,8 @@ function [Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses
     end
     
     %Differential corrector setup
-    tol = 1e-10;                            %Differential corrector setup 
-    maxIter = 20;                           %Maximum number of iterations
+    tol = 1e-8;                             %Differential corrector setup 
+    maxIter = 50;                           %Maximum number of iterations
     iter = 1;                               %Initial iteration
     GoOn = true;                            %Convergence boolean
     
@@ -191,25 +236,23 @@ function [Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses
     %Main computation 
     while ((GoOn) && (iter < maxIter))
         %Compute the commands 
-        [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, length(tspan), St, impulses, method); 
+        [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, tspan(end), dt, St, impulses, method); 
+        time_indexes = sort(fix(time_indexes/dt)+1);        %Sort the firings times 
         
-        time_indexes = sort(time_indexes);      %Sort the firings times 
-        
-        k = 1;                                  %Target initial maneuver
+        k = 1;                                              %Target initial maneuver
         for i = 1:length(tspan)
-            if ((i == time_indexes(k)) && (k <= impulses))
-                dV(iter,:,i) = commands(:,i);   %Save the firing at each particular moment
-                k = k+1;                        %Target the new firing
+            if (k <= impulses)
+                if (i == time_indexes(k))
+                    dV(iter,:,i) = commands(:,k);           %Save the firing at each particular moment
+                    k = k+1;                                %Target the new firing
+                end
             end
         end
         
         %Recompute the trajectory 
-        k = 1;                                  %Target initial maneuver
         for i = 1:length(tspan)-1
-            if ((i == time_indexes(k)) && (k <= impulses))
-                St(i,10:12) = St(i,10:12) + commands(:,k);    %Add the maneuver
-                k = k+1;                                      %Target the new maneuver
-            end
+            %Add the maneuver
+            St(i,10:12) = St(i,10:12) + shiftdim(dV(iter,:,i)).';  
             
             %New integration
             [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], St(i,:), options);
@@ -231,6 +274,7 @@ function [Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses
         end
         
         %Convergence analysis
+        norm(e)
         if (norm(e) < tol)
             GoOn = false;
         else
@@ -239,18 +283,15 @@ function [Sg, dV, state] = OPTI(mu, cost_function, Tmin, Tmax, TOF, s0, impulses
     end
     
     %Output 
-    dV = sum(dV,1);                 %Control law at each discrete point over time
+    dV = shiftdim(sum(dV,1));       %Control law at each discrete point over time
     Sg = St;                        %Optimal control trajectory
     state.State = ~GoOn;            %Convergence state
     state.Error = norm(e);          %Final error 
     state.Iterations = iter;        %Final number of iterations
 end
 
-%Core optimization function
-function [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, TOF, trajectory, impulses, method)    
-    %Cost function 
-    costfunc = @(u)(sum(dot(u,u,2)));        %Minimize the control law expense
-    
+%Core nonlinear optimization function
+function [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, TOF, dt, trajectory, impulses, method)    
     %Linear constraints 
     A = []; 
     b = []; 
@@ -265,37 +306,45 @@ function [commands, time_indexes] = opt_core(cost_function, Tmin, Tmax, TOF, tra
         case 'Genetic algorithm'
             %General set up
             dof = impulses*(3+1);   %Three-dimensional control vector for each instant
-            PopSize = 100;          %Population size for each generation
-            MaxGenerations = 10;    %Maximum number of generations for the evolutionary algorithm
+            PopSize = 100;         %Population size for each generation
+            MaxGenerations = 10;   %Maximum number of generations for the evolutionary algorithm
             
-            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations, ...
-                                   'ConstraintTolerance', 1e-1, 'PlotFcn', @gaplotbestf);
+            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations);
                             
             %Compute the commands
-            solution = ga(@(u)costfunc(u), dof, A, b, Aeq, beq, lb, ub, ...
-                          @(u)nonlcon(cost_function, impulses, trajectory, u), options);
+            solution = ga(@(u)costfunc(impulses,u), dof, A, b, Aeq, beq, lb, ub, ...
+                          @(u)nonlcon(cost_function, impulses, dt, trajectory, u), options);
             
-            time_indexes = solution(1,impulses);                            %Times at which the firings are perfomed
-            commands = reshape(solution(1,impulses+1), 3, impulses);        %Control law
+            time_indexes = solution(1,1:impulses);                            %Times at which the firings are perfomed
+            commands = reshape(solution(1,impulses+1:end), 3, impulses);      %Control law
             
         case 'NPL'
             %Initial guess
             sol0 = [zeros(1,impulses) Tmax*ones(1,3*impulses)];        
             
             %Compute the commands
-            solution = fmincon(@(u)costfunc(u), sol0, A, b, Aeq, beq, lb, ub, ...
-                               @(u)nonlcon(cost_function, impulses, trajectory, u));
+            solution = fmincon(@(u)costfunc(impulses,u), sol0, A, b, Aeq, beq, lb, ub, ...
+                               @(u)nonlcon(cost_function, impulses, dt, trajectory, u));
             
-            time_indexes = solution(1,impulses);                            %Times at which the firings are perfomed
-            commands = reshape(solution(1,impulses+1), 3, impulses);        %Control law
+            time_indexes = solution(1,1:impulses);                            %Times at which the firings are perfomed
+            commands = reshape(solution(1,impulses+1:end), 3, impulses);      %Control law
             
         otherwise 
             error('No valid method was chosen');
     end
 end
 
+%Cost function 
+function [cost] = costfunc(impulses,u)
+    %Reshape the control law 
+    u = reshape(u(1,impulses+1:end), [3 impulses]);
+    
+    %Cost function 
+    cost = sum(sum(abs(u),1));
+end
+
 %Nonlinear constraints
-function [c, ceq] = nonlcon(cost_function, impulses, trajectory, x)
+function [c, ceq] = nonlcon(cost_function, impulses, dt, trajectory, x)
     %Constants 
     m = 6;                  %Phase space dimension
     tol = 1e-5;             %Rendezvous tolerance
@@ -303,13 +352,17 @@ function [c, ceq] = nonlcon(cost_function, impulses, trajectory, x)
     
     %Natural STM map
     Monodromy = reshape(trajectory(end,2*m+1:end), [m m]);          %Final STM
-    error = trajectory(end,1:m).';                                  %Final state, also the error to rendezvous
+    error = trajectory(end,m+1:2*m).';                              %Final state, also the error to rendezvous
+    
+    %Index the impulsive times 
+    times = fix(x(1,1:impulses)/dt)+1;
+    times = sort(times);
     
     %Generate the inequality function
     control = zeros(m,1);                                           %Total control effort
     for i = 1:impulses
-        index = x(i);                                               %Time index to perform the firings
-        u = reshape(x(1,impulses+index:impulses+index+3),3,1);      %Control law
+        index = times(i);                                           %Time index to perform the firings
+        u = reshape(x(1,impulses+1+3*(i-1):impulses+3*i),3,1);      %Control law
         STM = reshape(trajectory(index,2*m+1:end), [m m]);          %STM from the initial time to the time ti
         STM = Monodromy*STM^(-1);                                   %Relative STM from time ti to TOF
         control = control + STM(:,4:6)*u;                           %Accumulated control effort                       
@@ -329,4 +382,65 @@ function [c, ceq] = nonlcon(cost_function, impulses, trajectory, x)
     end
     
     ceq = [];                               %Empty equality constraint
+end
+
+%Core linear optimization function
+function [commands] = lopt_core(cost_function, Tmin, Tmax, trajectory) 
+    %Constants 
+    m = 6;                                                            %Phase space dimension
+    dim = size(trajectory,1);                                         %Number of impulses to make 
+    Monodromy = reshape(trajectory(end,2*m+1:end), [m m]);            %Final STM
+    
+    %Linear equality constraints 
+    beq = trajectory(end,m+1:2*m).';                                  %Error to rendezvous
+    
+    switch (cost_function)
+        case 'Position'
+            Aeq = zeros(m/2, m*dim);                                  %Preallocate the equality linear constraint matrix
+            for i = 1:dim
+                STM = reshape(trajectory(i,2*m+1:end), [m m]);        %STM at each point
+                STM = Monodromy*STM^(-1);                             %Relative STM
+                Aeq(:,1+(m/2)*(i-1):(m/2)*i) = STM(1:3,4:6);          %Final equality linear constraint matrix   
+            end
+            beq = beq(1:3);                                           %Target position
+            
+        case 'Velocity'
+            Aeq = zeros(m/2, m*dim);                                  %Preallocate the equality linear constraint matrix
+            for i = 1:dim
+                STM = reshape(trajectory(i,2*m+1:end), [m m]);        %STM at each point
+                STM = Monodromy*STM^(-1);                             %Relative STM
+                Aeq(:,1+(m/2)*(i-1):(m/2)*i) = STM(4:6,4:6);          %Final equality linear constraint matrix   
+            end
+            beq = beq(4:6);                                           %Target velocity
+            
+        case 'State'
+            Aeq = zeros(m, m*dim);                                    %Preallocate the equality linear constraint matrix
+            for i = 1:dim
+                STM = reshape(trajectory(i,2*m+1:end), [m m]);        %STM at each point
+                STM = Monodromy*STM^(-1);                             %Relative STM
+                Aeq(:,1+(m/2)*(i-1):(m/2)*i) = STM(:,4:6);            %Final equality linear constraint matrix   
+            end
+            
+        otherwise
+            error('No valid cost function was chosen');
+    end
+        
+    %Linear inequality constraints
+    A = [eye(3*dim) zeros(3*dim);  zeros(3*dim), -eye(3*dim)];
+    A(1:3*dim,3*dim+1:end) = -eye(3*dim);
+    A(3*dim+1:end,1:3*dim) = -eye(3*dim);
+    b = zeros(m*dim,1);
+    
+    %Upper and lower bounds
+    lb = [Tmin*ones(3*dim,1); zeros(3*dim,1)];             %Lower bound
+    ub = [Tmax*ones(3*dim,1); abs(Tmax)*ones(3*dim,1)];    %Upper bound
+    
+    %Cost function 
+    f = [zeros(1,3*dim) ones(1,3*dim)];
+    
+    %Solve the problem 
+    sol = linprog(f,A,b,Aeq,beq,lb,ub);
+    
+    %Output 
+    commands = reshape(sol(1:3*dim,1), [3 dim]);
 end
