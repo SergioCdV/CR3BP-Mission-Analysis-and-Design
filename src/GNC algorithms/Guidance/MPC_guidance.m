@@ -1,11 +1,11 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 20/05/21
-% File: MISS_control.m 
+% File: MPC_guidance.m 
 % Issue: 0 
 % Validated: 20/05/21
 
-%% Model predictive control Guidance %%
+%% Model Predictive Control Guidance %%
 % This script contains the function to compute the control law by means of the OPTI controller.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
@@ -27,7 +27,6 @@
 
 % New versions: 
 
-%Optimization function 
 function [Sg, dV, state] = MPC_guidance(mu, cost_function, Tmin, Tmax, TOF, s0, core, method)
     %Constants 
     m = 6;                                  %Phase space dimension

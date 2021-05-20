@@ -25,7 +25,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.1;                           %Rendezvous time
+tf = 0.6;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -68,7 +68,6 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-index = fix(tf/dt);                                                 %Rendezvous point
 r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions

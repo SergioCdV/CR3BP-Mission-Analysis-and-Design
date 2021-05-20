@@ -1,10 +1,9 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 01/04/21 % 
+% 20/05/21 % 
 
-%% GNC 7: MPC guidance-control law %% 
-% This script provides an interface to test MPC control law rendezvous strategies for
-% rendezvous missions.
+%% GNC 13: Chebyshev Trajectory Regression Guidance %% 
+% This script provides an interface to test the Chebyshev regression of a given trajectory.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -23,12 +22,9 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 2*pi;                          %Rendezvous time
+tf = 0.6;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -71,95 +67,29 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-index = fix(tf/dt);                                         %Rendezvous point
-r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
-rho0 = r_c0-r_t0;                                           %Initial relative conditions
-s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
+r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
+r_c0 = target_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
+rho0 = r_c0-r_t0;                                                   %Initial relative conditions
+s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
 
-%% Optimal control problem -equivalent to MPC- 
-%Simulation time bounds
-P.bounds.initialTime.low = 0;
-P.bounds.initialTime.upp = 0;
-P.bounds.finalTime.low = 0;
-P.bounds.finalTime.upp = tf;
+%% Regress the trajectory and its derivatives
+%Set up of the regression 
+order = 10;                                                         %Order of the polynomials
 
-%Boundary conditions bounds
-P.bounds.state.low = -inf*ones(6,1);
-P.bounds.state.upp = inf*ones(6,1);
-P.bounds.initialState.low = rho0.';
-P.bounds.initialState.upp = rho0.';
-P.bounds.finalState.low = zeros(6,1);
-P.bounds.finalState.upp = zeros(6,1);
+%Polynomial basis all along the time span
+T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
+u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
 
-%Control law  bounds
-P.bounds.control.low = [0; 0; 0];
-P.bounds.control.upp = 0.1*ones(3,1);
-
-%Initial guess
-P.guess.time = [0 tf];  
-P.guess.state = [rho0.' [zeros(3,1); rho0(1,4:6).']];
-P.guess.control = [P.bounds.control.low P.bounds.control.low];
-
-%Dynamics function
-P.func.dynamics = @(t,x,u)(opt_model(mu, dt, Sn(:,1:6), t, x, u));   
-
-%Boundary constraint
-P.func.bndCst = @(t0,x0,tF,xF)(pathConstraint(xF));
-
-%Objective function
-P.func.pathObj = @(t,x,u)(sum(sqrt(dot(u,u,2))));
-
-%Select transcription method
-method = 'trapezoid';
-switch (method)
-    case 'trapezoid'
-        P.options(1).method = 'trapezoid';
-        P.options(1).defaultAccuracy = 'low';
-        P.options(1).nlpOpt.MaxFunEvals = 2e5;
-        P.options(1).nlpOpt.MaxIter = 1e5;
-        P.options(2).method = 'trapezoid';
-        P.options(2).defaultAccuracy = 'medium';
-        P.options(2).nlpOpt.MaxFunEvals = 2e4;
-        P.options(2).nlpOpt.MaxIter = 1e5;
-        
-    case 'rungeKutta'
-        P.options(1).method = 'rungeKutta';
-        P.options(1).defaultAccuracy = 'low';
-        P.options(1).rungeKutta.nSegment = 20;
-        P.options(2).method = 'rungeKutta';
-        P.options(2).defaultAccuracy = 'high';
-        
-    case 'chebyshev'
-        P.options(1).method = 'chebyshev';
-        P.options(1).defaultAccuracy = 'low';
-        P.options(1).chebyshev.nColPts = 10;
-        P.options(2).method = 'chebyshev';
-        P.options(2).defaultAccuracy = 'low';
-        P.options(2).chebyshev.nColPts = 15;
-    otherwise 
-        error('No valid transcription method was selected');
+for i = 1:length(tspan)
+    T(:,i) = chebyshev('first', order, u(i));
 end
 
-%Solve the problem
-soln = optimTraj(P);
-
-%Solution interpolation
-t = linspace(soln(end).grid.time(1),soln(end).grid.time(end),250);
-x = soln(end).interp.state(t);
-u = soln(end).interp.control(t);
-
-plot3(x(1,:), x(2,:), x(3,:));
-
-%% Auxiliary functions 
-function [c, ceq] = pathConstraint(xF)
-    c = []; 
-    ceq = xF(1:3);
-end
+%Regression of the position, velocity and acceleration fields
+[Cp, Cv, Cg] = CTG_guidance(Sn);
