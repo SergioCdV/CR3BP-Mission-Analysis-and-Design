@@ -5,7 +5,7 @@
 % Issue: 0 
 % Validated: 
 
-%% Derivative of a Chebysev approximation %%
+%% Derivative of a Chebyshev approximation %%
 % This function allows the derivative of a function approximated by means of Chebyshev polynomials.
 
 % Inputs: - array C, the coefficients of the Chebyshev coefficients of the

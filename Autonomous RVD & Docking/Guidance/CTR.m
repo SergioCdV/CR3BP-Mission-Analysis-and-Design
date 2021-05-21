@@ -73,7 +73,7 @@ rho0 = r_c0-r_t0;                                                   %Initial rel
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -92,4 +92,23 @@ for i = 1:length(tspan)
 end
 
 %Regression of the position, velocity and acceleration fields
-[Cp, Cv, Cg] = CTG_guidance(Sn);
+[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn(:,7:12));
+
+%Error in the regression
+p = Cp*T;                   %Position regression
+v = Cv*T;                   %Velocity regression
+Sr = [p.' v.'];             %Regress phase space state trajectory
+e = zeros(size(Sr,1),1);    %Preallocation of the error vector
+
+for i = 1:size(Sr,1)
+    e(i) = norm(Sn(i,7:12)-Sr(i,:));      %Error
+end
+
+%% Results 
+%Plot the approximation error 
+figure(1)
+plot(tspan, log(e))
+grid on
+xlabel('Integration time'); 
+ylabel('Approximation error (log)'); 
+title('Error in the Chebyshev approximation');

@@ -8,24 +8,40 @@
 %% Chebyshev Trajectory Regression Guidance %%
 % This script contains the function to compute the control law by means of the CTRG guidance core.
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
-%           system
-%         - string cost_function, for both position, velocity and complete
-%           rendezvous: 'Position', 'Velocity', 'State
-%         - scalar Tmin, minimum available thrust
-%         - scalar Tmax, maximum available thrust
-%         - scalar TOF, the time of flight for the rendezvous condition
-%         - vector s0, initial conditions of both the target and the
-%           relative particle
-%         - string core, selecting the solver (linear or nonlinear) to be
-%           used
-%         - string method, selecting the nonlinear solver to use
+% Inputs: - scalar order, the order of the regression
+%         - vector tspan, the time evolution along which the trajectory is
+%           to be regressed
+%         - array S, the relative state space trajectory (position and velocity) to
+%           regress
 
-% Output: - array Sc, the rendezvous relative trajectory
-%         - array dV, containing  column-wise the required number of impulses
-%         - structure state, with some metrics about the scheme performance
+% Output: - vector Cp, the position evolution trajectory
+%         - vector Cv, the velocity evolution trajectory
+%         - vector Cg, the acceleration evolution trajectory
 
 % New versions: 
 
-function [Cp, Cv, Cg] = CTR_guidance()
+function [Cp, Cv, Cg] = CTR_guidance(order, tspan, S)
+    %Constants 
+    m = 6;          %Relative phase space dimension
+        
+    %Divide the trajectory
+    p = S(:,1:3).';                     %Position evolution
+    v = S(:,4:6).';                     %Velocity evolution
+    
+    %Preallocation of the coefficients 
+    Cp = zeros(m/2, order);             %Position regression coefficients
+    Cv = zeros(m/2, order);             %Velocity regression coefficients
+    
+    %Regress the position 
+    for i = 1:size(p,1)
+        Cp(i,:) = chebyshev_coefficients(tspan, p(i,:), order);
+    end
+    
+    %Regress the velocity
+    for i = 1:size(v,1)
+        Cv(i,:) = chebyshev_coefficients(tspan, v(i,:), order);
+    end
+    
+    %Regress the acceleration 
+    Cg = fcheb_derivative(Cv, tspan(end), tspan(1));
 end

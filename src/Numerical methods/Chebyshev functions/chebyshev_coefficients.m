@@ -5,7 +5,7 @@
 % Issue: 0 
 % Validated: 
 
-%% Chebysev polynomials approximation %%
+%% Chebyshev polynomials approximation %%
 % This function allows to compute the coefficients of a Chebyshev expansion
 % to approximate a given one-dimensional function. 
 
