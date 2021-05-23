@@ -25,7 +25,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 3e-3;                           %Rendezvous time
+tf = 0.6;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -92,17 +92,21 @@ Tmin = -0.1;                                  %Minimum thrust capability (in vel
 Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
-[St, dV, state] = MPC_guidance(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+[St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 
-dVl1(1:3,1) = sum(dV,2);                      %L1 norm of the impulses 
-dVl2(1) = sum(sqrt(dot(dV,dV,2)));            %L2 norm of the impulses 
+%Control integrals
+energy = zeros(3,2);                                       %Energy vector preallocation
+for i = 1:size(dV,1)
+    energy(i,1) = trapz(tspan, dV(i,:).^2);                %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(dV(i,:)),1));       %L1 integral of the control
+end
 
 %Error in time 
-e = zeros(1,size(St,1));                      %Preallocation of the error
+e = zeros(1,size(St,1));            %Preallocation of the error
 for i = 1:size(St,1)
     e(i) = norm(St(i,7:12));
 end
-e(1) = norm(Sn(1,7:12));                      %Initial error before the burn
+e(1) = norm(Sn(1,7:12));            %Initial error before the burn
 
 %Compute the error figures of merit 
 ISE = trapz(tspan, e.^2);
