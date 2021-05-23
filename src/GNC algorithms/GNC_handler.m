@@ -17,7 +17,7 @@
 %         - control u, the control law to steer the state to the guidance
 %           law requirements
 
-function [Sg, Sn, u] = GNC_handler(GNC, St, Sn)
+function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
     %Extract the algorithms flags 
     guidance = GNC.Algorithms.Guidance;         %Selected guidance algorithm 
     navigation = GNC.Algorithms.Navigation;     %Selected navigation algorithm 
@@ -43,8 +43,22 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn)
             Sg(4:6) = zeros(1,3);
             Sg(7:9) = zeros(1,3);
             
+        case 'CTR'
+            order = GNC.Guidance.CTR.Order;                 %Order of the approximation
+            TOF = GNC.Guidance.CTR.TOF;                     %Time of flight
+            Cp = GNC.Guidance.CTR.PositionCoefficients;     %Coefficients of the Chebyshev approximation
+            Cv = GNC.Guidance.CTR.VelocityCoefficients;     %Coefficients of the Chebyshev approximation
+            Cg = GNC.Guidance.CTR.AccelerationCoefficients; %Coefficients of the Chebyshev approximation
+            
+            u = (2*t-TOF)/TOF;                              %Normalized domain
+            T = chebyshev('first', order, u);               %Polynomial basis 
+            p = Cp*T;                                       %Position trajectory
+            v = Cv*T;                                       %Velocity trajectory
+            g = Cg*T;                                       %Acceleration trajectory
+            Sg = [p.' v.' g.'];                             %Guidance trajectory
+            
         otherwise
-            Sg = zeros(size(Sn,1),GNC.Guidance.Dimension);           %No guidance requirements
+            Sg = zeros(size(Sn,1),GNC.Guidance.Dimension);  %No guidance requirements
     end
         
     %Control module
@@ -151,6 +165,21 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn)
             
             %Control law
             u = SMC_control(mu, Sg, Stotal, parameters);
+            
+        case 'MPC'
+            %System characteristics 
+            mu = GNC.System.mu;                            %Systems's reduced gravitational parameter
+            
+            %Controller parameters 
+            TOF = GNC.Control.MPC.TOF;                     %Rendezvous time of flight  
+            cost_function = GNC.Control.MPC.Cost;          %Cost function for the differential corrector scheme
+            Tmin = GNC.Control.MPC.Thruster(1);            %Thruster error model
+            Tmax = GNC.Control.MPC.Thruster(2);            %Thruster error model
+            core = GNC.Control.MPC.Core;                   %Optimization core to solve the optimal problem
+            method = GNC.Control.MPC.Method;               %Nonlinear method to solve the optimal problem
+            
+            %Control law
+            [~, u, ~] = MPC_guidance(mu, cost_function, Tmin, Tmax, TOF, St, core, method);
             
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements

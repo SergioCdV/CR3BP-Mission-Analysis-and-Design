@@ -24,9 +24,6 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
@@ -72,7 +69,6 @@ setup = [mu maxIter tol direction];                         %General setup
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-index = fix(tf/dt);                                         %Rendezvous point
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
@@ -115,7 +111,7 @@ ISE = trapz(tspan, e.^2);                                  %Integral of the squa
 IAE = trapz(tspan, abs(e));                                %Integral of the absolute value of the error
 
 %Compute the control effort
-parameters = GNC.Control.SMC.Parameters;                   %Controller parameters
+GNC.Control.SMC.Parameters = GNC.Control.SMC.Parameters;   %Controller parameters
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12));    
@@ -124,6 +120,35 @@ parameters = GNC.Control.SMC.Parameters;                   %Controller parameter
 for i = 1:size(u,1)
     energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
     energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
+end
+
+%% Optimize the controller parameters
+GNC.Control.SMC.Parameters = SMC_optimization(mu, 'L2', s0, tf);
+
+%% GNC: SMC control law %%
+% %Preallocation 
+e2 = zeros(1,length(tspan));             %Error to rendezvous 
+energy2 = zeros(3,2);                    %Energy vector preallocation
+
+%Re-integrate trajectory
+[~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+
+%Error in time 
+for i = 1:length(tspan)
+    e2(i) = norm(Sc2(i,7:12));
+end
+
+%Compute the error figures of merit 
+ISE = trapz(tspan, e2.^2);                                  %Integral of the square error                             
+IAE = trapz(tspan, abs(e2));                                %Integral of the absolute value of the error
+
+%Control law
+[~, ~, u2] = GNC_handler(GNC, Sc2(:,1:6), Sc2(:,7:12));    
+   
+%Control integrals
+for i = 1:size(u,1)
+    energy2(i,1) = trapz(tspan, u2(i,:).^2);                 %L2 integral of the control
+    energy2(i,2) = trapz(tspan, sum(abs(u2(i,:)),1));        %L1 integral of the control
 end
 
 %% Results %% 
@@ -176,13 +201,42 @@ grid on;
 legend('x velocity', 'y velocity', 'z velocity');
 title('Relative velocity evolution');
 
+%Configuration space evolution
+figure(6)
+subplot(1,2,1)
+hold on
+plot(tspan, Sc2(:,7)); 
+plot(tspan, Sc2(:,8)); 
+plot(tspan, Sc2(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Optimal relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, Sc2(:,10)); 
+plot(tspan, Sc2(:,11)); 
+plot(tspan, Sc2(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Optimal relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
 %Configuration space error 
 figure(4)
+hold on
 plot(tspan, log(e)); 
+plot(tspan, log(e2)); 
+hold off
 xlabel('Nondimensional epoch');
 ylabel('Absolute error');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
+legend('Nominal error', 'Optimal error')
 
 %Rendezvous animation 
 if (false)

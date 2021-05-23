@@ -25,7 +25,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.6;                           %Rendezvous time
+tf = 3e-3;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -82,7 +82,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstruct
 
 %% Optimal control guidance scheme
 %Set up of the optimization
-method = 'NPL';                 %Method to solve the problem
+method = 'NPL';                               %Method to solve the problem
 core = 'Linear';                              %Number of impulses
 TOF = tspan(end);                             %Time of flight
 cost_function = 'Position';                   %Target a position rendezvous

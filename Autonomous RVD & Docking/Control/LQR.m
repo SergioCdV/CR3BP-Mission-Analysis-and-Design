@@ -134,7 +134,7 @@ IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of t
 energy = zeros(3,2);                        %Preallocation of the energy integral
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end));
+[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end), NaN);
 
 %Control integrals
 for i = 1:size(u,1)

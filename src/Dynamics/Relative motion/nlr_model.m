@@ -49,7 +49,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     %Equations of motion of the relative state 
     switch (method_ID)
         case 'Encke'
-            drho = Encke_method(mu, s_t, s_r, varargin);          %Relative motion equations
+            drho = Encke_method(mu, t, s_t, s_r, varargin);       %Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      %Relative motion equations
         case 'Second order' 
@@ -159,7 +159,7 @@ function [drho] = third_order_model(mu, s_t, s_r)
 end
 
 %Full nonlinear relative motion equations via Encke's method
-function [drho] = Encke_method(mu, s_t, s_r, varargin)
+function [drho] = Encke_method(mu, t, s_t, s_r, varargin)
     %Constants of the system 
     mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
     mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
@@ -205,7 +205,7 @@ function [drho] = Encke_method(mu, s_t, s_r, varargin)
         end
         
         %GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:6).');     %Compute the control law
-        drho(4:6) = drho(4:6)+u;                                  %Add the control vector       
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:6).', t);     %Compute the control law
+        drho(4:6) = drho(4:6)+u;                                     %Add the control vector       
     end
 end
