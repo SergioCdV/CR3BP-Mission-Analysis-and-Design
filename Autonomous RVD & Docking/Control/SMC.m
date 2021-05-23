@@ -24,6 +24,9 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
+%Optimization 
+optimization = true;                %Optimize the controller parameters 
+
 %Time span 
 dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
@@ -123,32 +126,41 @@ for i = 1:size(u,1)
 end
 
 %% Optimize the controller parameters
-GNC.Control.SMC.Parameters = SMC_optimization(mu, 'L2', s0, tf);
+if (optimization)
+    GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', s0, tf)];
 
-%% GNC: SMC control law %%
-% %Preallocation 
-e2 = zeros(1,length(tspan));             %Error to rendezvous 
-energy2 = zeros(3,2);                    %Energy vector preallocation
+    %Preallocation 
+    e2 = zeros(1,length(tspan));             %Error to rendezvous 
+    energy2 = zeros(3,2);                    %Energy vector preallocation
 
-%Re-integrate trajectory
-[~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    %Re-integrate the trajectory
+    [~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
-%Error in time 
-for i = 1:length(tspan)
-    e2(i) = norm(Sc2(i,7:12));
-end
+    %Error in time 
+    for i = 1:length(tspan)
+        e2(i) = norm(Sc2(i,7:12));
+    end
 
-%Compute the error figures of merit 
-ISE = trapz(tspan, e2.^2);                                  %Integral of the square error                             
-IAE = trapz(tspan, abs(e2));                                %Integral of the absolute value of the error
+    %Compute the error figures of merit 
+    ISE2 = trapz(tspan, e2.^2);                                  %Integral of the square error                             
+    IAE2 = trapz(tspan, abs(e2));                                %Integral of the absolute value of the error
 
-%Control law
-[~, ~, u2] = GNC_handler(GNC, Sc2(:,1:6), Sc2(:,7:12));    
-   
-%Control integrals
-for i = 1:size(u,1)
-    energy2(i,1) = trapz(tspan, u2(i,:).^2);                 %L2 integral of the control
-    energy2(i,2) = trapz(tspan, sum(abs(u2(i,:)),1));        %L1 integral of the control
+    %Control law
+    [~, ~, u2] = GNC_handler(GNC, Sc2(:,1:6), Sc2(:,7:12));    
+
+    %Control integrals
+    for i = 1:size(u,1)
+        energy2(i,1) = trapz(tspan, u2(i,:).^2);                 %L2 integral of the control
+        energy2(i,2) = trapz(tspan, sum(abs(u2(i,:)),1));        %L1 integral of the control
+    end
+
+    %Save results for statistics purposes 
+    fileID = fopen('Autonomous RVD & Docking\Mission scenarios\smc_parameters.txt', 'a+'); 
+    output = [GNC.Control.SMC.Parameters Sc(end,7:12) Sc2(end,7:12) ISE IAE ISE2 IAE2 ...
+              norm(energy(:,1)) norm(energy(:,2)) norm(energy2(:,1)) norm(energy2(:,2))];
+    format = '%.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f \n';
+    fprintf(fileID, format, output);
+    fclose(fileID); 
 end
 
 %% Results %% 

@@ -11,12 +11,13 @@
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
-%         - array Sg, the guidance law to follow
-%         - array Sn, the system state
-%         - vector parameters, defining the tuned parameters of the
-%           controller
+%         - string cost_function, the type of Lp norm of the control law to
+%           minimize
+%         - vector s0, the initial conditions of both the target and the
+%           relative spacecraft
+%         - scalar TOF, the time of flight
 
-% Output: - vector u, the computed control law
+% Output: - vector parameters, the SMC controller tuned parameters
 
 % New versions: 
 
@@ -25,9 +26,9 @@ function [parameters] = SMC_optimization(mu, cost_function, s0, TOF)
     dt = 1e-3;              %Time step 
     tspan = 0:dt:TOF;       %Integration time span
     
-    dof = 4;                %Number of parameters to tune
-    PopSize = 1000;         %Number of individuals at each population 
-    MaxGenerations = 10;    %Maximum number of generations 
+    dof = 3;                %Number of parameters to tune
+    PopSize = 100;          %Number of individuals at each population 
+    MaxGenerations = 20;    %Maximum number of generations 
     
     %Linear constraints 
     A = []; 
@@ -36,8 +37,8 @@ function [parameters] = SMC_optimization(mu, cost_function, s0, TOF)
     beq = [];
     
     %Upper and lower bounds
-    lb = [1 1e-2 0 1e-2];       %Lower bound
-    ub = [1 1 1 0.1];           %Upper bound
+    lb = [1e-2 0 1e-2];       %Lower bound
+    ub = [1 1 0.1];           %Upper bound
     
     %General set up
     options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations);
@@ -50,13 +51,13 @@ end
 %Cost function to minimize 
 function [cost] = costfunc(mu, cost_function, parameters, tspan, s0)
     %Integrate the trajectory 
-    GNC.Algorithms.Guidance = '';               %Guidance algorithm
-    GNC.Algorithms.Navigation = '';             %Navigation algorithm
-    GNC.Algorithms.Control = 'SMC';             %Control algorithm
-    GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-    GNC.Control.Dimension = 3;                  %Dimension of the control law
-    GNC.System.mu = mu;                         %System reduced gravitational paramete
-    GNC.Control.SMC.Parameters = parameters;    %Controller parameters
+    GNC.Algorithms.Guidance = '';                   %Guidance algorithm
+    GNC.Algorithms.Navigation = '';                 %Navigation algorithm
+    GNC.Algorithms.Control = 'SMC';                 %Control algorithm
+    GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
+    GNC.Control.Dimension = 3;                      %Dimension of the control law
+    GNC.System.mu = mu;                             %System reduced gravitational paramete
+    GNC.Control.SMC.Parameters = [1 parameters];    %Controller parameters
     
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
     [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
