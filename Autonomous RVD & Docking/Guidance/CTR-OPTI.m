@@ -2,9 +2,9 @@
 % Sergio Cuevas del Valle % 
 % 20/05/21 % 
 
-%% GNC 6: MPC guidance-control law %% 
-% This script provides an interface to test MPC control law rendezvous strategies for
-% rendezvous missions.
+%% GNC 14: Optimal impulsive guidance law %% 
+% This script provides an interface to test the OPTI trajectory rendezvous strategy with the CTR guidance regression
+% for rendezvous missions.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -84,7 +84,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstruct
 %Set up of the optimization
 method = 'NPL';                               %Method to solve the problem
 core = 'Linear';                              %Number of impulses
-TOF = tspan(end);                             %Time of flight
+TOF = tf;                                     %Time of flight
 cost_function = 'Position';                   %Target a position rendezvous
 
 %Thruster characteristics 
@@ -94,6 +94,19 @@ Tmax = 0.1;                                   %Maximum thrust capability (in vel
 %Main computation 
 [St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 
+%Regression
+order = 10;                                                         %Order of the regression 
+T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
+u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
+for i = 1:length(tspan)
+    T(:,i) = chebyshev('first', order, u(i));
+end
+
+[Cp, Cv, Cg] = CTR_guidance(order, tspan, St(:,7:12));              %Obtain the Chebyshev coefficients
+p = Cp*T;                                                           %Position regression
+v = Cv*T;                                                           %Velocity regression
+Sr = [p.' v.'];                                                     %Regress the phase space trajectory
+
 %Control integrals
 energy = zeros(3,2);                                       %Energy vector preallocation
 for i = 1:size(dV,1)
@@ -102,11 +115,11 @@ for i = 1:size(dV,1)
 end
 
 %Error in time 
-e = zeros(1,size(St,1));            %Preallocation of the error
-for i = 1:size(St,1)
-    e(i) = norm(St(i,7:12));
+e = zeros(1,size(Sr,1));            %Preallocation of the error
+for i = 1:size(Sr,1)
+    e(i) = norm(Sr(i,:));
 end
-e(1) = norm(Sn(1,7:12));            %Initial error before the burn
+e(1) = norm(Sn(1,:));            %Initial error before the burn
 
 %Compute the error figures of merit 
 ISE = trapz(tspan, e.^2);
@@ -130,7 +143,7 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(St(:,7), St(:,8), St(:,9)); 
+plot3(Sr(:,1), Sr(:,2), Sr(:,3)); 
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
@@ -141,9 +154,9 @@ title('Relative motion in the configuration space');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,7)); 
-plot(tspan, St(:,8)); 
-plot(tspan, St(:,9)); 
+plot(tspan, Sr(:,1)); 
+plot(tspan, Sr(:,2)); 
+plot(tspan, Sr(:,3)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinate');
@@ -152,9 +165,9 @@ legend('x coordinate', 'y coordinate', 'z coordinate');
 title('Relative position evolution');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,10)); 
-plot(tspan, St(:,11)); 
-plot(tspan, St(:,12)); 
+plot(tspan, Sr(:,4)); 
+plot(tspan, Sr(:,5)); 
+plot(tspan, Sr(:,6)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinate');

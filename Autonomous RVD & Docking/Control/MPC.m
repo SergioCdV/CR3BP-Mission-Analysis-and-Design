@@ -2,8 +2,9 @@
 % Sergio Cuevas del Valle % 
 % 20/05/21 % 
 
-%% GNC 13: Chebyshev Trajectory Regression Guidance %% 
-% This script provides an interface to test the Chebyshev regression of a given trajectory.
+%% GNC 6: MPC guidance-control law %% 
+% This script provides an interface to test MPC control law rendezvous strategies for
+% rendezvous missions.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -73,42 +74,120 @@ rho0 = r_c0-r_t0;                                                   %Initial rel
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
 
-%% Regress the trajectory and its derivatives
-%Set up of the regression 
-order = 10;                                                         %Order of the polynomials
+%% Optimal control guidance scheme
+%Set up of the optimization
+method = 'NPL';                               %Method to solve the problem
+core = 'Linear';                              %Number of impulses
+TOF = tf;                                     %Time of flight
+cost_function = 'Position';                   %Target a position rendezvous
 
-%Polynomial basis all along the time span
-T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
-u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
+%Thruster characteristics 
+Tmin = -0.1;                                  %Minimum thrust capability (in velocity impulse)
+Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
-for i = 1:length(tspan)
-    T(:,i) = chebyshev('first', order, u(i));
+%Main computation 
+[St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+
+%Control integrals
+energy = zeros(3,2);                                       %Energy vector preallocation
+for i = 1:size(dV,1)
+    energy(i,1) = trapz(tspan, dV(i,:).^2);                %L2 integral of the control
+    energy(i,2) = trapz(tspan, sum(abs(dV(i,:)),1));       %L1 integral of the control
 end
 
-%Regression of the position, velocity and acceleration fields
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn(:,7:12));
-
-%Error in the regression
-p = Cp*T;                   %Position regression
-v = Cv*T;                   %Velocity regression
-Sr = [p.' v.'];             %Regress the phase space trajectory
-e = zeros(size(Sr,1),1);    %Preallocation of the error vector
-
-for i = 1:size(Sr,1)
-    e(i) = norm(Sn(i,7:12)-Sr(i,:));      %Error
+%Error in time 
+e = zeros(1,size(St,1));            %Preallocation of the error
+for i = 1:size(St,1)
+    e(i) = norm(St(i,7:12));
 end
+e(1) = norm(Sn(1,7:12));            %Initial error before the burn
 
-%% Results 
-%Plot the approximation error 
-figure(1)
-plot(tspan, log(e))
-grid on
-xlabel('Integration time'); 
-ylabel('Approximation error (log)'); 
-title('Error in the Chebyshev approximation');
+%Compute the error figures of merit 
+ISE = trapz(tspan, e.^2);
+IAE = trapz(tspan, abs(e));
+
+%% Results %% 
+%Plot results 
+figure(1) 
+view(3) 
+hold on
+plot3(Sn(:,1), Sn(:,2), Sn(:,3)); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+hold off
+legend('Target motion', 'Chaser motion'); 
+xlabel('Synodic x coordinate');
+ylabel('Synodic y coordinate');
+zlabel('Synodic z coordinate');
+grid on;
+title('Reconstruction of the natural chaser motion');
+
+%Plot relative phase trajectory
+figure(2) 
+view(3) 
+plot3(St(:,7), St(:,8), St(:,9)); 
+xlabel('Synodic x coordinate');
+ylabel('Synodic y coordinate');
+zlabel('Synodic z coordinate');
+grid on;
+title('Relative motion in the configuration space');
+
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error  (log)');
+grid on;
+title('Absolute error in the configuration space (L2 norm)');
+
+%Rendezvous animation 
+if (false)
+    figure(5) 
+    view(3) 
+    grid on;
+    hold on
+    plot3(St(:,1), St(:,2), St(:,3), 'k-.'); 
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    title('Rendezvous simulation');
+    for i = 1:size(St,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
+        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
+
+        drawnow;
+        delete(T); 
+        delete(V);
+    end
+    hold off
+end
