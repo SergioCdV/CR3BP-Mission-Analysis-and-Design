@@ -139,7 +139,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             target = GNC.Control.LQR.Reference; %Reference position of the target spacecraft
             
             %Control law
-            u = LQR_control(model, mu, Sg, Sn(:,1:6), target, Ln, gamma, Q, M);
+            u = LQR_control(model, mu, Sg, Sn, target, Ln, gamma, Q, M);
             
         case 'SDRE'
             %System characteristics 
@@ -153,7 +153,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             M = GNC.Control.SDRE.M;             %Penalty matrix on the control effort
             
             %Control law
-            u = SDRE_control(model, mu, Sg, Sn(:,1:6), St(:,1:6), Ln, gamma, Q, M);
+            u = SDRE_control(model, mu, Sg, Sn, St(:,1:6), Ln, gamma, Q, M);
             
         case 'SMC'
             %System characteristics 
@@ -179,7 +179,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             method = GNC.Control.MPC.Method;               %Nonlinear method to solve the optimal problem
             
             %Control law
-            [~, u, ~] = MPC_guidance(mu, cost_function, Tmin, Tmax, TOF, St, core, method);
+            [~, ~, u] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, St, core, method);
             
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements

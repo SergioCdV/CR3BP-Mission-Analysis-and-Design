@@ -94,7 +94,7 @@ controlable = controlability_analysis(model, mu, S, index, Ln, gamma);
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'LQR';                 %Control algorithm
+GNC.Algorithms.Control = 'SDRE';                 %Control algorithm
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
@@ -111,36 +111,21 @@ GNC.Control.SDRE.Q = eye(9);                    %Penalty on the state error
 GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
 
 %% GNC: SDRE/LQR control law
-%Preallocation 
-e = zeros(1,length(tspan));         %Error to rendezvous 
-
 %Initial conditions 
-int = zeros(1,3);                   %Integral of the relative position
-slqr0 = [Sn(1,:) int];              %Initial conditions
+int = zeros(1,3);                               %Integral of the relative position
+slqr0 = [Sn(1,:) int];                          %Initial conditions
 
 %Compute the trajectory
 [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
 
 %Error in time 
-for i = 1:length(tspan)
-    e(i) = norm(Sc(i,7:12));
-end
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
-IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
-
-%Compute the control effort
-energy = zeros(3,2);                        %Preallocation of the energy integral
+[e, merit] = figures_merit(tspan, Sc);
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end), NaN);
 
 %Control integrals
-for i = 1:size(u,1)
-    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
-    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
-end
+energy = control_effort(tspan, u);
 
 %% Results %% 
 %Plot results 

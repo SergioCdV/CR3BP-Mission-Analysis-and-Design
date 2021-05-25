@@ -70,40 +70,36 @@ s0 = [r_t0 rho0].';                                         %Initial conditions 
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
 
 %% GNC: two impulsive rendezvous, single shooting scheme %%
 %Differential corrector scheme
-tol = 1e-10;                                                       %Differential corrector tolerance
-[St, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true); %Controller scheme
+tol = 1e-10;                                                        %Differential corrector tolerance
+[St, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
 
 %Total maneuver metrics 
-dVl1(1:3,1) = dV(:,1)+dV(:,1);              %L1 norm of the impulses 
-dVl2 = norm(dV(:,1))+norm(dV(:,1));         %L2 norm of the impulses 
+effort = control_effort(tspan, dV);
 
 %Error in time 
-e = zeros(1,size(St,1));                    %Preallocation of the error vector 
-for i = 1:size(St,1)
-    e(i) = norm(St(i,7:12));                %Compute the evolution of the error
-end
-e(1) = norm(Sn(1,7:12));                    %Compute the initial state error before the impulse
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
-IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
+[e, merit] = figures_merit(tspan, St);
 
 %% GNC: one impulsive rendezvous, single shooting scheme %% 
-[St2, dV(:,3), state2] = TISS_control(mu, tf, s0, tol, 'Position', false);       %Controller scheme
+%Controller scheme
+[St2, dV2, state2] = TISS_control(mu, tf, s0, tol, 'Position', false);      
+
+%Total maneuver metrics 
+effort2 = control_effort(tspan, dV2);
+
+%Error in time 
+[e2, merit2] = figures_merit(tspan, St2);
 
 %% Results %% 
 %Print results 
 disp('SIMULATION RESULTS: ')
 if (state.State)
     disp('   Two impulsive rendezvous was achieved');
-    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV(1,1), dV(2,1), dV(3,1));
-    fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dV(1,2), dV(2,2), dV(3,2));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
-    fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', effort(:,2));
+    fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort(:,1));
 else
     disp('    Two impulsive rendezvous was not achieved');
 end
@@ -111,9 +107,8 @@ end
 disp(' ');
 if (state2.State)
     disp('   One impulsive rendezvous was achieved.');
-    fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV(1,3), dV(2,3), dV(3,3));
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', abs(dV(1,3)), abs(dV(2,3)), abs(dV(3,3)));
-    fprintf('   Delta V budget (L2 norm): %.4e', norm(dV(:,3)));
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', effort2(:,2));
+    fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort2(:,1));
 else
      disp('   One impulsive rendezvous was not achieved.');
 end

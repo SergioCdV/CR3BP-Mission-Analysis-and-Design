@@ -80,30 +80,23 @@ impulses.Number = length(times);              %Number of impulses
 impulses.Weights = eye(impulses.Number*3);    %Weightening matrix
 impulses.Times = times;                       %Impulses times
 
-cost = 'Velocity';                            %Cost function to target
+cost = 'Position';                            %Cost function to target
 
+%Controller scheme
 [St, dV, state] = MISS_control(mu, tf, s0, tol, cost, impulses);
 
-dVl1(1:3,1) = sum(dV,2);                      %L1 norm of the impulses 
-dVl2(1) = sum(sqrt(dot(dV,dV,2)));            %L2 norm of the impulses 
+%Control effort 
+effort = control_effort(tspan, dV);
 
 %Error in time 
-e = zeros(1,size(St,1));                      %Preallocation of the error
-for i = 1:size(St,1)
-    e(i) = norm(St(i,7:12));
-end
-e(1) = norm(Sn(1,7:12));                      %Initial error before the burn
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+[e, merit] = figures_merit(tspan, St);
 
 %% Results %% 
 disp('SIMULATION RESULTS: ')
 if (state.State)
     disp('   Multi impulsive rendezvous was achieved');
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
-    fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', effort(:,2));
+    fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort(:,1));
 else
     disp('    Multi impulsive rendezvous was not achieved');
 end

@@ -169,22 +169,18 @@ function [Sc, dV, state] = TITA_control(mu, TOF, s0, tol, cost_function, sd, two
         end
     end
     
-    %Final initial impulse 
-    dV1 = (s0(10:12)-Sn(1,10:12).');    %Sum up each iteration contribution
+    %Final initial impulse
+    dV = zeros(3,length(tspan));            %Impulses array
+    dV(:,1) = (s0(10:12)-Sn(1,10:12).');    %Sum up each iteration contribution
     
     %Final impulse
     if (two_impulsive)
-        dV2 = -S(end,10:12).';          %Final impulse
-        S(end,10:12) = zeros(1,3);      %Final conditions
-    else
-        dV2 = [];                       %No docking impulse
+        dV(:,end) = -S(end,10:12).';        %Final impulse
+        S(end,10:12) = zeros(1,3);          %Final conditions
     end
 
-    %Output
-    dV = [dV1 dV2];                     %Impulses array
-    Sc = S;                             %Control trajectory 
-    state.State = ~GoOn;                %Convergence boolean
-    state.Iterations = iter;            %Number of required iterations
-    state.Error = norm(e);              %Final error
-
+    Sc = S;                                 %Control trajectory 
+    state.State = ~GoOn;                    %Convergence boolean
+    state.Iterations = iter;                %Number of required iterations
+    state.Error = norm(e);                  %Final error
 end

@@ -144,25 +144,23 @@ function [Sc, dV, state] = TIMS_control(mu, TOF, seed, tol, nodes, cost_function
             iter = iter+1;                              %Update iteration
         end       
     end
-    
-    %Final initial impulse 
-    dV1 = seed(10:12,1)-internalSeed(n+4:m);    %Sum up each iteration contribution
-    
+        
     %Integrate the whole trayectory
     tspan = 0:dt:sum(internalSeed(end-nodes+1:end))+Dt; 
     s0 = shiftdim(internalSeed(1:m));
     [~, S] = ode113(@(t,s)nlr_model(mu, direction, false, false, 'Encke', t, s), tspan, s0, options);
     
+    %Final initial impulse 
+    dV = zeros(3,length(tspan));                        %Impulses array
+    dV(:,1) = seed(10:12,1)-internalSeed(n+4:m);        %Sum up each iteration contribution
+    
     %Final impulse
     if (two_impulsive)
-        dV2 = -S(end,10:12).';                  %Final impulse
-        S(end,10:12) = zeros(1,3);              %Final conditions
-    else
-        dV2 = [];                               %No docking impulse
+        dV(:,end) = -S(end,10:12).';    %Final impulse
+        S(end,10:12) = zeros(1,3);      %Final conditions
     end
 
     %Output
-    dV = [dV1 dV2];                     %Impulses array
     Sc = S;                             %Control trajectory 
     state.State = ~GoOn;                %Convergence boolean
     state.Iterations = iter;            %Number of required iterations

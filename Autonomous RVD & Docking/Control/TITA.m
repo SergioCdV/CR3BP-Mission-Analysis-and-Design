@@ -89,40 +89,21 @@ two_impulsive = true;                       %Two-impulsive rendezvous boolean
                                penalties, target_points, thruster_model);
 
 %Total maneuver metrics 
-if (two_impulsive)
-    dVl1(1:3,1) = dV(:,1)+dV(:,2);          %L1 norm of the impulses 
-    dVl2 = norm(dV(:,1))+norm(dV(:,2));     %L2 norm of the impulses
-else
-    dVl1(1:3,1) = dV(:,1);                  %L1 norm of the impulses 
-    dVl2 = norm(dV(:,1));                   %L2 norm of the impulses
-end
+effort = control_effort(tspan, dV);
 
 %Compute the error 
-e = zeros(1,size(St,1));                    %Preallocation of the error vector 
-for i = 1:size(St,1)
-    e(i) = norm(St(i,7:12)); 
-end
-e(1) = norm(Sn(1,7:12));                    %Initial error before the burn
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);                   %Integral of the square of the error
-IAE = trapz(tspan, abs(e));                 %Integral of the absolute value of the error
+[e, merit] = figures_merit(tspan, St);
 
 %% Results %% 
 disp('SIMULATION RESULTS: ')
 if (state.State)
     if (two_impulsive)
         disp('  Two impulsive rendezvous was achieved');
-        fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV(1,1), dV(2,1), dV(3,1));
-        fprintf('   Final impulse: %.4ei %.4ej %.4ek \n', dV(1,2), dV(2,2), dV(3,2));
-        fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
-        fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
     else
         disp('  One impulsive rendezvous was achieved');
-        fprintf('   Initial impulse: %.4ei %.4ej %.4ek \n', dV(1,1), dV(2,1), dV(3,1));
-        fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', dVl1(1,1), dVl1(2,1), dVl1(3,1));
-        fprintf('   Delta V budget (L2 norm): %.4e \n', dVl2(:,1));
     end
+    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', effort(:,2));
+    fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort(:,1));
 else
     disp('Rendezvous was not achieved');
 end

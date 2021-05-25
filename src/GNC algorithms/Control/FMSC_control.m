@@ -12,10 +12,10 @@
 %           system
 %         - scalar TOC, the time of flight for the collision condition
 %         - vector so, the relative state of the colliding object
-%         - matrix Q, a positive definite matrix projecting the quadratic
-%           form of the error to the colliding object
 %         - vector s0, initial conditions of both the target and the
 %           relative particle
+%         - matrix Q, a positive definite matrix projecting the quadratic
+%           form of the error to the colliding object
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 %         - structure constraint, specifying any constraint on the maneuver
@@ -27,7 +27,7 @@
 
 % New versions: 
 
-function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, Q, s0, tol, constraint, restriction)
+function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restriction)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -58,9 +58,16 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, Q, s0, tol, constraint, restr
     dVf = zeros(3,length(tspan)-1);                             %Velocity impulse
     
     %Differential corrector setup
-    maxIter = 100;                              %Maximum number of iterations
+    maxIter = 20;                                               %Maximum number of iterations
     
-    for i = 1:1
+    %Time horizon 
+    if (constrained)
+        time_horizon = length(tspan);
+    else
+        time_horizon = 1;
+    end
+    
+    for i = 1:time_horizon
         %Integration set up 
         atime = tspan(i:end);                   %New time span
         s0 = Sn(i,:);                           %Initial conditions

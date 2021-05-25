@@ -22,12 +22,9 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
-tf = [0.6 pi pi+0.1];               %Switching times
+tf = [0.6 pi 2*pi];                 %Switching times
 tspan = 0:dt:tf(3);                 %Integration time span
 
 %CR3BP constants 
@@ -60,12 +57,9 @@ r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target cond
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
-Phi = eye(length(r_t0));                                    %Initial STM
-Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
-s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -73,111 +67,27 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% First phase: long-range rendezvous using the TITA approach
 %Differential corrector set up
-index = fix(tf(1)/dt);                      %First event: end of the long-range rendezvous phase
-tspan = 0:dt:tf(1);                         %Initial integration time
-maxIter = 100;                              %Maximum number of iterations
 tol = 1e-5;                                 %Differential corrector tolerance
-S = S(1:index,:);                           %Restrict the time integration span
-T = index*dt;                               %Flight time along the arc
-GoOn = true;                                %Convergence boolean 
-iter = 1;                                   %Initial iteration 
-
-%Preallocation 
-dV = zeros(3,maxIter);                      %Targeting impulse
 
 %Cost function matrices
-R = eye(3);                                 %Penalty on the impulse
-Qt = eye(6);                                %Penalty on the state error
-M = 0.1*eye(6);                             %Penalty on the state noise
-Omegat = [zeros(3,3); eye(3)];              %Derivative of the state vector with respect to the impulse
-Rr = eye(3);                                %Rotational misalignment of the thrusters
+penalties.R = eye(3);                       %Penalty on the impulse
+penalties.Q = eye(6);                       %Penalty on the state error
+penalties.M  = 0.1*eye(6);                  %Penalty on the state noise
 
 %Select measuring times 
-noise = true;                               %Boolean to account for state noise
-measurements = 3;                           %Number of noise measurements
-times = T*rand(1,measurements);             %Times to measure the state noise
-times = fix(times/dt);                      %Position along the time span to measure the state noise
-times = sort(times);                        %Sort the times at which the noise measurements are taken
-ns = 1e-6*ones(6,1);                        %Initial state noise 
-sigma = 0.01;                               %Velocity noise dependance on the velocity impulse
+target_points.Noise = true;                 %Boolean to account for state noise
+target_points.Times = tf(1)*rand(1,3);      %Times to measure the state noise
+
+thruster_model.Sigma = 0.01;                %Velocity noise dependance on the velocity impulse
+thruster_model.Rotation = eye(3);           %Rotational misalignment of the thrusters
 
 %Cost function 
-cost = 'Position';                          %Make impulses to target position
+cost_function = 'Position';                 %Cost function to target
+two_impulsive = true;                       %Two-impulsive rendezvous boolean
 
-%Initial conditions 
-S0 = s0;
-
-%Implementation 
-while ((GoOn) && (iter < maxIter))
-    %Compute the complete STM
-    STM = reshape(S(end,13:end), [length(r_t0) length(r_t0)]);      %STM evaluated at time tf
-    
-    %Propagate the error 
-    if (noise)
-        nSTM = zeros(6,3); 
-        for i = 1:measurements 
-             dumbSTM = reshape(S(times(i),13:end), [length(r_t0) length(r_t0)]);     %Noise state transition matrix
-             nSTM = nSTM + dumbSTM.'*M*dumbSTM*[zeros(3,3); Rr];                     %Accumulated state transition matrix
-        end
-        nSTM = sigma^2*[zeros(6,3) [zeros(3,3); Rr]]*nSTM;                           %Accumulated state transition matrix
-        nState = sigma*ns.'*nSTM;                                                    %Accumulated noise vector
-    end
-
-    %Recompute initial conditions
-    switch (cost)
-        case 'Position' 
-            xf = S(end,7:9);                %Final positon state
-            Phi = STM(1:3,4:6);             %Needed state transition matrix
-            Q = Qt(1:3,1:3);                %Penalty on the state error 
-            Omega = Omegat(4:6,:);          %Derivative of the state vector with respect to the impulse
-            
-            %Compute the STM 
-            L = Omega.'*Phi.'*Q*Phi*Omega;  %Penalty on the state error 
-            STM = R+L;                      %Jacobian of the constraint function
-                        
-        case 'State' 
-            xf = S(end,7:12);               %Final state
-            Phi = STM;                      %Needed state transition matrix
-            Q = Qt;                         %Penalty on the state error
-            Omega = Omegat;                 %Derivative of the state vector with respect to the impulse
-            
-            %Compute the STM
-            L = Omega.'*Phi.'*Q*Phi*Omega;  %Penalty on the state error 
-            STM = R+L;                      %Jacobian of the constraint function            
-            
-        otherwise
-            error('No valid cost function was selected');
-    end
-        
-    %Add some noise 
-    if (noise)
-        STM = STM + nSTM(4:6,1:3);                             %Noise state matrix
-        error = xf*Q*Phi*Omega + nState;                       %Error state (deviation from the rendezvous condition)
-        dV(:,iter) = pinv(STM)*error.';                        %Needed impulse
-        s0(10:12) = s0(10:12)-dV(:,iter)+sigma*Rr*dV(:,iter);  %New initial conditions
-        s0(7:12) = s0(7:12)+ns;                                %New noisy initial conditions
-    else
-        error = xf*Q*Phi*Omega;                                %Error state (deviation from the rendezvous condition)
-        dV(:,iter) = STM\error.';                              %Needed impulse
-        s0(10:12) = s0(10:12)-dV(:,iter);                      %New initial conditions 
-    end
-    
-    %Reintegrate the trajectory
-    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); %New trajectory
-    
-    %Convergence analysis 
-    if (norm(error) < tol)
-        GoOn = false;                        %Stop the method
-    else
-        iter = iter+1;                       %Update the iterations
-    end
-end
-
-%Output 
-St1 = S;                                     %Integrated trajectory
-dV0(1:3,1) = sum(dV,2);                      %Initial rendezvous impulse 
-dVf(1:3,1) = -S(end,10:12).';                %Final rendezvous impulse 
-St1(end,10:12) = St1(end,10:12)+dVf.';       %Docking burn condition
+%TITA controller
+[St1, dV, state] = TITA_control(mu, tf(1), s0, tol, cost_function, zeros(1,3), two_impulsive, ...
+                                penalties, target_points, thruster_model);
 
 %% Second phase: docking and coordinated flight 
 %GNC algorithms definition 
@@ -199,34 +109,14 @@ s0 = St1(end,:);
 [~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
 
 %% Third phase: undocking 
-%Integration time 
-tspan = 0:dt:tf(3)-tf(2)-dt; 
+constraint.Constrained = false;         %No constraints on the maneuver
+constraint.SafeDistance = 1e-4;         %Safety distance at the collision time
 
-%Initial conditions 
-s0 = St2(end,:); 
-
-%Select the restriction level of the CAM 
-lambda(1) = 1e-1;                                           %Safety distance
-lambda(2) = 1e-1;                                           %Safety distance
-
-%Compute the Floquet modes at each time instant 
-Monodromy = reshape(s0(13:end), [6 6]);                     %State transition matrix at each instant        
-[E, sigma] = eig(Monodromy);                                %Eigenspectrum of the STM 
-
-%Compute the maneuver
-STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];             %Linear application
-error = lambda(1)*rand(6,1);                                 %State error vector
-maneuver = STM.'*(STM*STM.')^(-1)*error;                     %Needed maneuver
-dV = real(maneuver(end-2:end));                              %Needed change in velocity
-
-%Integrate the CAM trajectory
-s0(10:12) = s0(10:12)+dV.';                                  %Update initial conditions with the velocity change
-
-[~, St3] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+[St3, dV3, tm] = FMSC_control(mu, tf(3)-(tf(2)+dt), Sn(end,1:6), St2(end,1:12), eye(3), tol, constraint, 'Best');
 
 %% Final results 
-St = [St1; St2; St3];   %Complete trajectory 
-tspan = 0:dt:tf(3)+dt;  %Total integration time
+St = [St1(:,1:12); St2(:,1:12); St3];   %Complete trajectory 
+tspan = 0:dt:tf(3)+dt;                  %Total integration time
 
 %% Plotting
 figure(2) 

@@ -146,18 +146,18 @@ function [Sc, dV, state] = MISS_control(mu, TOF, s0, tol, cost_function, impulse
             iter = iter+1;                      %Update the iterations
         end
     end
-    
-    %Final initial impulses 
-    dV = sum(dV,2);                     %Sum up each iteration contribution
-    
+        
     %Final velocity 
     S(end,10:12) = zeros(1,3); 
     
     %Output
-    dV = reshape(dV, [3 impulses]);     %Reshape the impulses array
-    dV = [dV S(end,10:12).'];           %Final impulse, always needed for docking
-    Sc = S;                             %Control trajectory 
-    state.State = ~GoOn;                %Convergence boolean
-    state.Iterations = iter;            %Number of required iterations
-    state.Error = norm(error);          %Final error
+    dVf = sum(dV,2);                                    %Total impulse at each target time                                   
+    dV = zeros(3,length(tspan));                        %Impulses array
+    dV(:,times) = reshape(dVf, [3 impulses]);           %Reshape the impulses array
+    dV(:,end) = -S(end,10:12).';                        %Final impulse, always needed for docking
+    Sc = S;                                             %Control trajectory 
+    Sc(end,10:12) = zeros(1,3);                         %Nullify the final relative velocity
+    state.State = ~GoOn;                                %Convergence boolean
+    state.Iterations = iter;                            %Number of required iterations
+    state.Error = norm(error);                          %Final error
 end

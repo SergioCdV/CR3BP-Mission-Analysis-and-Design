@@ -199,13 +199,17 @@ function [drho] = Encke_method(mu, t, s_t, s_r, varargin)
             case 'TITA'
                 error('No valid control algorithm was selected for integration purposes')
             case 'SDRE'
-                drho = [drho; s_r(1:3)];
+                drho = [drho; s_r(7:9)];
             case 'LQR'
-                drho = [drho; s_r(1:3)];
+                drho = [drho; s_r(7:9)];
+            case 'SMC'
+                
+            otherwise
+                error('No valid control algorithm was selected');
         end
         
         %GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:6).', t);     %Compute the control law
-        drho(4:6) = drho(4:6)+u;                                     %Add the control vector       
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t);         %Compute the control law
+        drho(4:6) = drho(4:6)+u;                                    %Add the control vector       
     end
 end

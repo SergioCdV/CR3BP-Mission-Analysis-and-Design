@@ -25,7 +25,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %Optimization 
-optimization = true;                %Optimize the controller parameters 
+optimization = false;               %Optimize the controller parameters 
 
 %Time span 
 dt = 1e-3;                          %Time step
@@ -97,67 +97,41 @@ GNC.System.mu = mu;                         %System reduced gravitational parame
 GNC.Control.SMC.Parameters = [1 1 0.9 0.1]; %Controller parameters
 
 %% GNC: SMC control law %%
-% %Preallocation 
-e = zeros(1,length(tspan));             %Error to rendezvous 
-energy = zeros(3,2);                    %Energy vector preallocation
-
 %Re-integrate trajectory
 [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
 %Error in time 
-for i = 1:length(tspan)
-    e(i) = norm(Sc(i,7:12));
-end
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);                                  %Integral of the square error                             
-IAE = trapz(tspan, abs(e));                                %Integral of the absolute value of the error
+[e, merit] = figures_merit(tspan, Sc);
 
 %Compute the control effort
 GNC.Control.SMC.Parameters = GNC.Control.SMC.Parameters;   %Controller parameters
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12));    
-   
-%Control integrals
-for i = 1:size(u,1)
-    energy(i,1) = trapz(tspan, u(i,:).^2);                 %L2 integral of the control
-    energy(i,2) = trapz(tspan, sum(abs(u(i,:)),1));        %L1 integral of the control
-end
 
+%Control effort 
+effort = control_effort(tspan, u);
+   
 %% Optimize the controller parameters
 if (optimization)
     GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', s0, tf)];
-
-    %Preallocation 
-    e2 = zeros(1,length(tspan));             %Error to rendezvous 
-    energy2 = zeros(3,2);                    %Energy vector preallocation
-
+    
     %Re-integrate the trajectory
     [~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
     %Error in time 
-    for i = 1:length(tspan)
-        e2(i) = norm(Sc2(i,7:12));
-    end
-
-    %Compute the error figures of merit 
-    ISE2 = trapz(tspan, e2.^2);                                  %Integral of the square error                             
-    IAE2 = trapz(tspan, abs(e2));                                %Integral of the absolute value of the error
-
+    [e2, merit2] = figures_merit(tspan, Sc2);
+    
     %Control law
     [~, ~, u2] = GNC_handler(GNC, Sc2(:,1:6), Sc2(:,7:12));    
 
     %Control integrals
-    for i = 1:size(u,1)
-        energy2(i,1) = trapz(tspan, u2(i,:).^2);                 %L2 integral of the control
-        energy2(i,2) = trapz(tspan, sum(abs(u2(i,:)),1));        %L1 integral of the control
-    end
+    effort2 = control_effort(tspan, u2);
 
     %Save results for statistics purposes 
     fileID = fopen('Autonomous RVD & Docking\Mission scenarios\smc_parameters.txt', 'a+'); 
-    output = [GNC.Control.SMC.Parameters Sc(end,7:12) Sc2(end,7:12) ISE IAE ISE2 IAE2 ...
-              norm(energy(:,1)) norm(energy(:,2)) norm(energy2(:,1)) norm(energy2(:,2))];
+    output = [GNC.Control.SMC.Parameters Sc(end,7:12) Sc2(end,7:12) merit(1) merit(2) merit2(1) merit(2) ...
+              norm(effort(:,1)) norm(effort(:,2)) norm(effort2(:,1)) norm(effort2(:,2))];
     format = '%.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f \n';
     fprintf(fileID, format, output);
     fclose(fileID); 
@@ -214,41 +188,45 @@ legend('x velocity', 'y velocity', 'z velocity');
 title('Relative velocity evolution');
 
 %Configuration space evolution
-figure(6)
-subplot(1,2,1)
-hold on
-plot(tspan, Sc2(:,7)); 
-plot(tspan, Sc2(:,8)); 
-plot(tspan, Sc2(:,9)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
-grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
-title('Optimal relative position evolution');
-subplot(1,2,2)
-hold on
-plot(tspan, Sc2(:,10)); 
-plot(tspan, Sc2(:,11)); 
-plot(tspan, Sc2(:,12)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Optimal relative velocity coordinate');
-grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
+if (optimization)
+    figure(6)
+    subplot(1,2,1)
+    hold on
+    plot(tspan, Sc2(:,7)); 
+    plot(tspan, Sc2(:,8)); 
+    plot(tspan, Sc2(:,9)); 
+    hold off
+    xlabel('Nondimensional epoch');
+    ylabel('Relative configuration coordinate');
+    grid on;
+    legend('x coordinate', 'y coordinate', 'z coordinate');
+    title('Optimal relative position evolution');
+    subplot(1,2,2)
+    hold on
+    plot(tspan, Sc2(:,10)); 
+    plot(tspan, Sc2(:,11)); 
+    plot(tspan, Sc2(:,12)); 
+    hold off
+    xlabel('Nondimensional epoch');
+    ylabel('Optimal relative velocity coordinate');
+    grid on;
+    legend('x velocity', 'y velocity', 'z velocity');
+    title('Relative velocity evolution');
+end
 
 %Configuration space error 
 figure(4)
-hold on
 plot(tspan, log(e)); 
-plot(tspan, log(e2)); 
-hold off
+if (optimization)
+    hold on
+    plot(tspan, log(e2)); 
+    hold off
+    legend('Nominal error', 'Optimal error')
+end
 xlabel('Nondimensional epoch');
 ylabel('Absolute error');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
-legend('Nominal error', 'Optimal error')
 
 %Rendezvous animation 
 if (false)
