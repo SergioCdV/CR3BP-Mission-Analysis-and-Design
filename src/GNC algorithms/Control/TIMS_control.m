@@ -152,7 +152,7 @@ function [Sc, dV, state] = TIMS_control(mu, TOF, seed, tol, nodes, cost_function
     
     %Final initial impulse 
     dV = zeros(3,length(tspan));                        %Impulses array
-    dV(:,1) = seed(10:12,1)-internalSeed(n+4:m);        %Sum up each iteration contribution
+    dV(:,1) = internalSeed(n+4:m)-seed(10:12,1);        %Sum up each iteration contribution
     
     %Final impulse
     if (two_impulsive)

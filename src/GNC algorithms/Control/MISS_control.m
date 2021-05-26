@@ -150,10 +150,11 @@ function [Sc, dV, state] = MISS_control(mu, TOF, s0, tol, cost_function, impulse
     %Final velocity 
     S(end,10:12) = zeros(1,3); 
     
-    %Output
-    dVf = sum(dV,2);                                    %Total impulse at each target time                                   
+    %Output       
+    dVf = dV(:,iter);                                   %Final impulses
     dV = zeros(3,length(tspan));                        %Impulses array
     dV(:,times) = reshape(dVf, [3 impulses]);           %Reshape the impulses array
+    dV(:,1) = (S(1,10:12)-Sn(1,10:12)).';               %Initial impulse
     dV(:,end) = -S(end,10:12).';                        %Final impulse, always needed for docking
     Sc = S;                                             %Control trajectory 
     Sc(end,10:12) = zeros(1,3);                         %Nullify the final relative velocity
