@@ -20,7 +20,7 @@
 
 function [J] = numerical_jacobian(dim, func, x)
     %Constants 
-    e = 1e-6;                               %Pertubation step 
+    e = 1e-10;                               %Pertubation step 
     delta = eye(length(x));                 %Identity matrix / Kronecker delta
     stencil = 4;                            %Order of the stencil 
     K = [2 1 -1 -2];                        %Stencil coefficients

@@ -23,12 +23,9 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %Phase space dimension 
 n = 6; 
 
-%Spacecraft mass 
-mass = 1e-10;
-
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 2*pi;                          %Rendezvous time
+tf = 4*pi;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -85,7 +82,100 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% APF guidance scheme
 %Compute some random objects  in the relative phase space 
-So = rand(3,3);
+So = [0; 0; 0];
+
+%Controller scheme penalties
+Penalties.AttractivePenalty = eye(3);            %Penalty on the distance to the origin
+Penalties.RepulsivePenalty = eye(3);             %Penalty on the distance to the obstacles 
+
+%Safety message 
+safe_corridor.Safety = false;
 
 %Compute the guidance law
-Sg = apf_guidance('Steady', true, Sn(1,7:9), So, dt, Sn(1,7:9));
+Sg = APF_guidance('Steady', safe_corridor, 'Impulsive', Penalties, So, tf, s0(7:12));
+e = figures_merit(tspan, [Sn(:,1:6) Sg]);        %Figures of merit of the rendezvous error 
+
+%% Results 
+%Plot results 
+figure(1) 
+view(3) 
+hold on
+plot3(Sn(:,1), Sn(:,2), Sn(:,3)); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+hold off
+legend('Target motion', 'Chaser motion'); 
+xlabel('Synodic x coordinate');
+ylabel('Synodic y coordinate');
+zlabel('Synodic z coordinate');
+grid on;
+title('Reconstruction of the natural chaser motion');
+
+%Plot relative phase trajectory
+figure(2) 
+view(3) 
+hold on
+plot3(Sg(:,1), Sg(:,2), Sg(:,3)); 
+for i = 1:size(So,2)
+    scatter3(So(1,i), So(2,i), So(3,i))
+end
+hold off
+xlabel('Synodic x coordinate');
+ylabel('Synodic y coordinate');
+zlabel('Synodic z coordinate');
+grid on;
+title('Relative motion in the configuration space');
+
+%Configuration space evolution
+figure(3)
+subplot(1,2,1)
+hold on
+plot(tspan, Sg(:,1)); 
+plot(tspan, Sg(:,2)); 
+plot(tspan, Sg(:,3)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinate');
+grid on;
+legend('x coordinate', 'y coordinate', 'z coordinate');
+title('Relative position evolution');
+subplot(1,2,2)
+hold on
+plot(tspan, Sg(:,4)); 
+plot(tspan, Sg(:,5)); 
+plot(tspan, Sg(:,6)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinate');
+grid on;
+legend('x velocity', 'y velocity', 'z velocity');
+title('Relative velocity evolution');
+
+%Configuration space error 
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error  (log)');
+grid on;
+title('Absolute error in the configuration space (L2 norm)');
+
+%Rendezvous animation 
+if (false)
+    figure(5) 
+    view(3) 
+    grid on;
+    hold on
+    plot3(St(:,1), St(:,2), St(:,3), 'k-.'); 
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    title('Rendezvous simulation');
+    for i = 1:size(St,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
+        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
+
+        drawnow;
+        delete(T); 
+        delete(V);
+    end
+    hold off
+end
