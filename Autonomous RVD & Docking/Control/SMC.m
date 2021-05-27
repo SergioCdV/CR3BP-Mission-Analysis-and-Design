@@ -100,11 +100,8 @@ GNC.Control.SMC.Parameters = [1 1 0.9 0.1];     %Controller parameters
 %Error in time 
 [e, merit] = figures_merit(tspan, Sc);
 
-%Compute the control effort
-GNC.Control.SMC.Parameters = GNC.Control.SMC.Parameters;   %Controller parameters
-
 %Control law
-[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12));    
+[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12), NaN);    
 
 %Control effort 
 effort = control_effort(tspan, u);

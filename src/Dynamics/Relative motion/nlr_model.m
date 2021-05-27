@@ -198,6 +198,10 @@ function [drho] = Encke_method(mu, t, s_t, s_r, varargin)
                 error('No valid control algorithm was selected for integration purposes')
             case 'TITA'
                 error('No valid control algorithm was selected for integration purposes')
+            case 'MPC'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'APF'
+                error('No valid control algorithm was selected for integration purposes')
             case 'SDRE'
                 drho = [drho; s_r(7:9)];
             case 'LQR'

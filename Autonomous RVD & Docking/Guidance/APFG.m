@@ -25,7 +25,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 4*pi;                          %Rendezvous time
+tf = 2*pi;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -78,22 +78,61 @@ s0 = [r_t0 rho0].';                                         %Initial conditions 
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                       %Reconstructed chaser motion via Encke method
 
 %% APF guidance scheme
-%Compute some random objects  in the relative phase space 
-So = [0; 0; 0];
+%Obstacles 
+So = 10*ones(3,1);                               %Relative positon of the obstalces
 
 %Controller scheme penalties
 Penalties.AttractivePenalty = eye(3);            %Penalty on the distance to the origin
 Penalties.RepulsivePenalty = eye(3);             %Penalty on the distance to the obstacles 
+Penalties.RepulsiveWidth = 1e-3;                 %Width of the repulsive function
 
 %Safety message 
-safe_corridor.Safety = false;
+safe_corridor.Safety = true;
+safe_corridor.Parameters(1) = deg2rad(10);       %Safety corridor angle
+safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking port
+safe_corridor.Parameters(3:4) = [1 1];           %Dimensions of the safety corridor
 
 %Compute the guidance law
-Sg = APF_guidance('Steady', safe_corridor, 'Impulsive', Penalties, So, tf, s0(7:12));
-e = figures_merit(tspan, [Sn(:,1:6) Sg]);        %Figures of merit of the rendezvous error 
+output = APF_guidance(safe_corridor, Penalties, So, tf, s0(7:12), true);
+Cp = output(1:3,:);
+Cv = output(4:6,:);
+Cg = output(7:9,:);
+ 
+%% GNC trajectory: APF-SMC
+%GNC control structure
+GNC.Algorithms.Guidance = 'APF';                    %Guidance algorithm
+GNC.Algorithms.Navigation = '';                     %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';                     %Control algorithm
+GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
+GNC.Control.Dimension = 3;                          %Dimension of the control law
+
+GNC.Guidance.CTR.Order = size(Cp,2);                %Order of the approximation
+GNC.Guidance.CTR.TOF = tf;                          %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+
+GNC.Guidance.APF.Safety = safe_corridor;            %APF safety parameters
+GNC.Guidance.APF.Penalties = Penalties;             %APF guidance core parameters
+GNC.Guidance.APF.Obstacles = So;                    %Relative position of the obstacles
+            
+GNC.System.mu = mu;                                 %System reduced gravitational parameter
+GNC.Control.SMC.Parameters = [1 1 0.9 0.1];         %Controller parameters
+
+%Re-integrate trajectory
+[t, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+
+%Error in time 
+[e, merit] = figures_merit(tspan, St);
+
+%Control law
+[~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), t);    
+
+%Control effort 
+effort = control_effort(tspan, u);
 
 %% Results 
 %Plot results 
@@ -114,10 +153,7 @@ title('Reconstruction of the natural chaser motion');
 figure(2) 
 view(3) 
 hold on
-plot3(Sg(:,1), Sg(:,2), Sg(:,3)); 
-for i = 1:size(So,2)
-    scatter3(So(1,i), So(2,i), So(3,i))
-end
+plot3(St(:,7), St(:,8), St(:,9)); 
 hold off
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
@@ -129,9 +165,9 @@ title('Relative motion in the configuration space');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, Sg(:,1)); 
-plot(tspan, Sg(:,2)); 
-plot(tspan, Sg(:,3)); 
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinate');
@@ -140,9 +176,9 @@ legend('x coordinate', 'y coordinate', 'z coordinate');
 title('Relative position evolution');
 subplot(1,2,2)
 hold on
-plot(tspan, Sg(:,4)); 
-plot(tspan, Sg(:,5)); 
-plot(tspan, Sg(:,6)); 
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinate');
