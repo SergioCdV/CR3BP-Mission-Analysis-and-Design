@@ -53,8 +53,8 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %% Generation of the transfer trajectory
 %Definition of the parking orbit 
-parking_orbit.Primary = 'Secondary';                                                %Parking orbit primary
-parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 200e3, 'Position', 0);    %Parking orbit altitude
+parking_orbit.Primary = 'Primary';                                              %Parking orbit primary
+parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 200e3, 'Position', 0);      %Parking orbit altitude
 
 %Redefinition with addtional parameters of the target orbit 
 target_orbit.tspan = tspan;                                                     %Original integration time

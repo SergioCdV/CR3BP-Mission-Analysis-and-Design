@@ -30,7 +30,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, maxIter, tol
         case 'Axis Symmetric'
             [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol);
         case 'Plane Symmetric'
-            [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol);
+            [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin);
         case 'Double Symmetric'
             [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol);
         case 'Double Plane Symmetric' 
@@ -96,7 +96,7 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
     iter = 1;                   %Initial iteration
     
     %Preallocation 
-    ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+    ds0 = zeros(3,maxIter);     %Vector containing the initial conditions correction
         
     %Main computation 
     while (GoOn) && (iter < maxIter)
@@ -109,16 +109,17 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
         %Compute the correction 
         F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');         %Vector field at T/2
         Phi = reshape(S(end,m+1:end), [m m]);                               %Build the monodromy matrix at T/2
-        A = [Phi(3:4,5) Phi(3:4,6)] ...
-            -(1/S(end,5)*[S(end,6); F(4)]*[Phi(2,5) Phi(2,6)]);
-        ds0(:,iter) = A\e;                                                  %Compute the variation
+        A = [Phi(3:4,1) Phi(3:4,5) Phi(3:4,6)] ...
+            -(1/S(end,5)*[S(end,6); F(4)]*[Phi(2,1) Phi(2,5) Phi(2,6)]);    %Constraint matrix
+        ds0(:,iter) = pinv(A)*e;                                            %Compute the variation
         
         %Convergence analysis 
         if (norm(e) <= tol)
             GoOn = false;
         else
-            seed(5:6) = seed(5:6)-ds0(:,iter);    %Update initial conditions
-            iter = iter+1;                        %Update iteration
+            seed(1) = seed(1)-ds0(1,iter);          %Update initial x coordinate
+            seed(5:6) = seed(5:6)-ds0(2:3,iter);    %Update initial conditions
+            iter = iter+1;                          %Update iteration
         end       
     end
     
@@ -133,13 +134,17 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
     xf.Period = t(end);         %Orbit period
     
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using the XZ symmetry
-function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
+function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin)
     %Constants 
-    m = 6;      %Phase space dimension 
+    m = 6;                  %Phase space dimension 
+    DOF = varargin{1};      %Number of allowed degrees of freedom
+    DOF = DOF{1};
     
     %Sanity check on initial conditions dimension
     if (size(seed,2) == 6) || (size(seed,1) == 6)
@@ -183,7 +188,13 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
     iter = 1;                   %Initial iteration
     
     %Preallocation 
-    ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+    if (DOF == 3)
+        ds0 = zeros(3,maxIter);     %Vector containing the initial conditions correction
+    elseif (DOF == 2)
+        ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+    else
+        error('No valid number of degrees of freedom was selected');
+    end
         
     %Main computation 
     while (GoOn) && (iter < maxIter)
@@ -196,16 +207,29 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
         %Compute the correction 
         F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');         %Vector field at T/2
         Phi = reshape(S(end,m+1:end), [m m]);                               %Build the monodromy matrix at T/2
-        A = [Phi(4,3) Phi(4,5); Phi(6,3) Phi(6,5)] ...
-            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,3) Phi(2,5)]);
-        ds0(:,iter) = A\e;                                                  %Compute the variation
+        A = [Phi(4,1) Phi(4,3) Phi(4,5); Phi(6,3) Phi(6,3) Phi(6,5)] ...
+            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,1) Phi(2,3) Phi(2,5)]);        %Constraint matrix
+        if (DOF == 2)
+            A = A(:,2:end);
+        end
+        
+        ds0(:,iter) = pinv(A)*e;                                            %Compute the variation
+        
+        if (DOF == 3)
+            seed(1) = seed(1)-ds0(1,iter);        %Update the initial x coordinate
+            seed(3) = seed(3)-ds0(2,iter);        %Update the initial z coordinate
+            seed(5) = seed(5)-ds0(3,iter);        %Update the initial Vy coordinate
+        elseif (DOF == 2)
+            seed(3) = seed(3)-ds0(1,iter);        %Update the initial z coordinate
+            seed(5) = seed(5)-ds0(2,iter);        %Update the initial Vy coordinate
+        else
+            error('No valid number of degrees of freedom was selected');
+        end
         
         %Convergence analysis 
         if (norm(e) <= tol)
             GoOn = false;
         else
-            seed(3) = seed(3)-ds0(1,iter);        %Update initial conditions
-            seed(5) = seed(5)-ds0(2,iter);        %Update initial conditions
             iter = iter+1;                        %Update iteration
         end       
     end
@@ -220,7 +244,9 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
     xf.Period = t(end);         %Orbit period
     
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using the double X-XZ symmetry
@@ -270,7 +296,7 @@ function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
     iter = 1;                   %Initial iteration
     
     %Preallocation 
-    ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+    ds0 = zeros(3,maxIter);     %Vector containing the initial conditions correction
         
     %Main computation 
     while (GoOn) && (iter < maxIter)
@@ -281,20 +307,19 @@ function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
         e = [S(end,4); S(end,6)];   %Vx and Vz at the crossing must be 0
         
         %Compute the correction 
-        F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');   %Vector field at T/4
-        Phi = reshape(S(end,m+1:end), [m m]);                         %Build the monodromy matrix at T/4
-        A(1,1) = Phi(4,5)-(F(4)/S(end,5))*Phi(2,5);
-        A(1,2) = Phi(4,6)-(F(4)/S(end,5))*Phi(2,6);
-        A(2,1) = Phi(6,5)-(F(6)/S(end,5))*Phi(2,5);
-        A(2,2) = Phi(6,6)-(F(6)/S(end,5))*Phi(2,6);
-        ds0(:,iter) = A\e;                                            %Compute the variation
+        F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');         %Vector field at T/4
+        Phi = reshape(S(end,m+1:end), [m m]);                               %Build the monodromy matrix at T/4
+        A = [Phi(4,1) Phi(4,5) Phi(4,6); Phi(6,1) Phi(6,5) Phi(6,6)] ...
+            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,1) Phi(2,5) Phi(2,6)]);        %Constraint matrix
+        ds0(:,iter) = pinv(A)*e;                                            %Compute the variation
         
         %Convergence analysis 
         if (norm(e) <= tol)
             GoOn = false;
         else
-            seed(5:6) = seed(5:6)-ds0(:,iter);    %Update initial conditions
-            iter = iter+1;                        %Update iteration
+            seed(1) = seed(1)-ds0(1,iter);          %Update initial x coordinate
+            seed(5:6) = seed(5:6)-ds0(2:3,iter);    %Update initial conditions
+            iter = iter+1;                          %Update iteration
         end       
     end
     
@@ -308,7 +333,9 @@ function [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol)
     xf.Period = t(end);         %Orbit period
     
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using the symmetry XZ-XY planes
@@ -395,7 +422,9 @@ function [xf, state] = Sym_DoublePlane_scheme(mu, seed, maxIter, tol)
     xf.Period = t(end);         %Orbit period
     
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute planar periodic orbits -for Lyapunov orbits-
@@ -480,7 +509,9 @@ function [xf, state] = Sym_Planar_scheme(mu, seed, maxIter, tol)
     xf.Period = t(end);         %Orbit period
     
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
@@ -608,7 +639,9 @@ function [xf, state] = MS_Periodic_scheme(mu, seed, maxIter, tol, varargin)
     xf.Period = t(end);                          %Orbit period
         
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using multiple shooting and fixed Jacobi Constant value 
@@ -736,7 +769,9 @@ function [xf, state] = MS_Jacobi_scheme(mu, seed, maxIter, tol, varargin)
     xf.Period = t(end);                          %Orbit period
         
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end
 
 %Compute periodic orbits using multiple shooting and energy-continuity constraint
@@ -887,5 +922,7 @@ function [xf, state] = PAC_Periodic_scheme(mu, y, maxIter, tol, varargin)
     xf.Iter = iter;                              %Number of iterations needed to converge
         
     %Ouput differential correction scheme convergence results
-    state = ~GoOn;
+    state.State = ~GoOn;        %Convergence boolean
+    state.Iterations = iter;    %Final iteration
+    state.Error = norm(e);      %Final error L2 norm
 end

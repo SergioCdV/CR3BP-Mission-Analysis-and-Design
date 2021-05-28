@@ -67,7 +67,6 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     direction = setup(4);                       %Direction to continuate in
             
     %Preallocate solution
-    state = zeros(1,object_number);             %Preallocate convergence solution
     X = zeros(object_number, state_dim);        %Preallocate initial seeds
     T = zeros(1,object_number);                 %Period of each orbit
     stability = zeros(1,object_number);         %Stability index of each orbit
@@ -87,7 +86,7 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
             %Main loop
             while (num <= object_number) && (GoOn)
                %Differential correction
-               [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
+               [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, 2);
                STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                %Study stability 

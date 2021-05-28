@@ -33,7 +33,7 @@ param = [1 Az Ln gamma m];                                  %Halo orbit paramete
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
-tol = 1e-5;                                                 %Differential correction tolerance 
+tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
 num = 5;                                                    %Number of orbits to continuate
 direction = 1;                                              %Direction to continuate (to the Earth)
