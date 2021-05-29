@@ -90,7 +90,7 @@ Penalties.RepulsivePenalty = eye(3);             %Penalty on the distance to the
 Penalties.RepulsiveWidth = 1e-3;                 %Width of the repulsive function
 
 %Safety message 
-safe_corridor.Safety = true;
+safe_corridor.Safety = false;
 safe_corridor.Parameters(1) = deg2rad(10);       %Safety corridor angle
 safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking port
 safe_corridor.Parameters(3:4) = [1 1];           %Dimensions of the safety corridor
@@ -103,7 +103,7 @@ Cg = output(7:9,:);
  
 %% GNC trajectory: APF-SMC
 %GNC control structure
-GNC.Algorithms.Guidance = 'APF';                    %Guidance algorithm
+GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
 GNC.Algorithms.Navigation = '';                     %Navigation algorithm
 GNC.Algorithms.Control = 'SMC';                     %Control algorithm
 GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
@@ -120,7 +120,7 @@ GNC.Guidance.APF.Penalties = Penalties;             %APF guidance core parameter
 GNC.Guidance.APF.Obstacles = So;                    %Relative position of the obstacles
             
 GNC.System.mu = mu;                                 %System reduced gravitational parameter
-GNC.Control.SMC.Parameters = [1 1 0.9 0.1];         %Controller parameters
+GNC.Control.SMC.Parameters = [10 10 0.9 0.01];         %Controller parameters
 
 %Re-integrate trajectory
 [t, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
@@ -129,7 +129,7 @@ GNC.Control.SMC.Parameters = [1 1 0.9 0.1];         %Controller parameters
 [e, merit] = figures_merit(tspan, St);
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), t);    
+[Sg, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), t);    
 
 %Control effort 
 effort = control_effort(tspan, u);
@@ -154,6 +154,7 @@ figure(2)
 view(3) 
 hold on
 plot3(St(:,7), St(:,8), St(:,9)); 
+plot3(Sg(:,1), Sg(:,2), Sg(:,3));
 hold off
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');

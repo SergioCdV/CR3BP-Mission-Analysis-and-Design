@@ -35,7 +35,7 @@ dt = 1e-3;                                                  %Time step to integr
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 5;                                                    %Number of orbits to continuate
+num = 30;                                                    %Number of orbits to continuate
 direction = 1;                                              %Direction to continuate (to the Earth)
    
 %% Functions
