@@ -47,7 +47,7 @@ tol = 1e-5;                                                 %Tolerance
 %Manifold computation
 rho = 10;                    %Number of manifold fibers to compute
 manifold_ID = 'U';           %Unstable manifold (U or S)
-manifold_branch = 'R';       %Left branch of the manifold (L or R)
+manifold_branch = 'L';       %Left branch of the manifold (L or R)
 
 Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
 

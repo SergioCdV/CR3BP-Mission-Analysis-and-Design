@@ -38,56 +38,57 @@ end
 %Compute a HOI transfer using the stable manifold, as detailed in Barden, 1994
 function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIter, tol, varargin)
     %Constants 
-    m = 6;                                      %Phase space dimension
+    m = 6;                                          %Phase space dimension
     
     %Parking orbit definition 
-    Primary = parking_orbit.Primary;            %Primary associated to the parking orbit   
+    Primary = parking_orbit.Primary;                %Primary associated to the parking orbit   
     switch (Primary)
-        case 'First'
-            R = [-mu; 0; 0];                    %Primary location in the configuration space
-            branch = 'L';                       %Manifold branch to globalize
-            map = 'First primary';              %Poincaré map to use
-            event = @(t,s)fp_crossing(t,s,mu);  %Integration event
+        case 'Primary'
+            R = [-mu; 0; 0];                        %Primary location in the configuration space
+            branch = 'L';                           %Manifold branch to globalize
+            map = 'First primary';                  %Poincaré map to use
+            event = @(t,s)fp_crossing(t,s,mu);      %Integration event
         case 'Secondary'
-            R = [1-mu; 0; 0];                   %Primary location in the configuration space
-            branch = 'R';                       %Manifold branch to globalize
-            map = 'Secondary primary';          %Poincaré map to use
-            event = @(t,s)sp_crossing(t,s,mu);  %Integration event
+            R = [1-mu; 0; 0];                       %Primary location in the configuration space
+            branch = 'L';                           %Manifold branch to globalize
+            map = 'Secondary primary';              %Poincaré map to use
+            event = @(t,s)sp_crossing(t,s,mu);      %Integration event
         otherwise 
             error('No valid primary was selected');
     end
     
-    hd = parking_orbit.Altitude;                %Parking orbit altitude
+    hd = parking_orbit.Altitude;                    %Parking orbit altitude
     
-    %Integrate the stable manifold backwards and check it intersects the whereabouts of the parking orbit
-    manifold = 'S';                                                                 %Integrate the stable manifold
-    seed = target_orbit.Trajectory;                                                 %Periodic orbit seed
-    tspan = target_orbit.tspan;                                                     %Original integration time
-    rho = 10;                                                                      %Density of fibres to analyze
-    S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);            %Initial trajectories
+    %Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
+    manifold = 'S';                                                          %Integrate the stable manifold
+    seed = target_orbit.Trajectory;                                          %Periodic orbit seed
+    tspan = target_orbit.tspan;                                              %Original integration time
+    rho = 10;                                                                %Density of fibres to analyze
+    S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);     %Initial trajectories
     
     %Relative distance to the primary of interest
     distance = zeros(rho,1);    
     for i = 1:rho
-        distance(i) = norm(shiftdim(S.Trajectory(i,S.ArcLength(i),1:3))-R);         %Distance to the primary 
+        distance(i) = norm(shiftdim(S.Trajectory(i,S.ArcLength(i),1:3))-R);  %Distance to the primary 
     end
         
     [~, index] = sort(distance);                            %Select the closest manifold to the parking orbit
     s0 = shiftdim(S.Trajectory(index(1),1,:));              %Initial conditions to correct
     Phi = eye(m);                                           %Initial STM 
     Phi = reshape(Phi, [m^2 1]);                            %Initial STM 
-    dt = 1e-3;                                              %Time step
-    s0 = [s0; Phi];                                         %Initial conditions
+    sHalo = seed(S.Index(index(1)),1:m).';                  %Halo insertion point
+    s0 = [sHalo(1:3); s0(4:6); Phi];                        %Initial conditions
     TOF = S.TOF(index(1));                                  %Time of flight
+    dt = 1e-3;                                              %Time step
     tspan = TOF:-dt:0;                                                                  %Integration time
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', event);             %Integration tolerances  
     [~, Sn] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);     %Natural trajectory
     St = Sn;
         
     %Single shooting differential corrector setup 
-    GoOn = true;                                                          %Convergence boolean 
-    iter = 1;                                                             %Initial iteration
-    h_index = 1;                                                          %Altitude range index
+    GoOn = true;                                            %Convergence boolean 
+    iter = 1;                                               %Initial iteration
+    h_index = 1;                                            %Altitude range index
     
     %Altitude range to continuate the solution on
     if (min(distance) < hd)
@@ -96,13 +97,14 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
         range = linspace(0.95*min(distance), hd, fix(sqrt(min(distance)/hd))+1);                    
     end
     
-    %Integration tolerances                  
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)null_flight_path(t, s, R));    %New stopping event
+    %Integration tolerances & new halt event        
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)null_flight_path(t, s, R)); 
     
     %Continuation loop
     while (h_index <= length(range))
         %Preallocation of the maneuver 
-        dV = zeros(3,maxIter); 
+        dV = zeros(2,maxIter); 
+        dV(2,:) = atan2(s0(5), s0(4))*ones(1,maxIter);
         
         %Selection of the desired values 
         hd = range(h_index);
@@ -110,36 +112,50 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
         %Main correction process
         while ((GoOn) && (iter < maxIter))
             %Compute the error
-            Sr = St(end,1:6).'-[R; zeros(3,1)];                             %Relative state vector to the primary of interest
-            h = norm(Sr(1:3));                                              %Final altitude
+            Sr = St(end,1:6).'-[R; zeros(3,1)];                         %Relative state vector to the primary of interest
+            h = norm(Sr(1:3));                                          %Final altitude
                         
             %Error vector
-            e = h-hd;                              
+            e = h-hd;                       
+            
+            %HOI relative velocity 
+            dVhoi = St(1,4:5).'-sHalo(4:5);
+            
+            %Derivative of the initial velocity with respect to the control variables
+            dvV = norm(dVhoi)./dVhoi;
+            dbV = (dVhoi(1)^2+dVhoi(2)^2)./[-dVhoi(2); dVhoi(1)];
+            dvV(3) = 0;
+            dbV(3) = 0; 
             
             %Dynamics at the end point of the trajectory
-            STM = reshape(St(end,m+1:end),[m m]);                           %State transition matrix
-            F = cr3bp_equations(mu, 1, false, 0, St(end,1:6).');            %Dynamics vector field
+            STM = reshape(St(end,m+1:end),[m m]);                       %State transition matrix
+            F = cr3bp_equations(mu, 1, false, 0, St(end,1:6).');        %Dynamics vector field
             
-            %Compute the sensibility matrix
-            dvH = (Sr(1:3)).'/norm(Sr(1:3))*STM(1:3,4:6);                   %Derivative of the altitude with respect to the initial velocity
-            dtH = Sr(1:3).'/norm(Sr(1:3))*F(1:3);                           %Derivative of the altitude with respect to the end time
+            %Derivatives of the altitude with respect to the control variables
+            dsH = Sr(1:3).'/norm(Sr(1:3));                              %Derivative of the final altitude with respect to the final position
+            dvH = dsH*STM(1:3,4:6)*dvV;                                 %Derivative of the altitude with respect to the initial velocity module
+            dbH = dsH*STM(1:3,4:6)*dbV;                                 %Derivative of the altitude with respect to the initial velocity angle 
+            dtH = dsH*F(1:3);                                           %Derivative of the altitude with respect to the end time 
             
-            %Derivatives of the flight path angle
-            dsGamma = [-Sr(4:6).' -Sr(1:3).'];                              %Derivative with respect to the state
-            dtGamma = dsGamma*F(1:6);                                       %Derivative with respect to time
-            dsGamma = dsGamma*STM(:,4:6);                                   %Derivative with respect to the velocity
+            %Derivatives of the flight path angle with respect to the control variables
+            dsGamma = [-Sr(4:6).' -Sr(1:3).'];                          %Derivative with respect to the state
+            dtGamma = dsGamma*F(1:6);                                   %Derivative with respect to time
+            dvGamma = dsGamma*STM(:,4:6)*dvV;                           %Derivative with respect to the velocity module
+            dbGamma = dsGamma*STM(:,4:6)*dbV;                           %Derivative with respect to the velocity angle
             
             %Sensibility matrix
-            Sigma = dvH-(dtH/dtGamma)*dsGamma;
+            Sigma = [dvH dbH]-(dtH/dtGamma)*[dvGamma dbGamma];
             
             %Compute the initial conditions
-            dV(:,iter) = -pinv(Sigma)*e;              %Computed the required min norm maneuver
-            s0(4:6) = s0(4:6)+dV(1:3,iter);           %New initial conditions
+            dV(1,iter) = -pinv(Sigma(1))*e;                                 %Computed the required min norm maneuver
+            ds0 = dV(1,iter)*[cos(dV(2,iter)); sin(dV(2,iter))];        %Velocity change
+            s0(4:5) = s0(4:5) + (ds0);
             
             %Re-integrate the trajectory 
             [~, St] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);
             
             %Convergence analysis 
+            norm(e)
             if (norm(e) < tol)
                 GoOn = false;
             else
@@ -158,7 +174,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     end
     
     %Compute the needed maneuver 
-    dVf = Sn(1,4:6).'-s0(4:6);                      %Total in-plane velocity change
+    dVf = [ds0; 0];                                 %Total in-plane velocity change
     
     %Final output 
     xf.Trajectory = St;                             %Final trajectory

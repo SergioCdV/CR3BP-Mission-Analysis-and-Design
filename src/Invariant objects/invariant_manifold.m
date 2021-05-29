@@ -110,8 +110,9 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
     	[t, auxM] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, M0(i,:), options);
         
         %Save results
-        M.Trajectory(i,1:size(auxM,1),1:size(auxM,2)) = auxM; 
-        M.TOF(i) = t(end);
-        M.ArcLength(i) = length(t);
+        M.Trajectory(i,1:size(auxM,1),1:size(auxM,2)) = auxM;       %Trajectory
+        M.TOF(i) = t(end);                                          %Integration time
+        M.ArcLength(i) = length(t);                                 %Integration time in integers
+        M.Index(i) = h*(i-1)+1;                                     %Index along the orbit
     end 
 end

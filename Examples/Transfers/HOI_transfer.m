@@ -33,8 +33,8 @@ L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %Differential corrector set up
-maxIter = 20;                       %Maximum number of iterations
-tol = 1e-10;                        %Differential corrector tolerance
+maxIter = 50;                       %Maximum number of iterations
+tol = 1e-5;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
@@ -49,12 +49,12 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Generation of the transfer trajectory
 %Definition of the parking orbit 
-parking_orbit.Primary = 'Primary';                                              %Parking orbit primary
-parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 200e3, 'Position', 0);      %Parking orbit altitude
+parking_orbit.Primary = 'Secondary';                                            %Parking orbit primary
+parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);     %Parking orbit altitude
 
 %Redefinition with addtional parameters of the target orbit 
 target_orbit.tspan = tspan;                                                     %Original integration time
