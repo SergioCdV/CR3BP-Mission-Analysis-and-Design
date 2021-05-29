@@ -79,14 +79,14 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     switch (parameter)
          case 'Energy'  
             %Modify initial conditions 
-            ds = direction*(1e-3);                      %Continuation step (will vary depending on the solution stability)
-            step = [ds zeros(1,state_dim-1)];           %Family continuation vector
+            ds = direction*(1e-2);                      %Continuation step (will vary depending on the solution stability)
+            step = [0 0 ds 0 0 0];                      %Family continuation vector
             y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions 
 
             %Main loop
             while (num <= object_number) && (GoOn)
                %Differential correction
-               [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, 2);
+               [Y, state(num)] = differential_correction(corrector, mu, y, n, tol, nodes, object_period);
                STM = reshape(Y.Trajectory(end,state_dim+1:end), state_dim, state_dim); 
 
                %Study stability 

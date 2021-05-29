@@ -30,7 +30,7 @@ function [xf, state] = differential_correction(algorithm, mu, seed, maxIter, tol
         case 'Axis Symmetric'
             [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol);
         case 'Plane Symmetric'
-            [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin);
+            [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol);
         case 'Double Symmetric'
             [xf, state] = Sym_Double_scheme(mu, seed, maxIter, tol);
         case 'Double Plane Symmetric' 
@@ -140,12 +140,10 @@ function [xf, state] = Sym_Axis_scheme(mu, seed, maxIter, tol)
 end
 
 %Compute periodic orbits using the XZ symmetry
-function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin)
+function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol)
     %Constants 
     m = 6;                  %Phase space dimension 
-    DOF = varargin{1};      %Number of allowed degrees of freedom
-    DOF = DOF{1};
-    
+
     %Sanity check on initial conditions dimension
     if (size(seed,2) == 6) || (size(seed,1) == 6)
         %Restrict the seed to the initial conditions
@@ -188,14 +186,8 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin)
     iter = 1;                   %Initial iteration
     
     %Preallocation 
-    if (DOF == 3)
-        ds0 = zeros(3,maxIter);     %Vector containing the initial conditions correction
-    elseif (DOF == 2)
-        ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
-    else
-        error('No valid number of degrees of freedom was selected');
-    end
-        
+    ds0 = zeros(2,maxIter);     %Vector containing the initial conditions correction
+
     %Main computation 
     while (GoOn) && (iter < maxIter)
         %Proceed with the integration
@@ -207,24 +199,13 @@ function [xf, state] = Sym_Plane_scheme(mu, seed, maxIter, tol, varargin)
         %Compute the correction 
         F = cr3bp_equations(mu, direction, flagVar, 0, S(end,:).');         %Vector field at T/2
         Phi = reshape(S(end,m+1:end), [m m]);                               %Build the monodromy matrix at T/2
-        A = [Phi(4,1) Phi(4,3) Phi(4,5); Phi(6,3) Phi(6,3) Phi(6,5)] ...
-            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,1) Phi(2,3) Phi(2,5)]);        %Constraint matrix
-        if (DOF == 2)
-            A = A(:,2:end);
-        end
+        A = [Phi(4,1) Phi(4,5); Phi(6,1) Phi(6,5)] ...
+            -(1/S(end,5)*[F(4); F(6)]*[Phi(2,1) Phi(2,5)]);                 %Constraint matrix
         
-        ds0(:,iter) = pinv(A)*e;                                            %Compute the variation
-        
-        if (DOF == 3)
-            seed(1) = seed(1)-ds0(1,iter);        %Update the initial x coordinate
-            seed(3) = seed(3)-ds0(2,iter);        %Update the initial z coordinate
-            seed(5) = seed(5)-ds0(3,iter);        %Update the initial Vy coordinate
-        elseif (DOF == 2)
-            seed(3) = seed(3)-ds0(1,iter);        %Update the initial z coordinate
-            seed(5) = seed(5)-ds0(2,iter);        %Update the initial Vy coordinate
-        else
-            error('No valid number of degrees of freedom was selected');
-        end
+        %Update the initial conditions
+        ds0(:,iter) = pinv(A)*e;
+        seed(1) = seed(1)-ds0(1,iter);            %Update the initial x coordinate
+        seed(5) = seed(5)-ds0(2,iter);            %Update the initial Vy coordinate
         
         %Convergence analysis 
         if (norm(e) <= tol)

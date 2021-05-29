@@ -21,7 +21,7 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 1e6;                                                 %Orbit amplitude out of the synodic plane. Play with it!
+Az = 200e6;                                                   %Orbit amplitude out of the synodic plane. Play with it!
 Ax = 200e6;                                                 %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
@@ -47,7 +47,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 [lyapunov_orbit, state(1)] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
 %Halo orbit (through several schemes)
-[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol, 3);
+[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
