@@ -33,8 +33,8 @@ L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %Differential corrector set up
-maxIter = 50;                       %Maximum number of iterations
-tol = 1e-5;                        %Differential corrector tolerance
+maxIter = 100;                       %Maximum number of iterations
+tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
