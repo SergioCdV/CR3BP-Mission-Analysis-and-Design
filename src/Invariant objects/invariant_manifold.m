@@ -51,7 +51,9 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
             case 'Secondary primary' 
                 map = @(t,s)sp_crossing(t,s,mu);           %Poincaré map defined by the secondary primary
             case 'Homoclinic rendezvous' 
-                map = @(t,s)fp_crossing(t,s,mu);        %Poincaré map defined by the XZ plane 
+                map = @(t,s)poincare_crossing(t,s,mu);     %Poincaré map defined by the XZ plane
+            case 'X crossing' 
+                map = @(t,s)x_crossing(t,s);               %Poincaré map defined by the X axis
             otherwise
                 error('No valid Poincaré map was selected'); 
         end
@@ -60,7 +62,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
         
         %New integration times
         dt = tspan(2)-tspan(1);                             %Time step
-        tspan = 0:dt:10*pi;                                 %New integration time
+        tspan = 0:dt:4*pi;                                  %New integration time
     end
     
     %Integration and manifold parameters     

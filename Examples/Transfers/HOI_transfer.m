@@ -67,5 +67,5 @@ plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.T
 plot3(transfer_orbit.Trajectory(:,1), transfer_orbit.Trajectory(:,2), transfer_orbit.Trajectory(:,3));
 hold off
 grid on;
-title('Halo Orbit Insertion transfer orbit')
-legend('Halo target orbit', 'Transfer orbit')
+title('Halo Orbit Insertion Transfer Orbit')
+legend('Target halo orbit', 'Transfer orbit')

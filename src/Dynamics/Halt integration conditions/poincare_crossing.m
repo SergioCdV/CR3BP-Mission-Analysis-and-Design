@@ -8,9 +8,13 @@
 %% Poincaré map crossing %%
 % This function contains a handle function to define orbital events to stop integration.
 
-function [Pos, isterminal, dir] = poincare_crossing(~, x)
+function [Pos, isterminal, dir] = poincare_crossing(~, x,mu)
     %Event definition
-    Pos = x(2);         %X axis crossing
-    isterminal = 1; 
-    dir = 0;            %Direction of the crossing
+    if (x(1) > 1-mu)
+        Pos = x(2);         %X axis crossing
+    else
+        Pos = NaN;
+    end
+    isterminal = 1;         %Halt the integration
+    dir = 0;                %Direction of the crossing
 end

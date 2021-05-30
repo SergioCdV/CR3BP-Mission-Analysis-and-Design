@@ -41,14 +41,14 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 50e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+halo_param = [-1 Az Ln gamma m];                                     %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
@@ -68,7 +68,29 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
 
 %% Homoclinic connection
-Branch = ['R' 'R'];
-TOF = tf; 
-long_rendezvous = true;
-[Sg, dV] = HCNC_guidance(mu, Branch, 100, target_orbit, TOF, long_rendezvous);
+%Manifold definition
+Branch = ['R' 'L'];             %Directions to propagate the manifolds
+TOF = tf;                       %Time of flight
+rho = 20;                      %Manifold fibers to compute 
+
+%Computation flags
+long_rendezvous = true;         %Flag to allow for long rendezvous
+position_fixed = false;         %Flag to determine a final target state
+graphics = true;                %Flag to plot the manifolds
+
+%Final target state
+target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n)); 
+
+%Trajectory design core
+[Sg, dV] = HCNC_guidance(mu, Branch, rho, target_orbit, TOF, long_rendezvous, position_fixed, graphics);
+
+%% Plot results 
+figure 
+view(3)
+hold on 
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3));
+plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3));
+hold off
+grid on;
+title('Homoclinic rendezvous trajectory')
+legend('Target halo orbit', 'Homoclinic trajectory')
