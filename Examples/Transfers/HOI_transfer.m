@@ -56,9 +56,6 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 parking_orbit.Primary = 'Secondary';                                            %Parking orbit primary
 parking_orbit.Altitude = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);     %Parking orbit altitude
 
-%Redefinition with addtional parameters of the target orbit 
-target_orbit.tspan = tspan;                                                     %Original integration time
-
 %Transfer orbit
 [transfer_orbit, dV, state] = transfer_correction('HOI transfer', mu, parking_orbit, target_orbit, maxIter, tol);
 

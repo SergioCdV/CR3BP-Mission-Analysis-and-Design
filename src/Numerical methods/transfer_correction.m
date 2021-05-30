@@ -62,7 +62,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     %Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
     manifold = 'S';                                                          %Integrate the stable manifold
     seed = target_orbit.Trajectory;                                          %Periodic orbit seed
-    tspan = target_orbit.tspan;                                              %Original integration time
+    tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
     rho = 10;                                                                %Density of fibres to analyze
     S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);     %Initial trajectories
     

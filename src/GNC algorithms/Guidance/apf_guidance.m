@@ -8,17 +8,15 @@
 %% Artificial Potential Functions Guidance %%
 % This script contains the function to compute the guidance law by means of APFs.
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system
-%         - structure safe_corridor, to activate/desactivate the safety APF
-%         - structure Penalties, the controller scheme penalties
-%         - array sO, indicating the position of the obstacles (if any) to avoid
-%         - scalar TOF, the time of rendezvous to be simulated
-%         - vector s0, the initial conditions of the desired guidance law
-%         - boolean offline_flag, true for the offline computation of the
+% Inputs: - structure safe_corridor, the parameters of the safety policy 
+%         - structure Penalties, the controller parameters
+%         - array So, the relative position of the obstacles 
+%         - scalar TOF, the time of flight to achieve the rendezvous
+%         - vector s0, the initial conditions of the relative particle
+%         - boolean offline_flag, to allow an offline computation of the
 %           guidance law
 
-% Output: - array output, with the definition of the guidance law depending
-%           on the offline computation flag
+% Output: - array Sg, the guidance law definition parameters
 
 % New versions: 
 

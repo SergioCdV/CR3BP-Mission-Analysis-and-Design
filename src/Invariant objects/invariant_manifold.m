@@ -47,9 +47,11 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
     else
         switch (varargin{1})
             case 'First primary'  
-                map = @(t,s)fp_crossing(t,s,mu);                   %Poincaré map defined by the first primary
+                map = @(t,s)fp_crossing(t,s,mu);           %Poincaré map defined by the first primary
             case 'Secondary primary' 
-                map = @(t,s)sp_crossing(t,s,mu);                   %Poincaré map defined by the secondary primary
+                map = @(t,s)sp_crossing(t,s,mu);           %Poincaré map defined by the secondary primary
+            case 'Homoclinic rendezvous' 
+                map = @(t,s)fp_crossing(t,s,mu);        %Poincaré map defined by the XZ plane 
             otherwise
                 error('No valid Poincaré map was selected'); 
         end
