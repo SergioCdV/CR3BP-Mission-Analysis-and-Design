@@ -25,7 +25,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %Optimization 
-optimization = false;               %Optimize the controller parameters 
+optimization = true;               %Optimize the controller parameters 
 
 %Time span 
 dt = 1e-3;                          %Time step

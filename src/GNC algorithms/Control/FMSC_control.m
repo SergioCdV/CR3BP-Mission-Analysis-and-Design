@@ -66,6 +66,8 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
     else
         time_horizon = 1;
     end
+    time_horizon = 1;
+    
     
     for i = 1:time_horizon
         %Integration set up 
@@ -90,8 +92,8 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
 
             %Compute the maneuver
             if (constrained)
-                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2));                  %Safety constraint
-                STM = eye(3);                                                   %Correction matrix
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';    %Safety constraint
+                STM = Monodromy(1:3,4:6);                                       %Correction matrix
             else
                 error = s0(7:12).';                                             %State error vector
                 switch (restriction)

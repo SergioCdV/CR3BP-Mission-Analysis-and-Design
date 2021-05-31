@@ -45,7 +45,7 @@ function [TOF] = TOF_guidance(cost_function, objective_norm, control_scheme, max
             TOF = ga(@(TOF)costfunc(cost_function, objective_norm, control_scheme, TOF), dof, A, b, Aeq, beq, lb, ub, ...
                      @(TOF)nonlcon(control_scheme, TOF), options);
             
-        case 'NPL'
+        case 'NLP'
             %Initial guess
             sol0 = maxTOF;        
             

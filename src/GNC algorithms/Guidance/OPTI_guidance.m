@@ -68,7 +68,7 @@ function [commands] = nopt_core(cost_function, Tmin, Tmax, tspan, trajectory, me
                       
             commands = reshape(solution, [3 impulses]);      %Control law
             
-        case 'NPL'
+        case 'NLP'
             %Initial guess
             sol0 = Tmax*ones(1,3*impulses);        
             

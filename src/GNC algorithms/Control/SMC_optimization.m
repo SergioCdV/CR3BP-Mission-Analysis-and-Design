@@ -28,7 +28,7 @@ function [parameters] = SMC_optimization(mu, cost_function, s0, TOF)
     
     dof = 3;                %Number of parameters to tune
     PopSize = 100;          %Number of individuals at each population 
-    MaxGenerations = 20;    %Maximum number of generations 
+    MaxGenerations = 5;     %Maximum number of generations 
     
     %Linear constraints 
     A = []; 

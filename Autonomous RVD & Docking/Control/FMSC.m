@@ -85,7 +85,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %Obstacle definition in space and time
 index(1) = randi([1 2000]);                 %Time location of the collision 
 index(2) = 20;                              %Detection time
-so = [S(1942,7:9) 0 0 0];               %Phase space state of the object
+so = [S(index(1),7:9) 0 0 0];               %Phase space state of the object
 R = 5e-4;                                   %Radius of the CA sphere
 [xo, yo, zo] = sphere;                      %Collision avoidance sphere
 xo = R*xo;
@@ -97,26 +97,24 @@ Q = eye(3);                                 %Safety ellipsoid size to avoid the 
 
 %% GNC: FMSC %% 
 %Select the collision time (randomly)
-TOC = tspan(1942);                      %Time of collision
-constraint.Constrained = false;         %No constraints on the maneuver
+%TOC = tspan(1942);                      %Time of collision
+TOC = tspan(index(1));
+constraint.Constrained = true;         %No constraints on the maneuver
 constraint.SafeDistance = 1e-4;         %Safety distance at the collision time
 
-[Sc, dV, tm] = FMSC_control(mu, TOC, so, S(1,1:12), eye(3), 1e-5, constraint, 'Best');
+[Sc, dV, tm] = FMSC_control(mu, TOC, so, S(index(2),1:12), eye(3), 1e-5, constraint, 'Best');
 
 Sc = [S(1:index(2),1:12); Sc(:,1:12)];  %Complete trajectory
 ScCAM = Sc(:,1:3)+Sc(:,7:9);            %Chaser CAM trajectory
-
-%Relative trajectory to the object
-Scr(:,7:12) = Sc(:,7:12)-repmat(so, size(Sc,1), 1);
     
 %% Results %% 
 %Plot results 
 figure(1) 
 view(3) 
 hold on 
-%surf(xo+so(1),yo+so(2),zo+so(3));
-plot3(Scr(:,7), Scr(:,8), Scr(:,9), 'b'); 
-%plot3(S(:,7), S(:,8), S(:,9), 'r'); 
+surf(xo+so(1),yo+so(2),zo+so(3));
+plot3(Sc(:,7), Sc(:,8), Sc(:,9), 'b'); 
+plot3(S(:,7), S(:,8), S(:,9), 'r'); 
 hold off
 xlabel('Synodic x coordinate');
 ylabel('Synodic y coordinate');
@@ -124,7 +122,7 @@ zlabel('Synodic z coordinate');
 grid on;
 legend('Colliding object', 'CAM trajectory', 'Nominal trajectory');
 title('Relative CAM motion in the configuration space');
-%%
+
 figure(2) 
 view(3) 
 hold on 
@@ -163,109 +161,3 @@ ylabel('Relative velocity coordinate');
 grid on;
 legend('x velocity', 'y velocity', 'z velocity');
 title('Relative velocity evolution');
-
-%% Old code
-% %% GNC: FMSC %%
-% %Detect the object at a random reasonable time (critical parameter)
-% index(2) = randi([1 fix(index(1)/2)]);                      %Collision detection time
-% 
-% %Analyze the trajectory and compute each maneuver
-% tspanc = 0:dt:tspan(index(1))-tspan(index(2));              %Integration time
-% 
-% %Preallocation 
-% J = zeros(2,length(tspanc)-1);                              %Cost function to analyze
-% dV = zeros(3,length(tspanc)-1);                             %Velocity impulses all along the look ahead time arc
-% 
-% %Select the restriction level of the CAM 
-% constrained = true;                                         %Safety distance constraint
-% restriction = 'Worst';                                      %Collision risk
-% lambda(1) = 1e-1;                                           %Safety distance
-% lambda(2) = 1e-1;                                           %Safety distance
-% 
-%  for i = 1:length(tspanc)-1
-%     %Shrink the look ahead time 
-%     atime = tspanc(i:end);
-%     
-%     %Compute the Floquet modes at each time instant 
-%     Monodromy = reshape(S(index(1),13:end), [6 6]);                           %State transition matrix at each instant        
-%     [E, sigma] = eig(Monodromy);                                              %Eigenspectrum of the STM 
-%     Phi = Monodromy*reshape(S(index(2)+(i-1),13:end), [6 6])^(-1);            %Relative STM
-%     
-%     for j = 1:size(E,2)
-%         if (constrained)
-%             E(:,j) = sigma(j,j)*E(:,j);
-%         else
-%             E(:,j) = exp(-tspan(index(2)+(i-1))/tspan(index(1))*log(sigma(j,j)))*E(:,j);
-%         end
-%     end
-%     
-%     %Compute the maneuver
-%     switch (restriction) 
-%         case 'Worst'
-%             if (constrained)
-%                 safeS = lambda(1)*E(:,1);                                      %Safety constraint
-%                 STM = Phi(:,4:6);                                              %Correction matrix
-%                 error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
-%                 maneuver = pinv(STM)*error;                                    %Needed maneuver 
-%                 dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-%             else
-%                 w = [0; 1; 1; 1];                                              %Some random vector offerint triaxial control
-%                 STM = [E(:,1) -[zeros(3,3); eye(3)]];                          %Linear application
-%                 error = lambda(1)*rand(6,1);                                   %State error vector
-%                 maneuver = pinv(STM)*error;                                    %Needed maneuver
-%                 dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
-%             end
-%         case 'Best'
-%             if (constrained)
-%                 safeS = lambda(1)*E(:,1)+lambda(2).*E(:,3:end);                %Safety constraint
-%                 STM = Phi(:,4:6);                                              %Correction matrix
-%                 error = safeS-S(end,7:12).';                                   %Error in the unstable direction only
-%                 maneuver = pinv(STM)*error;                                    %Needed maneuver 
-%                 dV(:,i) = maneuver(end-2:end);                                 %Needed change in velocity
-%             else
-%                 STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];               %Linear application
-%                 error = 1e-3*rand(6,1);                                        %State error vector
-%                 maneuver = STM.'*(STM*STM.')^(-1)*error;                       %Needed maneuver
-%                 dV(:,i) = real(maneuver(end-2:end));                           %Needed change in velocity
-%             end
-%         otherwise
-%             error('No valid case was selected');
-%     end
-%     
-%     %Integrate the trajectory 
-%     s0 = S(index(2)+(i-1),1:12);            %Initial conditions
-%     s0(10:12) = s0(10:12)+real(dV(:,i)).';  %Update initial conditions with the velocity change
-%     
-%     [~, s] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);       %Integrate the trajectory
-%     
-%     %Evaluate the cost function
-%     J(1,i) = (1/2)*(s(end,7:9)-so(1,1:3))*Q*(s(end,7:9)-so(1,1:3)).';
-%     J(2,i) = norm(maneuver)+(1/2)*s(end,7:12)*s(end,7:12).';  
-%  end
-% 
-% %Select the safest trajectory 
-% tol = 1e-4;
-% best = size(J,2); 
-% for i = 1:size(J,2)
-%     if (J(1,i)-J(1,best) > tol)
-%         best = i;
-%     elseif (J(1,i)-J(1,best) < tol)
-%         %Do nothing, just the other extreme case
-%     else
-%         %Minimize the second cost function 
-%         if (J(2,i) < J(2,best))
-%             best = i;
-%         end
-%     end
-% end
-% bestCAM.Impulse = dV(:,best);                          %Needed impulse
-% bestCAM.Cost = J(1,best);                              %Cost function
-% 
-% atime = tspan(index(2)+best(end):index(2)+best+20);    %CAM integration time
-% s0 = S(index(2)+(best-1),1:12);                        %Initial conditions
-% s0(10:12) = s0(10:12)+dV(:,best).';                    %Update initial conditions with the velocity change
-% 
-% %Integrate the CAM trajectory
-% [~, SCAM] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options); 
-% SCAM = [S(1:index(2)+(best-1),1:12); SCAM];
-% ScCAM = SCAM(:,1:6)+SCAM(:,7:12);
