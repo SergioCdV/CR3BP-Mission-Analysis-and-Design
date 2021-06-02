@@ -84,7 +84,8 @@ target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n));
 %Trajectory design core
 [Sg, dV] = HCNC_guidance(mu, Branch, rho, target_orbit, TOF, long_rendezvous, position_fixed, graphics);
 
-%% Plot results 
+%% Plot results
+%Plot the transfer
 figure 
 view(3)
 hold on 

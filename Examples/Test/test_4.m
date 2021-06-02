@@ -23,20 +23,20 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration toleran
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
+Az = 100e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
+param = [-1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 30;                                                    %Number of orbits to continuate
-direction = 1;                                              %Direction to continuate (to the Earth)
+num = 5;                                                    %Number of orbits to continuate
+direction = -1;                                              %Direction to continuate (to the Earth)
    
 %% Functions
 %Compute seed
