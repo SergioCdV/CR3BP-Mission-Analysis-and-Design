@@ -89,10 +89,13 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
             for j = 1:size(E,2)
                 E(:,j) = E(:,j)/norm(E(:,j));                              %Normalize unit basis
             end
+            
+            STM = reshape(S(1,13:end), [m m]);
+            [E2,~] = eig(STM);
 
             %Compute the maneuver
             if (constrained)
-                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';    %Safety constraint
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
                 STM = Monodromy(1:3,4:6);                                       %Correction matrix
             else
                 error = s0(7:12).';                                             %State error vector

@@ -157,7 +157,7 @@ xlabel('Nondimensional epoch');
 ylabel('Absolute error  (log)');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
-
+ 
 %Rendezvous animation 
 if (false)
     figure(5) 

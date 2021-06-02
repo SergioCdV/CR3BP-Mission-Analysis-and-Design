@@ -94,6 +94,7 @@ Tmax = 0.1;                                   %Maximum thrust capability (in vel
 %Main computation 
 [St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 
+%%
 %Regression
 order = 10;                                                         %Order of the regression 
 T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis

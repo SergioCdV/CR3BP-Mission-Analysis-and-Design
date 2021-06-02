@@ -43,12 +43,12 @@ tol = 1e-10;                        %Differential corrector tolerance
 %Halo characteristics 
 Az = 50e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [-1 Az Ln gamma m];                                     %Northern halo parameters
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
@@ -69,7 +69,7 @@ setup = [mu maxIter tol direction];                                 %General set
 
 %% Homoclinic connection
 %Manifold definition
-Branch = ['R' 'L'];             %Directions to propagate the manifolds
+Branch = ['L' 'R'];             %Directions to propagate the manifolds
 TOF = tf;                       %Time of flight
 rho = 20;                      %Manifold fibers to compute 
 

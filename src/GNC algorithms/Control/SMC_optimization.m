@@ -27,7 +27,7 @@ function [parameters] = SMC_optimization(mu, cost_function, s0, TOF)
     tspan = 0:dt:TOF;       %Integration time span
     
     dof = 3;                %Number of parameters to tune
-    PopSize = 100;          %Number of individuals at each population 
+    PopSize = 20;          %Number of individuals at each population 
     MaxGenerations = 5;     %Maximum number of generations 
     
     %Linear constraints 

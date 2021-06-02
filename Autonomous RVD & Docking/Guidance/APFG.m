@@ -103,7 +103,7 @@ Cg = output(7:9,:);
  
 %% GNC trajectory: APF-SMC
 %GNC control structure
-GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
+GNC.Algorithms.Guidance = 'APF';                    %Guidance algorithm
 GNC.Algorithms.Navigation = '';                     %Navigation algorithm
 GNC.Algorithms.Control = 'SMC';                     %Control algorithm
 GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
@@ -120,7 +120,7 @@ GNC.Guidance.APF.Penalties = Penalties;             %APF guidance core parameter
 GNC.Guidance.APF.Obstacles = So;                    %Relative position of the obstacles
             
 GNC.System.mu = mu;                                 %System reduced gravitational parameter
-GNC.Control.SMC.Parameters = [10 10 0.9 0.01];         %Controller parameters
+GNC.Control.SMC.Parameters = [10 10 0.9 0.01];      %Controller parameters
 
 %Re-integrate trajectory
 [t, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
@@ -161,6 +161,7 @@ ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
+legend('Controlled trajectory', 'Reference trajectory')
 
 %Configuration space evolution
 figure(3)

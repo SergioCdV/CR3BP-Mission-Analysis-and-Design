@@ -99,8 +99,9 @@ safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corri
 
 %Compute the guidance law
 [Sg, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, s0);
+
 effort = control_effort(tspan, u);                                          %Control effort made
-e = figures_merit(tspan, Sg);                                               %Figures of merit of the rendezvous error 
+[e, merit] = figures_merit(tspan, Sg);                                      %Figures of merit of the rendezvous error 
 
 %% Results 
 %Plot results 
@@ -131,6 +132,7 @@ ylabel('Synodic y coordinate');
 zlabel('Synodic z coordinate');
 grid on;
 title('Relative motion in the configuration space');
+legend('Rendezvous trajectory', 'Obstacles')
 
 %Configuration space evolution
 figure(3)
