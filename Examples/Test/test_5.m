@@ -40,18 +40,33 @@ direction = -1;                                             %Direction to contin
 %% Functions
 %Compute the NRHO
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
-[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+
+%Continuation procedure 
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+setup = [mu maxIter tol direction];                         %General setup
+
+[Results_energy, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
+
+%% Generate the NRHO
+s0 = [Results_energy.Seeds(end,:).'; reshape(eye(6), [36 1])];
+tspan = 0:dt:Results_energy.Period(end);
+[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
 
 %% Globalization of the manifolds
 %Manifold definition
-Branch = ['R' 'R'];             %Directions to propagate the manifolds
-TOF = 10*pi;                    %Time of flight
-rho = 20;                       %Manifold fibers to compute 
+Branch = ['R' 'L'];            %Directions to propagate the manifolds
+TOF = 2*pi;                    %Time of flight
+rho = 50;                      %Manifold fibers to compute 
 
 %Computation flags
 long_rendezvous = true;         %Flag to allow for long rendezvous
 position_fixed = false;         %Flag to determine a final target state
 graphics = true;                %Flag to plot the manifolds
+
+halo_orbit.Trajectory = S;      %Target orbit
 
 %Trajectory design core
 [Sg, dV] = HCNC_guidance(mu, Branch, rho, halo_orbit, TOF, long_rendezvous, position_fixed, graphics);
