@@ -82,7 +82,7 @@ thruster_model.Sigma = 0.01;                %Velocity noise dependance on the ve
 thruster_model.Rotation = eye(3);           %Rotational misalignment of the thrusters
 
 %Cost function 
-cost_function = 'Position';                 %Cost function to target
+cost_function = 'Velocity';                 %Cost function to target
 two_impulsive = true;                       %Two-impulsive rendezvous boolean
 
 [St, dV, state] = TITA_control(mu, tf, s0, tol, cost_function, zeros(1,3), two_impulsive, ...
