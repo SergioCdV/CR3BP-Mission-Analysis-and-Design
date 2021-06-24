@@ -109,6 +109,15 @@ for i = 1:size(S,1)
     detJ(i) = det(shiftdim(J(i,:,:)));                      %Determinant of the Jacobian
 end
 
+%% Analysis of the phase space volume invariancy 
+%Preallocation
+H = zeros(size(S,1),1);                    %Relative Hamiltonian all along the trajectory
+
+%Main computation
+for i = 1:size(S,1)
+    H(i) = rel_hamiltonian(mu, S(i,:).');  %Hamiltonian of the system
+end
+
 %% Results %% 
 % Plot results 
 figure(1) 

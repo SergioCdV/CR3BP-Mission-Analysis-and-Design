@@ -35,14 +35,14 @@ dt = 1e-3;                                                  %Time step to integr
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
 %% Libration curves
-Lc = libration_curves(mu, halo_seed(:,1:3)); 
+Lc = libration_curves(mu, halo_seed(:,1:3), Ln); 
 
 %% Plotting and results 
 %Plot the transfer
 figure 
 view(3)
 hold on 
-plot3(Lc(:,7), Lc(:,8), Lc(:,9));
+plot3(Lc(:,1), Lc(:,2), Lc(:,3));
 hold off
 grid on;
 title('Libration curves')
