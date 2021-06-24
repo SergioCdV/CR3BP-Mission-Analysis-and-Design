@@ -77,6 +77,15 @@ s0 = [s0; ds0];                                             %Initial conditions 
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 [t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 
+%% Analysis of the phase space volume invariancy 
+%Preallocation
+H = zeros(size(S,1),1);                    %Relative Hamiltonian all along the trajectory
+
+%Main computation
+for i = 1:size(S,1)
+    H(i) = rel_hamiltonian(mu, S(i,:).');  %Hamiltonian of the system
+end
+
 %% Analysis of the state transition matrix evolution
 %Preallocation
 STM = zeros(size(S,1), length(r_t0), length(r_t0));         %STM of the system
@@ -107,15 +116,6 @@ detJ = zeros(size(S,1),1);                                  %Determinant of the 
 for i = 1:size(S,1)
     J(i,:,:) = rel_jacobian(mu, S(i,:).');                  %Jacobian of the system
     detJ(i) = det(shiftdim(J(i,:,:)));                      %Determinant of the Jacobian
-end
-
-%% Analysis of the phase space volume invariancy 
-%Preallocation
-H = zeros(size(S,1),1);                    %Relative Hamiltonian all along the trajectory
-
-%Main computation
-for i = 1:size(S,1)
-    H(i) = rel_hamiltonian(mu, S(i,:).');  %Hamiltonian of the system
 end
 
 %% Results %% 
@@ -149,6 +149,13 @@ title('Evolution of the determinant of the Jacobian');
 grid on; 
 xlabel('Nondimensional time'); 
 ylabel('Determinant of the Jacobian');
+
+figure(5)
+plot(t, H); 
+title('Evolution of the relative Hamiltonian'); 
+grid on; 
+xlabel('Nondimensional time'); 
+ylabel('Relative Hamiltonian');
 
 if (false)
     figure(1) 

@@ -1,11 +1,11 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 30/09/20
-% File: augmented_potential.m 
+% Date: 24/06/21
+% File: rel_potential.m 
 % Issue: 0 
 % Validated: 
 
-%% Jacobi constant %%
+%% Relative potential %%
 % For a given gravitational parameter mu and position vector r, this function computes the 
 % potential function associated with that input position vector. 
 

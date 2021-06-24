@@ -20,10 +20,12 @@
 
 function [H] = rel_hamiltonian(mu, s)
     %Define the relative synodic position and velocity vectors
-    v = s(12:15);                 %Relative velocity vector
+    v = s(10:12).';               %Relative velocity vector
+    x = s(7);                     %Relative synodic x coordinate
+    y = s(8);                     %Relative synodic y coordinate
     
     %Compute the kinetic energy 
-    V = v-[x; y; 0];              %Total velocity vector
+    V = v-[y; x; 0];              %Total velocity vector
     T = (1/2)*norm(V)^2;          %Kinetic energy
     
     %Compute the augmented potential function
