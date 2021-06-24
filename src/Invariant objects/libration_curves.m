@@ -10,7 +10,8 @@
 % relative equilibrium curves.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
-%         - array rt, the time evolution of the target motion
+%         - array rt, the time evolution of the target motion. 
+%         - scalar point, to select the libration curve to solve for
 
 % Outputs: - array L, containing in one matrix the position of the five libration 
 %            points of the system (with each column being a position vector) in L1, L2, 
@@ -18,18 +19,16 @@
 
 % New versions: 
 
-function [L] = libration_curves(mu, rt)
+function [L] = libration_curves(mu, rt, point)
     %Preallocation 
-    L = zeros(size(rt,1), 15);               %Equilibrium curves preallocation
+    L = zeros(size(rt,1), 3);               %Equilibrium curves preallocation
     
     %Initial guess 
     absL = libration_points(mu);             %Absolute libration points
     
     %Compute the curves for each initial guess
     for i = 1:size(rt,1)
-        for j = 1:size(absL,2)
-            L(i,1+3*(j-1):3*j) = curve_solver(mu, rt(i,1:3).', absL(1:3,j));
-        end
+        L(i,:) = curve_solver(mu, rt(i,1:3).', absL(1:3, point));
     end
 end
 
@@ -46,7 +45,7 @@ function [Lc] = curve_solver(mu, rt, L)
     mu_r(2) = mu;                  %Gravitational parameter of the second primary
     
     %Newton solver setup
-    tol = 1e-3;                    %Convergence tolerance
+    tol = 1e-10;                   %Convergence tolerance
     GoOn = true;                   %Convergence flag
     maxIter = 100;                 %Maximum number of iterations
     iter = 1;                      %Initial iterations
@@ -54,7 +53,7 @@ function [Lc] = curve_solver(mu, rt, L)
     %Preallocation 
     gradient = zeros(3,1);         %Equilibrium condition
     Lc = zeros(3,maxIter);         %Preallocation of the solution
-    Lc(:,iter) = [L(1:2); rt(3)];  %Initial guess        
+    Lc(:,iter) = L-rt;        %Initial guess        
     
     %Newton's solver
     while (GoOn) && (iter < maxIter)

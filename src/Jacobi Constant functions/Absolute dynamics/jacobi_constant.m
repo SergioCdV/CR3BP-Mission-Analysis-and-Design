@@ -6,8 +6,8 @@
 % Validated: 
 
 %% Jacobi constant %%
-% For a given gravitational parameter mu, a particular vector velocity v
-% and a position vector r, this function computes the Jacobi constant
+% For a given gravitational parameter mu, particular velocity
+% and position vectors v and r, this function computes the Jacobi constant
 % associated with that phase space vector. 
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system. 

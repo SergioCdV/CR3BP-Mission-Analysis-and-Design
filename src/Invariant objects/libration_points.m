@@ -31,8 +31,8 @@ function [L] = libration_points(mu)
     
     %Compute the collinear points using a standard Newton method
     numL = 2;           %Number of collinear points to calculate recursively
-    tol = 1e-20;        %Newton method tolerance
-    iterMax = 1e5;      %Maximum allowed iterations for the Newton method
+    tol = 1e-15;        %Newton method tolerance
+    iterMax = 1e5;     %Maximum allowed iterations for the Newton method
     
     %Main loop
     for i = 1:numL
