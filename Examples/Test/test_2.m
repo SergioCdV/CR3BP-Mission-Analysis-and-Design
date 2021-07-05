@@ -21,8 +21,8 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 200e6;                                                   %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 200e6;                                                 %Orbit amplitude in the synodic plane. Play with it! 
+Az = 50e6;                                                 %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 50e6;                                                 %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
@@ -45,10 +45,12 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Lyapunov orbit
 [lyapunov_orbit, state(1)] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
+param_lyap = [Ax Az 0 0 Ln gamma 20];                        %Lyapunov orbit parameters
+lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
 
-%Halo orbit (through several schemes)
+%Halo orbit 
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-
+  
 %Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
@@ -59,61 +61,59 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 [vertical_orbit, state(5)] = differential_correction('Double Plane Symmetric', mu, vertical_seed, maxIter, tol);
 
 %Butterfly Orbit
-[butterfly_orbit, state(6)] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol, 2);
+[butterfly_orbit, state(6)] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol);
 
 %% Plotting
 figure(1) 
-plot3(lyapunov_seed(:,1), lyapunov_seed(:,2), lyapunov_seed(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Lyapunov orbit seed');
+view(3)
+hold on
+H = plot3(lyapunov_seed(:,1), lyapunov_seed(:,2), lyapunov_seed(:,3), 'b');
+H.Color(4) = 0.15;
+plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3), 'r', 'Linewidth', 0.1);
+hold off
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Earth-Moon $L_1$ planar Lyapunov orbit');
+legend({'Lissajous seed', 'Converged orbit'}, 'Location', 'northeast');
 grid on;
 
 figure(2) 
-plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Converged Lyapunov orbit');
-grid on;
-
-figure(3) 
 plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
 title('Halo orbit');
 grid on;
 
-figure(4)
+figure(3)
 plot3(dro_orbit.Trajectory(:,1), dro_orbit.Trajectory(:,2), dro_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
 title('Converged DRO');
 grid on;
 
-figure(5) 
+figure(4) 
 plot3(axial_orbit.Trajectory(:,1), axial_orbit.Trajectory(:,2), axial_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
 title('Converged axial orbit');
 grid on;
 
-figure(6) 
+figure(5) 
 plot3(vertical_orbit.Trajectory(:,1), vertical_orbit.Trajectory(:,2), vertical_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Converged vertical orbit');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Earth-Moon $L_1$ vertical orbit');
 grid on;
 
-figure(7) 
+figure(6) 
 plot3(butterfly_orbit.Trajectory(:,1), butterfly_orbit.Trajectory(:,2), butterfly_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
 title('Converged butterfly orbit');
 grid on;

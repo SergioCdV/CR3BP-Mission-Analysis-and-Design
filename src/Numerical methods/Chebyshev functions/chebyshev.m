@@ -7,7 +7,7 @@
 
 %% Chebysev polynomials %%
 % This function allows to compute all Chebyshev polynomials of order n of both kinds,
-% evaluated at the argument x. 
+% evaluated at the argument u. 
 
 % Inputs: - string kind, specifying the kind of Chebyshev polynomials to
 %           compute
@@ -18,7 +18,7 @@
 % Outpus: - vector Pn, containing the evaluated Chebyshev polynomials 
 
 function [Pn] = chebyshev(kind, order, u)
-    %Preallocation of the polynomial 
+    %Preallocation of the polynomials 
     Pn = zeros(order,1); 
 
     %Main computation 

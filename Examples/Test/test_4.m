@@ -25,27 +25,37 @@ mu = 0.0121505856;                                          %Reduced gravitation
 L = libration_points(mu);                                   %System libration points
 Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [-1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
+param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 30;                                                    %Number of orbits to continuate
-direction = -1;                                              %Direction to continuate (to the Earth)
+num = 15;                                                   %Number of orbits to continuate
+direction = -1;                                             %Direction to continuate (to the Earth)
    
 %% Functions
-%Compute seed
+%Compute the orbits seeds 
+butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a butterfly orbit
+axial_seed = [0.8431 0 0 0 0.1874 0.4000];                  %State vector of an axial orbit
+
+%Halo orbit
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
+
+%Axial Orbit
+[axial_orbit, ~] = differential_correction('Axis Symmetric', mu, axial_seed, maxIter, tol);
+
+%Butterfly Orbit
+[butterfly_orbit, ~] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol);
 
 %Continuation procedure 
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
+object = {'Orbit', butterfly_orbit.Trajectory(:,1:6), butterfly_orbit.Period};                       %Object and characteristics to continuate
 corrector = 'Plane Symmetric';                              %Differential corrector method
 setup = [mu maxIter tol direction];                         %General setup
 
@@ -74,17 +84,16 @@ setup = [mu maxIter tol direction];                         %General setup
 figure(1) 
 view(3);
 hold on
-plot3(halo_seed(:,1), halo_seed(:,2), halo_seed(:,3), 'k');
-for i = 1:num
+for i = 1:15
   tspan = 0:dt:Results_energy.Period(i);
   [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_energy.Seeds(i,:), options);
-  plot3(S(:,1), S(:,2), S(:,3));
+  plot3(S(:,1), S(:,2), S(:,3), 'b', 'Linewidth', 0.01);
 end
 hold off
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Converged family of orbits');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Converged family of $L_1$ axial orbits');
 grid on;
 
 %%

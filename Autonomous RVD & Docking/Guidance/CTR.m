@@ -109,6 +109,6 @@ end
 figure(1)
 plot(tspan, log(e))
 grid on
-xlabel('Integration time'); 
-ylabel('Approximation error (log)'); 
-title('Error in the Chebyshev approximation');
+xlabel('Normalized integration time $t$'); 
+ylabel('Approximation error $\log{e}$'); 
+title('Absolute error using Chebyshev approximation');

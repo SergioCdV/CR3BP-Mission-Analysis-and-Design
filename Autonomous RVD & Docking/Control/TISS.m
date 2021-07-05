@@ -46,31 +46,44 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 60e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around L1
+Ln = 2;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+halo_param = [1 Az Ln gamma m];                             %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');  %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+%Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
+num = 5;                                                    %Number of orbits to continuate
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, target_orbit.Period};         %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+direction = 1;                                              %Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                         %General setup
+
+[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
+r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial target conditions
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
 %% GNC: two impulsive rendezvous, single shooting scheme %%
 %Differential corrector scheme
@@ -121,9 +134,9 @@ plot3(Sn(:,1), Sn(:,2), Sn(:,3));
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target motion', 'Chaser motion'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Reconstruction of the natural chaser motion');
 
@@ -131,9 +144,9 @@ title('Reconstruction of the natural chaser motion');
 figure(2) 
 view(3) 
 plot3(St(:,7), St(:,8), St(:,9)); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Relative motion in the configuration space');
 
@@ -148,7 +161,7 @@ hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinate');
 grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
+legend('$x$ coordinate', '$y$ coordinate', '$z$ coordinate');
 title('Relative position evolution');
 subplot(1,2,2)
 hold on
@@ -169,6 +182,23 @@ xlabel('Nondimensional epoch');
 ylabel('Absolute error (log)');
 grid on;
 title('Absolute error in the configuration space (L2 norm)');
+
+%Configuration space error 
+figure(5)
+view(3) 
+hold on
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
+r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k'); 
+t = plot3(Sn(size(St,1):end,1), Sn(size(St,1):end,2), Sn(size(St,1):end,3), 'r');
+hold off
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
+grid on;
+t.Color(4) = 0.70; 
+c.Color(4) = 0.70;
+legend('Initial trajectory', 'Converged trajectory', 'Target orbit', 'Location', 'northeast');
+title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 
 if (false)
