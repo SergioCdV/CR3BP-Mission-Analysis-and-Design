@@ -1,28 +1,22 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 30/09/20
-% File: velocity_norm.m 
+% Date: 06/07/21
+% File: zv_surfaces.m 
 % Issue: 0 
 % Validated: 
 
-%% Velocity norm %%
-% For a given gravitational parameter mu, the velocity_norm function
-% computes the magnitude of the velocity vector associated with a particular Jacobi Constant 
-% and a specified position vector.
+%% Zero velocity surfaces %%
+% For a given gravitational parameter mu, this function plots in 2D or 3D the zero velocity curves
+% corresponding to a given value of the Jacobi Constant.
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system.
-%         - vector r, a position vector expressed in the non-dimensional
-%           synodic frame.
-%         - scalar J, the associated Jacobi constant.
+% Inputs: - scalar mu, the reduced gravitational parameter of the system
+%         - scalar C, the given Jacobi constant
+%         - scalar dim, the dimension of the plot
 
-% Outputs: - the scalar V, the magnitude of the velocity vector.
+% Outputs: .
 
 % New versions: 
 
 function [V] = velocity_norm(mu, r, J) 
-    %Compute the augmented potential function
-    U = augmented_potential(mu, r); 
-    
-    %Compute the magnitude of the synodic velocity
-    V = sqrt(2*U-J);
+
 end

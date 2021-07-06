@@ -9,20 +9,23 @@
 % This script contains the function to compute the guidance law by means of
 % an homoclinic connection
 
-% Inputs: - structure safe_corridor, the parameters of the safety policy 
-%         - structure Penalties, the controller parameters
-%         - array So, the relative position of the obstacles 
+% Inputs: - scalar mu, the gravitational parameter of the system
+%         - vector branch, selecting the manifold branches to propagate
+%         - scalar rho, the number of manifold fiber to compute
+%         - scalar L, the libration point ID of the periodic orbit
+%         - array target_orbit, with the needed periodic orbit on which the
+%           connection is desired to exist
 %         - scalar TOF, the time of flight to achieve the rendezvous
-%         - vector s0, the initial conditions of the relative particle
-%         - boolean offline_flag, to allow an offline computation of the
-%           guidance law
+%         - boolean long_rendezvous, to allow for primary connections
+%         - boolean position fixed, in case the final state is constrained
+%         - boolean graphics, to plot or not to plot the results
 
 % Output: - array Sg, the homoclinic trajectory 
 %         - scalar dV, the needed maneuver change
 
 % New versions: 
 
-function [Sg, dV] = HCNC_guidance(mu, Branch, rho, target_orbit, TOF, long_rendezvous, position_fixed, graphics)
+function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_rendezvous, position_fixed, graphics)
     %General parameters 
     if (position_fixed)
         sd = target_orbit.TargetState;             %Target rendezvous state
@@ -35,7 +38,11 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, target_orbit, TOF, long_rende
     %Branch between long/short time rendezvous 
     if (long_rendezvous)  
         %Homoclinic rendezvous Poincaré map
-        map = 'Homoclinic rendezvous';     
+        if (L == 1)
+            map = 'Right homoclinic connection';
+        else
+            map = 'Left homoclinic connection';
+        end
         
         %Globalize the unstable manifold until the Poincare map
         manifold = 'U'; 
@@ -102,10 +109,16 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, target_orbit, TOF, long_rende
         end
 
         %Plot the map and select the initial conditions 
-        [S0, TOF] = poincare_map(Mu, Ms, map);
+        [S0, TOF] = poincare_map(Mu, Ms, 'Connection');
         
         %Integration setup 
-        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)poincare_crossing(t,s,mu));
+        switch (map)
+        case 'Left homoclinic connection' 
+            map = @(t,s)homoclinic_crossing(t, s, mu, 0);
+        case 'Right homoclinic connection'
+            map = @(t,s)homoclinic_crossing(t, s, mu, 0);
+        end
+        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', map);
         
         %Integrate the complete trajectory 
         tspan = 0:dt:2*TOF(1);                %Unstable branch time of flight

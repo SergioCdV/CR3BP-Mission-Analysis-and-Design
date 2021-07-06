@@ -23,7 +23,7 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
     
     %Branch the different Poincare maps
     switch (map)
-        case 'Homoclinic rendezvous'
+        case 'Connection'
             %Preallocation of the intersection points 
             Iu = zeros(size(Su.Trajectory,1), size(Su.Trajectory,3));
             Is = zeros(size(Ss.Trajectory,1), size(Ss.Trajectory,3));
@@ -275,7 +275,7 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
             S0.Stable = shiftdim(Ss.Trajectory(indexs(Ic),1,:));
             TOF(1) = Su.TOF(indexu(Ir(Ic))); 
             TOF(2) = Ss.TOF(indexs(Ic));
-            
+                 
         otherwise 
             error('No valid map was selected');
     end

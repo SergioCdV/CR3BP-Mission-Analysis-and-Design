@@ -71,11 +71,12 @@ figure(1)
 hold on
 plot(x1(:,1), x1(:,2), '-.r');
 plot(s(:,1), s(:,2), 'b');
+grid on;
 hold off 
-xlabel('Position'); 
-ylabel('Velocity');
-title('Differential correction results in the phase space'); 
-legend('Initial trayectory', 'Final trayectory');
+xlabel('Phase $\phi$'); 
+ylabel('Phase velocity $\dot{\phi}$');
+legend('Periodic orbit', 'Quasi-periodic orbit');
+title('Periodic motion in the Duffing oscillator'); 
 
 %% Scenario 2: periodic orbit in the Lorenz system 
 % Let's control the climate!
@@ -219,13 +220,13 @@ end
 % Plotting
 figure(3) 
 hold on
-plot(x1(:,1), x1(:,2), '-.r');
+%plot(x1(:,1), x1(:,2), '-.r');
 plot(s(:,1), s(:,2), 'b');
 hold off 
 xlabel('Number of preys'); 
 ylabel('Number of predators');
-title('Differential correction results in the phase space'); 
-legend('Initial trayectory', 'Final trayectory');
+title('Periodic orbit in the Lokta-Volterra predator-prey model'); 
+%legend('Initial trayectory', 'Final trayectory');
 
 %% Scenario 4: forcing von Karman street at desired frequency.
 % Results: impossible solution. The frequency of the oscilation is
