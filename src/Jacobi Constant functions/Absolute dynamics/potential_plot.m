@@ -12,7 +12,6 @@
 % Inputs: - scalar mu, the reduced gravitational parameter of the system
 %         - scalar dim, the dimension of the plot (2D or 3D)
 
-
 % Outputs:
 
 % New versions: 

@@ -28,7 +28,7 @@ function [J] = JacobiHill_values(mu)
     
     %Compute critical value 
     for i = 1:size(L,2)
-        r = shiftdim(L(:,i));           %Libration point position vector
+        r = shiftdim(L(1:3,i));         %Libration point position vector
         s = [r; v];                     %Phase state vector
         J(i) = jacobi_constant(mu, s);  %Associated Jacobi Constant
     end

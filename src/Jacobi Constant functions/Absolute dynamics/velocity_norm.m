@@ -24,5 +24,5 @@ function [V] = velocity_norm(mu, r, J)
     U = augmented_potential(mu, r); 
     
     %Compute the magnitude of the synodic velocity
-    V = sqrt(2*U-J);
+    V = sqrt(-2*U-J);
 end

@@ -27,5 +27,5 @@ function [J] = jacobi_constant(mu, s)
     U = augmented_potential(mu, r);
     
     %Compute the Jacobi Constant
-    J = 2*U-dot(v,v);
+    J = 2*U+dot(v,v);
 end

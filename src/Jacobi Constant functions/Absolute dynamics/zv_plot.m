@@ -31,7 +31,6 @@ function zv_plot(mu, C, dim)
         U = Uc+Ug;                          %Total potential function
         
         %Plot results
-        figure
         view(3)
         patch(isosurface(X,Y,Z,U,C),'FaceColor','green','EdgeColor','none');
         camlight; lighting phong
@@ -52,7 +51,6 @@ function zv_plot(mu, C, dim)
         U = Uc+Ug;                          %Total potential function
         
         %Plot results         
-        figure
         map = ones(2,3)*0.8;
         colormap(map);
         hold on
@@ -60,8 +58,6 @@ function zv_plot(mu, C, dim)
         scatter(-mu, 0, 'filled');
     	scatter(1-mu, 0, 'filled');
         hold off
-        axis equal
-        axis square
         xlabel('Synodic $x$ coordinate');
         ylabel('Synodic $y$ coordinate');
         title(sprintf('Zero velocity curves corresponding to C = %.2f', C));

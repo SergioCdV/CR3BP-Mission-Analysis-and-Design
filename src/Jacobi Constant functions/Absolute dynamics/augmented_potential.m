@@ -31,5 +31,5 @@ function [U] = augmented_potential(mu, r)
     r(:,2) = [x-mup(1); y; z];          %Position vector to the least massive primary
     
     %Augmented potential function 
-    U = (1/2)*(x^2+y^2)+(mup(1)/norm(r(:,1)))+(mup(2)/norm(r(:,2)));
+    U = -(1/2)*(x^2+y^2)-(mup(1)/norm(r(:,1)))-(mup(2)/norm(r(:,2)));
 end
