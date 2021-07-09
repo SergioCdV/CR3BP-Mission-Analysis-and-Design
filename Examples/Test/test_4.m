@@ -35,7 +35,7 @@ dt = 1e-3;                                                  %Time step to integr
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 20;                                                   %Number of orbits to continuate
+num = 70;                                                   %Number of orbits to continuate
 direction = 1;                                              %Direction to continuate (to the Earth)
    
 %% Functions
@@ -59,8 +59,8 @@ param_lyap = [Az Az 0 0 Ln gamma m];                                  %Lyapunov 
 %Continuation procedure 
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', lyapunov_seed, period};                  %Object and characteristics to continuate
-corrector = 'Planar';                                       %Differential corrector method
+object = {'Orbit', halo_seed, haloT};                  %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                                       %Differential corrector method
 setup = [mu maxIter tol direction];                         %General setup
 
 [Results_energy, ~] = continuation(num, method, algorithm, object, corrector, setup);
@@ -88,7 +88,7 @@ setup = [mu maxIter tol direction];                         %General setup
 figure(1) 
 view(3);
 hold on
-for i = 1:14
+for i = 1:num
   tspan = 0:dt:Results_energy.Period(i);
   [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_energy.Seeds(i,:), options);
   plot3(S(:,1), S(:,2), S(:,3), 'b', 'Linewidth', 0.01);
@@ -99,7 +99,7 @@ hold off
 xlabel('Synodic normalized $x$ coordinate');
 ylabel('Synodic normalized $y$ coordinate');
 zlabel('Synodic normalized $z$ coordinate');
-title('$L_{1}$ planar Lyapunov family');
+title('$L_{1}$ halo family');
 grid on;
 
 % %Plot results

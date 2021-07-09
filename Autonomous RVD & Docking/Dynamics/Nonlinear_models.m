@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = pi;                          %Maximum time of integration (corresponding to a synodic period)
+tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -104,44 +104,21 @@ for i = 1:size(S_c,1)
     frenet(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').';        %Relative position in the Frenet-Serret frame of the target orbit
 end
 
-%% Evolution of the Hamiltonian of the system
-%Preallocation
-H = zeros(size(S,1),1);               %Relative Hamiltonian
-
-%Main computation
-for i = 1:size(S,1)
-    r_t = S(i,1:3).';                 %Target position       
-    rho = S(i,7:9).';                 %Relative position
-    v = S(i,10:12).';                 %Relative velocity
-    R = [-mu 1-mu; 0 0; 0 0];         %Position of the primaries
-    mup = [1-mu; mu];                 %Reduced gravitational parameters of the primaries
-    
-    %Kinetic energy
-    T = (1/2)*norm(v-[0 -1 0; 1 0 0; 0 0 0]*rho)^2;
-    
-    %Potential energy
-    U = -(mup(1)*((1/norm(rho+r_t-R(:,1)))-(dot(rho,(R(:,1)-r_t))/norm(r_t-R(:,1)))) ...
-         +mup(2)*((1/norm(rho+r_t-R(:,2)))-(dot(rho,(R(:,2)-r_t))/norm(r_t-R(:,2)))));
-     
-    %Relative Hamiltonian
-    H(i) = T+U;
-end
-
 %% Results %% 
 % Plot results 
 figure(1) 
 view(3) 
 hold on
-plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'y'); 
-plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3), 'b'); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'r'); 
+plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'y', 'Linewidth', 0.1); 
+plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3), 'r', 'Linewidth', 0.1); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
 hold off
 legend('True trajectory', 'Newtonian trajectory', 'Encke trajectory', 'Location', 'northeast'); 
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-title('Reconstruction of the chaser s trajectory');
+title('Reconstruction of the chaser trajectory');
 
 figure(2) 
 hold on
@@ -151,15 +128,8 @@ hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Absolute error $\log{e}$');
-title('Error in the phase space vector (L2 norm)')
-legend('Encke error', 'Newtonian error');
-
-figure(3) 
-plot(t, H, 'b'); 
-grid on
-xlabel('Nondimensional epoch'); 
-ylabel('Relative Hamiltonian');
-title('Relative energy evolution')
+title('L2 norm error in the phase space vector')
+legend('Encke formulation', 'Newtonian formulation');
 
 %Relative orbit plots
 if (false)

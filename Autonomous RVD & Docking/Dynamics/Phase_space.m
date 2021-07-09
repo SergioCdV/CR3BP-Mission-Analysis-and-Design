@@ -125,7 +125,7 @@ plot(t, log(drho(:,1:3)));
 title('Evolution of the position initial variations'); 
 grid on; 
 legend('$\delta x$ variation', '$\delta y$ variation', '$\delta z$ variation');
-xlabel('Nondimensional time'); 
+xlabel('Nondimensional epoch'); 
 ylabel('$\log{\Phi_{i,j}}$');
 
 figure(2) 
@@ -133,29 +133,29 @@ plot(t, log(dv(:,1:3)));
 title('Evolution of the velocity initial variations'); 
 grid on; 
 legend('$\delta\dot{x}$ variation', '$\delta\dot{y}$ variation', '$\delta\dot{z}$ variation');
-xlabel('Nondimensional time'); 
+xlabel('Nondimensional epoch'); 
 ylabel('$\log{\Phi_{i,j}}$');
 
 figure(3)
 plot(t, detSTM); 
 title('Phase space volume evolution in time'); 
 grid on; 
-xlabel('Nondimensional time'); 
+xlabel('Nondimensional epoch'); 
 ylabel('det $\Phi (t,t_0)$');
 
 figure(4)
 plot(t, detJ); 
 title('Evolution of the determinant of the Jacobian'); 
 grid on; 
-xlabel('Nondimensional time'); 
+xlabel('Nondimensional epoch'); 
 ylabel('Determinant of the Jacobian');
 
 figure(5)
 plot(t, H); 
 title('Evolution of the relative Hamiltonian'); 
 grid on; 
-xlabel('Nondimensional time'); 
-ylabel('$H$');
+xlabel('Nondimensional epoch'); 
+ylabel('$H(q,p)$');
 
 if (false)
     figure(1) 

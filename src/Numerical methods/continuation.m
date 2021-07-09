@@ -79,8 +79,8 @@ function [Output, state] = SP_Orbit_continuation(object_number, parametrization,
     switch (parameter)
          case 'Energy'  
             %Modify initial conditions 
-            ds = direction*(1e-3);                      %Continuation step (will vary depending on the solution stability)
-            step = [ds 0 0 0 0 0];                      %Family continuation vector
+            ds = direction*(5e-3);                      %Continuation step (will vary depending on the solution stability)
+            step = [0 0 ds 0 0 0];                      %Family continuation vector
             y(1,1:state_dim) = y(1,1:state_dim)+step;   %Modify initial conditions 
 
             %Main loop

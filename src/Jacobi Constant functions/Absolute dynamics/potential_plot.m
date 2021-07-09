@@ -39,25 +39,28 @@ function potential_plot(mu, dim)
     %Plot results 
     hold on
     if (dim == 3)
-        surf(X, Y, U, 'FaceColor', [1 0.99 1], 'EdgeColor', 'none');
+        surf(X, Y, U, 'FaceColor', 'red', 'EdgeColor', 'none');
         camlight headlight; lighting phong
         zlim([-3.5 -2.8])
         view([60 70])
         zlabel('$\tilde{U}$');
         xlabel('Synodic $x$ coordinate'); 
         ylabel('Synodic $y$ coordinate');
+        alpha(0.9);
+        title('Pseudo-potential function $\tilde{U}$ surface')
+        grid on;
     else
         rho = -3.5:5e-2:-2.5;              %Number of isocurves
         contour(X,Y,U,rho);                %Isoplot
+        scatter(R(1,1), R(2,1), 'k', 'filled');
+        scatter(R(1,2), R(2,2), 'k', 'filled');
+        labels = {'$M_1$', '$M_2$'};
+        text(R(1,:), R(2,:)+0.1, labels);
+        hold off
+        grid on;
+        colorbar
+        xlabel('Synodic $x$ coordinate');
+        ylabel('Synodic $y$ coordinate');
+        title('Pseudo-potential function $\tilde{U}$ isocurves')
     end
-    scatter(R(1,1), R(2,1), 'k', 'filled');
-    scatter(R(1,2), R(2,2), 'k', 'filled');
-    labels = {'$M_1$', '$M_2$'};
-    text(R(1,:), R(2,:)+0.1, labels);
-    hold off
-    grid on;
-    colorbar
-    xlabel('Synodic $x$ coordinate');
-    ylabel('Synodic $y$ coordinate');
-    title('Pseudo-potential function $\tilde{U}$ isocurves')
 end

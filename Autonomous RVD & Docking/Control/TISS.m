@@ -148,7 +148,7 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-title('Relative motion in the configuration space');
+title('Motion in the relative configuration space');
 
 %Configuration space evolution
 figure(3)
@@ -159,10 +159,10 @@ plot(tspan, St(:,8));
 plot(tspan, St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
+ylabel('Relative configuration coordinates');
 grid on;
-legend('$x$ coordinate', '$y$ coordinate', '$z$ coordinate');
-title('Relative position evolution');
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
 subplot(1,2,2)
 hold on
 plot(tspan, St(:,10)); 
@@ -170,18 +170,18 @@ plot(tspan, St(:,11));
 plot(tspan, St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+ylabel('Relative velocity coordinates');
 grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
 plot(tspan, log(e)); 
 xlabel('Nondimensional epoch');
-ylabel('Absolute error (log)');
+ylabel('Absolute error $\log{e}$');
 grid on;
-title('Absolute error in the configuration space (L2 norm)');
+title('L2 norm of the absolute error in the configuration space');
 
 %Configuration space error 
 figure(5)
@@ -197,7 +197,7 @@ zlabel('Synodic $z$ coordinate');
 grid on;
 t.Color(4) = 0.70; 
 c.Color(4) = 0.70;
-legend('Initial trajectory', 'Converged trajectory', 'Target orbit', 'Location', 'northeast');
+legend('Initial trajectory', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
 title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 
