@@ -21,8 +21,8 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 50e6;                                                 %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 50e6;                                                 %Orbit amplitude in the synodic plane. Play with it! 
+Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
@@ -116,4 +116,18 @@ xlabel('Synodic normalized $x$ coordinate');
 ylabel('Synodic normalized $y$ coordinate');
 zlabel('Synodic normalized $z$ coordinate');
 title('Converged butterfly orbit');
+grid on;
+
+figure(7) 
+view(3)
+hold on 
+H = plot3(lyapunov_seed(:,1), lyapunov_seed(:,2), lyapunov_seed(:,3), 'b');
+H.Color(4) = 0.3;
+plot(L(1,1), L(2,1), '+k');
+text(L(1,1)-5e-3, L(2,1), '$L_1$');
+hold off
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Quasi-periodic motion at Earth-Moon $L_1$');
 grid on;

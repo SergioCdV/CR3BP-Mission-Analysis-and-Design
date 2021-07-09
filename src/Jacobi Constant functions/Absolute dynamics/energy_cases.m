@@ -27,16 +27,8 @@ function energy_cases(mu)
         %Plot the realms
         figure(i)
         zv_plot(mu, J(i), 2);
-        
-        %Mark the libration points
-        figure(i) 
-        hold on 
-        if (i ~= length(J)-1)
-            plot(L(1,i), L(2,i), 'ko');
-        else
-            plot(L(1,i), L(2,i), 'ko');
-            plot(L(1,i+1), L(2,i+1), 'ko');
-        end
-        hold off
     end
+    
+    figure(i+1)
+    zv_plot(mu, J(1)-0.1, 2);
 end

@@ -22,7 +22,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 %% Contants and initial data %% 
 %Time span 
 dt = 1e-3;                          %Time step
-tmax = pi;                          %Maximum time of integration (corresponding to a synodic period)
+tmax = 2*pi;                        %Maximum time of integration (corresponding to a synodic period)
 tspan = 0:dt:tmax;                  %Integration time span
 
 %CR3BP constants 
@@ -122,26 +122,26 @@ end
 % Plot results 
 figure(1) 
 plot(t, log(drho(:,1:3))); 
-title('Evolution of the position initial displacements'); 
+title('Evolution of the position initial variations'); 
 grid on; 
-legend('x error', 'y error', 'z error'); 
+legend('$\delta x$ variation', '$\delta y$ variation', '$\delta z$ variation');
 xlabel('Nondimensional time'); 
-ylabel('Error evolution');
+ylabel('$\log{\Phi_{i,j}}$');
 
 figure(2) 
 plot(t, log(dv(:,1:3))); 
-title('Evolution of the velocity initial displacements'); 
+title('Evolution of the velocity initial variations'); 
 grid on; 
-legend('x error', 'y error', 'z error');
+legend('$\delta\dot{x}$ variation', '$\delta\dot{y}$ variation', '$\delta\dot{z}$ variation');
 xlabel('Nondimensional time'); 
-ylabel('Error evolution');
+ylabel('$\log{\Phi_{i,j}}$');
 
 figure(3)
 plot(t, detSTM); 
-title('Evolution of the determinant of the STM'); 
+title('Phase space volume evolution in time'); 
 grid on; 
 xlabel('Nondimensional time'); 
-ylabel('Determinant of the STM');
+ylabel('det $\Phi (t,t_0)$');
 
 figure(4)
 plot(t, detJ); 
@@ -155,7 +155,7 @@ plot(t, H);
 title('Evolution of the relative Hamiltonian'); 
 grid on; 
 xlabel('Nondimensional time'); 
-ylabel('Relative Hamiltonian');
+ylabel('$H$');
 
 if (false)
     figure(1) 

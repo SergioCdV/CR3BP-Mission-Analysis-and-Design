@@ -23,7 +23,7 @@ z = 0;                  %Synodic plane
 [X,Y] = meshgrid(x,y);  %Configuration space grid
 
 %System characteristics
-mu = 0.5;               %Mass parameter for the Earth-Moon system
+mu = 0.0121505856;               %Mass parameter for the Earth-Moon system
 T = 24*3600;            %Synodic orbital period
 d = 300e3;              %Distance between primaries
 Vp = 27e3;              %Orbital velocity of the most massive primary
@@ -70,26 +70,25 @@ end
 %% Plotting and results
 figure(1)
 contour(X,Y,U,rho); 
-xlabel('Synodic x coordinate'); 
-ylabel('Synodic y coordinate');
-title('Potential function');
+xlabel('Synodic $x$ coordinate'); 
+ylabel('Synodic $y$ coordinate');
+title('Pseudo-potential function $\tilde{U}$ isocurves');
 grid on 
 colorbar
 
 figure(2)
+potential_plot(mu, 2);
+figure(2)
 hold on
-contour(X,Y,J,rho);
-plot(L(1,1), L(2,1), 'ok');
-plot(L(1,2), L(2,2), 'ok');
-plot(L(1,3), L(2,3), 'ok');
-plot(L(1,4), L(2,4), 'ok');
-plot(L(1,5), L(2,5), 'ok');
-plot(-mu, 0, 'or');
-plot(1-mu, 0, 'or');
+plot(L(1,1), L(2,1), '+k');
+plot(L(1,2), L(2,2), '+k');
+plot(L(1,3), L(2,3), '+k');
+plot(L(1,4), L(2,4), '+k');
+plot(L(1,5), L(2,5), '+k');
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_2$'};
+text([L(1,1)-0.2, L(1,2:end)+0.05], L(2,:), labels);
 hold off
-xlabel('Synodic x coordinate'); 
-ylabel('Synodic y coordinate');
-title('Zero velocity curves');
-legend('Zero-velocity curves', '$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$', '$M_1$', '$M_2$'); 
+xlabel('Synodic $x$ coordinate'); 
+ylabel('Synodic $y$ coordinate');
+title('Equilibrium solutions in the CR3BP');
 grid on 
-colorbar

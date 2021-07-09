@@ -25,59 +25,55 @@ Az = 50e6;                                                  %Orbit amplitude out
 Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 param = [Ax Az 0 0 Ln gamma m];                             %Lyapunov orbit parameters
 lyapunov_seed = object_seed(mu, param, 'Lyapunov');         %Lyapunov seed     
 
 %Time integration
-Tf = 2*pi;                                                 %Final time
+Tf = pi;                                                    %Final time
 dt = 1e-3;                                                  %Time step of 1 second
 tspan = 0:dt:Tf;                                            %Integration time span
 
 %Differential correction scheme set up
-maxIter = 50;                                               %Maximum allowed iterations in the differential correction schemes
+maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-5;                                                 %Tolerance 
 
 %% Main test
 %Orbit computation
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 
-%Manifold computation
-rho = 10;                    %Number of manifold fibers to compute
-manifold_ID = 'S';           %Unstable manifold (U or S)
-manifold_branch = 'R';       %Left branch of the manifold (L or R)
+%Manifolds computation
+rho = 50;                    %Number of manifold fibers to compute
+manifold_ID = 'S';           %Stable manifold (U or S)
+manifold_branch = 'L';       %Left branch of the manifold (L or R)
 
-Manifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
+StableManifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
+
+manifold_ID = 'U';           %Unstable manifold (U or S)
+manifold_branch = 'R';       %Left branch of the manifold (L or R)
+UnstableManifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
 
 %% Plotting and results 
-figure(1) 
-view(3)
-plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Converged Lyapunov orbit');
-grid on;
-
-figure(2)
+figure(1)
 hold on 
-for i = 1:size(Manifold.Trajectory,1)
-    ManifoldAux = shiftdim(Manifold.Trajectory(i,:,:));
-    plot3(ManifoldAux(1:Manifold.ArcLength(i),1), ManifoldAux(1:Manifold.ArcLength(i),2), ManifoldAux(1:Manifold.ArcLength(i),3), 'm');
+plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3), 'k');
+for i = 1:size(StableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
+    plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
 end
-plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3));
-% plot3(L(1,1), L(2,1), L(3,1), 'ok');
-% plot3(L(1,2), L(2,2), L(3,2), 'ok');
-% plot3(L(1,3), L(2,3), L(3,3), 'ok');
-% plot3(L(1,4), L(2,4), L(3,4), 'ok');
-% plot3(L(1,5), L(2,5), L(3,5), 'ok');
-% plot3(-mu, 0, 0, 'ob');
-% plot3(1-mu, 0, 0, 'ob');
+for i = 1:size(UnstableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(UnstableManifold.Trajectory(i,:,:));
+    plot3(ManifoldAux(1:UnstableManifold.ArcLength(i),1), ManifoldAux(1:UnstableManifold.ArcLength(i),2), ManifoldAux(1:UnstableManifold.ArcLength(i),3), 'r');
+end
+scatter(1-mu, 0, 'k', 'filled');
+scatter(L(1,Ln), 0, 'k', 'filled');
+text([1-mu+1e-2 L(1,Ln)+0.02], [0 0], {'$M_2$', '$L_2$'});
 hold off
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Lyapunov orbit and associated manifold');
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Unstable and stable manifolds of an $L_2$ Lyapunov orbit');
+legend('Lyapunov orbit', 'Stable manifold', 'Unstable manifold', 'Location', 'northeast');
 grid on;

@@ -23,7 +23,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration toleran
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
+Az = 50e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -35,8 +35,8 @@ dt = 1e-3;                                                  %Time step to integr
 maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                %Differential correction tolerance 
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 15;                                                   %Number of orbits to continuate
-direction = -1;                                             %Direction to continuate (to the Earth)
+num = 20;                                                   %Number of orbits to continuate
+direction = 1;                                              %Direction to continuate (to the Earth)
    
 %% Functions
 %Compute the orbits seeds 
@@ -46,20 +46,24 @@ axial_seed = [0.8431 0 0 0 0.1874 0.4000];                  %State vector of an 
 %Halo orbit
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
-%Axial Orbit
+%Axial orbit
 [axial_orbit, ~] = differential_correction('Axis Symmetric', mu, axial_seed, maxIter, tol);
 
-%Butterfly Orbit
+%Butterfly orbit
 [butterfly_orbit, ~] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol);
+
+%Lyapunov family 
+param_lyap = [Az Az 0 0 Ln gamma m];                                  %Lyapunov orbit parameters
+[lyapunov_seed, period] = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
 
 %Continuation procedure 
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', butterfly_orbit.Trajectory(:,1:6), butterfly_orbit.Period};                       %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                              %Differential corrector method
+object = {'Orbit', lyapunov_seed, period};                  %Object and characteristics to continuate
+corrector = 'Planar';                                       %Differential corrector method
 setup = [mu maxIter tol direction];                         %General setup
 
-[Results_energy, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
+[Results_energy, ~] = continuation(num, method, algorithm, object, corrector, setup);
 
 %Continuation procedure 
 % method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
@@ -84,32 +88,33 @@ setup = [mu maxIter tol direction];                         %General setup
 figure(1) 
 view(3);
 hold on
-for i = 1:15
+for i = 1:14
   tspan = 0:dt:Results_energy.Period(i);
   [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_energy.Seeds(i,:), options);
   plot3(S(:,1), S(:,2), S(:,3), 'b', 'Linewidth', 0.01);
 end
+scatter(L(1,Ln), L(2,Ln), 'k', 'filled')
+text(L(1,Ln)+1e-3, L(2,Ln), '$L_1$');
 hold off
 xlabel('Synodic normalized $x$ coordinate');
 ylabel('Synodic normalized $y$ coordinate');
 zlabel('Synodic normalized $z$ coordinate');
-title('Converged family of $L_1$ axial orbits');
+title('$L_{1}$ planar Lyapunov family');
 grid on;
 
-%%
-%Plot results
-figure(2) 
-view(3);
-hold on
-plot3(halo_seed(:,1), halo_seed(:,2), halo_seed(:,3), 'k');
-for i = 1:num
-  tspan = 0:dt:Results_period.Period(i);
-  [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_period.Seeds(i,:), options);
-  plot3(S(:,1), S(:,2), S(:,3));
-end
-hold off
-xlabel('Synodic normalized x coordinate');
-ylabel('Synodic normalized y coordinate');
-zlabel('Synodic normalized z coordinate');
-title('Converged family of orbits');
-grid on;
+% %Plot results
+% figure(2) 
+% view(3);
+% hold on
+% plot3(halo_seed(:,1), halo_seed(:,2), halo_seed(:,3), 'k');
+% for i = 1:num
+%   tspan = 0:dt:Results_period.Period(i);
+%   [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_period.Seeds(i,:), options);
+%   plot3(S(:,1), S(:,2), S(:,3));
+% end
+% hold off
+% xlabel('Synodic normalized x coordinate');
+% ylabel('Synodic normalized y coordinate');
+% zlabel('Synodic normalized z coordinate');
+% title('Converged family of orbits');
+% grid on;

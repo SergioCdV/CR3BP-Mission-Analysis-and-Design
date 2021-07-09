@@ -38,7 +38,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                 %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -88,25 +88,28 @@ end
 figure(1) 
 view(3) 
 hold on
-plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'r-.'); 
-plot3(S_cml(:,1), S_cml(:,2), S_cml(:,3), 'b'); 
+plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'm'); 
+plot3(S_ct(:,1), S_ct(:,2), S_ct(:,3), 'k'); 
+plot3(S_cfl(:,1), S_cfl(:,2), S_cfl(:,3), 'b'); 
+plot3(S_cml(:,1), S_cml(:,2), S_cml(:,3), 'r'); 
 hold off
-legend('CR3BP integration', 'LMLP method'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+legend('Expected trajectory', 'RLM', 'SRLLM', 'URLLM', 'Location', 'northeast'); 
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $x$ coordinate');
+zlabel('Synodic $x$ coordinate');
 grid on;
-title('Reconstruction of the chaser motion');
+title('Reconstruction of the chaser motion via the proposed linear models');
 
 figure(2) 
 hold on
+plot(t, log(error_t), 'k'); 
 plot(t, log(error_ml), 'r'); 
 plot(t, log(error_fl), 'b'); 
 hold off
 grid on
 xlabel('Nondimensional epoch'); 
-ylabel('Relative error in the synodic frame');
-legend('LMLP method', 'LFLP method');
-title('Error in the phase space vector with LP methods')
+ylabel('Absolute error $\log{e}$');
+legend('RLM', 'SRLLM', 'URLLM');
+title('Absolute error between the true and linear dynamics')
 
 
