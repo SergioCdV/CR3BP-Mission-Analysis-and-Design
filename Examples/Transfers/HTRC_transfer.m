@@ -70,7 +70,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %% Homoclinic connection
 %Manifold definition
 TOF = 2*pi;                     %Time of flight
-rho = 20;                       %Manifold fibers to compute 
+rho = 30;                       %Manifold fibers to compute 
 
 %Computation flags
 position_fixed = false;         %Flag to determine a final target state
@@ -87,16 +87,16 @@ sequence = [1 2];
 
 %% Plot results
 %Plot the transfer
-figure 
+figure(1) 
 view(3)
 hold on 
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3));
 plot3(initial_orbit.Trajectory(:,1), initial_orbit.Trajectory(:,2), initial_orbit.Trajectory(:,3));
-plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3));
+plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3),'k');
 hold off
 grid on;
-title('Heteroclinic orbit trajectory')
-legend('Target halo orbit', 'Initial halo orbit', 'Homoclinic trajectory', 'Location', 'northeast')
+title('Heteroclinic orbit between halo orbits')
+legend('Target halo orbit', 'Initial halo orbit', 'Heteroclinic orbit', 'Location', 'northeast')
 xlabel('Synodic $x$ coordinate')
 ylabel('Synodic $y$ coordinate')
 zlabel('Synodic $z$ coordinate')

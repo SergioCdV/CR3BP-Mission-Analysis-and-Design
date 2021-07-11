@@ -90,27 +90,30 @@ function [Sg, dV] = HTRC_guidance(mu, sequence, rho, target_orbit, initial_orbit
     end
 
     %Plot the manifold
-    if (graphics)
-        figure
-        hold on
-        plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3), 'b')
-        plot3(initial_orbit(:,1), initial_orbit(:,2), initial_orbit(:,3), 'k')
-        for i = 1:size(Mu.Trajectory,1)
-            plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
-                  shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),3)), 'r');
+        if (graphics)
+            figure
+            view(3)
+            hold on
+            plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3), 'b')
+            plot3(initial_orbit(:,1), initial_orbit(:,2), initial_orbit(:,3), 'm')
+            for i = 1:size(Mu.Trajectory,1)
+                u = plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
+                      shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),3)), 'r');
+                u.Color(4) = 0.2;
+            end
+            for i = 1:size(Ms.Trajectory,1)
+                s = plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
+                      shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),3)), 'g');
+                s.Color(4) = 0.2;
+            end
+            hold off
+            grid on; 
+            title('Globalization of the unstable and stable manifolds');
+            xlabel('Synodic $x$ coordinate')
+            ylabel('Synodic $y$ coordinate')
+            zlabel('Synodic $z$ coordinate')
+            legend('Target orbit', 'Initial orbit', 'Unstable manifold', 'Stable manifold', 'Location', 'northeast');
         end
-        for i = 1:size(Ms.Trajectory,1)
-            plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
-                  shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),3)), 'g');
-        end
-        hold off
-        grid on; 
-        title('Heteroclinic connections using invariant manifolds');
-        xlabel('Synodic $x$ coordinate')
-        ylabel('Synodic $y$ coordinate')
-        zlabel('Synodic $z$ coordinate')
-        legend('Target orbit', 'Initial orbit', 'Unstable manifold', 'Stable manifold', 'Location', 'northeast');
-    end
 
     %Plot the map and select the initial conditions 
     [S0, TOF] = poincare_map(Mu, Ms, 'Connection');

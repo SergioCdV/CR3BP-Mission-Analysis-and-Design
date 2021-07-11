@@ -55,9 +55,9 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
             case 'Left homoclinic connection' 
                 map = @(t,s)homoclinic_crossing(t,s,mu,0);      %Poincaré map defined by the XZ plane
             case 'Right heteroclinic connection' 
-                map = @(t,s)heteroclinic_crossing(t,s,mu,-1);   %Poincaré map defined by the XZ plane
+                map = @(t,s)heteroclinic_crossing(t,s,mu,0);   %Poincaré map defined by the XZ plane
             case 'Left heteroclinic connection' 
-                map = @(t,s)heteroclinic_crossing(t,s,mu,1);    %Poincaré map defined by the XZ plane
+                map = @(t,s)heteroclinic_crossing(t,s,mu,0);    %Poincaré map defined by the XZ plane
             case 'X crossing' 
                 map = @(t,s)x_crossing(t,s);                    %Poincaré map defined by the X axis
             otherwise

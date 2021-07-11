@@ -90,14 +90,16 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
             figure
             view(3)
             hold on
-            plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3))
+            plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3), 'b')
             for i = 1:size(Mu.Trajectory,1)
-                plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
+                u = plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
                       shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),3)), 'r');
+                u.Color(4) = 0.2;
             end
             for i = 1:size(Ms.Trajectory,1)
-                plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
+                s = plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
                       shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),3)), 'g');
+                s.Color(4) = 0.2;
             end
             hold off
             grid on; 
@@ -183,14 +185,16 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
             figure
             view(3)
             hold on
-            plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3))
+            plot3(target_orbit(:,1), target_orbit(:,2), target_orbit(:,3), 'b')
             for i = 1:size(Mu.Trajectory,1)
-                plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
+                u = plot3(shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),1)),shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),2)),...
                       shiftdim(Mu.Trajectory(i,1:Mu.ArcLength(i),3)), 'r');
+                u.Color(4) = 0.2;
             end
             for i = 1:size(Ms.Trajectory,1)
-                plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
+                s = plot3(shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),1)),shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),2)),...
                       shiftdim(Ms.Trajectory(i,1:Ms.ArcLength(i),3)), 'g');
+                s.Color(4) = 0.2;
             end
             hold off
             grid on; 
@@ -198,6 +202,7 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
             xlabel('Synodic $x$ coordinate')
             ylabel('Synodic $y$ coordinate')
             zlabel('Synodic $z$ coordinate')
+            legend('Periodic orbit', 'Unstable manifold', 'Stable manifold', 'Location', 'northeast');
         end
         
         %Plot the map and select the initial conditions 

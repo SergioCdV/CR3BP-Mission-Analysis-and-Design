@@ -57,7 +57,7 @@ tspan = 0:dt:Results_energy.Period(end);
 
 %% Globalization of the manifolds
 %Manifold definition
-Branch = ['R' 'L'];            %Directions to propagate the manifolds
+Branch = ['L' 'L'];            %Directions to propagate the manifolds
 TOF = 2*pi;                    %Time of flight
 rho = 50;                      %Manifold fibers to compute 
 
@@ -69,16 +69,19 @@ graphics = true;                %Flag to plot the manifolds
 halo_orbit.Trajectory = S;      %Target orbit
 
 %Trajectory design core
-[Sg, dV] = HCNC_guidance(mu, Branch, rho, halo_orbit, TOF, long_rendezvous, position_fixed, graphics);
+[Sg, dV] = HCNC_guidance(mu, Branch, rho, Ln, halo_orbit, TOF, long_rendezvous, position_fixed, graphics);
 
 %% Plotting and results 
 %Plot the transfer
-figure 
+figure(1) 
 view(3)
 hold on 
 plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
-plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3));
+plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3), 'k');
 hold off
 grid on;
-title('Homoclinic rendezvous trajectory')
+xlabel('Synodic normalized $x$ coordinate');
+ylabel('Synodic normalized $y$ coordinate');
+zlabel('Synodic normalized $z$ coordinate');
+title('Homoclinic rendezvous trajectory') 
 legend('Target NHRO', 'Homoclinic trajectory')

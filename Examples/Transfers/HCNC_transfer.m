@@ -57,7 +57,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Manifold definition
 Branch = ['L' 'L'];             %Directions to propagate the manifolds
 TOF = tf;                       %Time of flight
-rho = 50;                       %Manifold fibers to compute 
+rho = 30;                       %Manifold fibers to compute 
  
 %Computation flags
 long_rendezvous = true;         %Flag to allow for long rendezvous
@@ -72,11 +72,11 @@ target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n));
 
 %% Plot results
 %Plot the transfer
-figure 
+figure(1) 
 view(3)
 hold on 
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3));
-plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3));
+plot3(Sg.Trajectory(:,1), Sg.Trajectory(:,2), Sg.Trajectory(:,3), 'k');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_1$');
 scatter3(1-mu, L(2,Ln), 0, 'k', 'filled');
