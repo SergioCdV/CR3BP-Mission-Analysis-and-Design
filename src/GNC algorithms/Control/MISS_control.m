@@ -146,10 +146,7 @@ function [Sc, dV, state] = MISS_control(mu, TOF, s0, tol, cost_function, impulse
             iter = iter+1;                      %Update the iterations
         end
     end
-        
-    %Final velocity 
-    S(end,10:12) = zeros(1,3); 
-    
+            
     %Output       
     dVf = dV(:,iter);                                   %Final impulses
     dV = zeros(3,length(tspan));                        %Impulses array

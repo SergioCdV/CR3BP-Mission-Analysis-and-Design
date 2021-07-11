@@ -66,9 +66,7 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
     else
         time_horizon = 1;
     end
-    time_horizon = 1;
-    
-    
+        
     for i = 1:time_horizon
         %Integration set up 
         atime = tspan(i:end);                   %New time span

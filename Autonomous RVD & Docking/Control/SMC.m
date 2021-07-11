@@ -25,7 +25,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %Optimization 
-optimization = true;               %Optimize the controller parameters 
+optimization = true;                %Optimize the controller parameters 
 
 %Time span 
 dt = 1e-3;                          %Time step
@@ -45,7 +45,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -56,7 +56,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');  %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
@@ -95,38 +95,38 @@ GNC.Control.SMC.Parameters = [1 1 0.9 0.1];     %Controller parameters
 
 %% GNC: SMC control law %%
 %Re-integrate trajectory
-[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+[~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
 %Error in time 
-[e, merit] = figures_merit(tspan, Sc);
+[e, merit] = figures_merit(tspan, St);
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:12), NaN);    
+[~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), NaN);    
 
 %Control effort 
-effort = control_effort(tspan, u);
+effort = control_effort(tspan, u, false);
    
 %% Optimize the controller parameters
 if (optimization)
-    GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', s0, tf)];
+    GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
     
     %Re-integrate the trajectory
-    [~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 
     %Error in time 
-    [e2, merit2] = figures_merit(tspan, Sc2);
+    [e, merit] = figures_merit(tspan, St);
     
     %Control law
-    [~, ~, u2] = GNC_handler(GNC, Sc2(:,1:6), Sc2(:,7:12));    
+    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12));    
 
     %Control integrals
-    effort2 = control_effort(tspan, u2);
+    effort = control_effort(tspan, u, false);
 
     %Save results for statistics purposes 
     fileID = fopen('Autonomous RVD & Docking\Mission scenarios\smc_parameters.txt', 'a+'); 
-    output = [GNC.Control.SMC.Parameters Sc(end,7:12) Sc2(end,7:12) merit(1) merit(2) merit2(1) merit(2) ...
-              norm(effort(:,1)) norm(effort(:,2)) norm(effort2(:,1)) norm(effort2(:,2))];
-    format = '%.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f && %.6f %.6f \n';
+    output = [GNC.Control.SMC.Parameters St(end,7:12) St(end,7:12) merit(1) merit(2) ...
+              norm(effort(:,1)) norm(effort(:,2))];
+    format = '%.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f %.6f %.6f %.6f %.6f && %.6f %.6f && %.6f %.6f\n';
     fprintf(fileID, format, output);
     fclose(fileID); 
 end
@@ -140,87 +140,75 @@ plot3(Sn(:,1), Sn(:,2), Sn(:,3));
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target motion', 'Chaser motion'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Reconstruction of the natural chaser motion');
 
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(Sc(:,7), Sc(:,8), Sc(:,9)); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+plot3(St(:,7), St(:,8), St(:,9)); 
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
-title('Relative motion in the configuration space');
+title('Motion in the relative configuration space');
 
 %Configuration space evolution
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, Sc(:,7)); 
-plot(tspan, Sc(:,8)); 
-plot(tspan, Sc(:,9)); 
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
+ylabel('Relative configuration coordinates');
 grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
-title('Relative position evolution');
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, Sc(:,10)); 
-plot(tspan, Sc(:,11)); 
-plot(tspan, Sc(:,12)); 
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+ylabel('Relative velocity coordinates');
 grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
-
-%Configuration space evolution
-if (optimization)
-    figure(6)
-    subplot(1,2,1)
-    hold on
-    plot(tspan, Sc2(:,7)); 
-    plot(tspan, Sc2(:,8)); 
-    plot(tspan, Sc2(:,9)); 
-    hold off
-    xlabel('Nondimensional epoch');
-    ylabel('Relative configuration coordinate');
-    grid on;
-    legend('x coordinate', 'y coordinate', 'z coordinate');
-    title('Optimal relative position evolution');
-    subplot(1,2,2)
-    hold on
-    plot(tspan, Sc2(:,10)); 
-    plot(tspan, Sc2(:,11)); 
-    plot(tspan, Sc2(:,12)); 
-    hold off
-    xlabel('Nondimensional epoch');
-    ylabel('Optimal relative velocity coordinate');
-    grid on;
-    legend('x velocity', 'y velocity', 'z velocity');
-    title('Relative velocity evolution');
-end
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
-plot(tspan, log(e)); 
-if (optimization)
-    hold on
-    plot(tspan, log(e2)); 
-    hold off
-    legend('Nominal error', 'Optimal error')
-end
+hold on
+plot(tspan, log(e_lqr)); 
+plot(tspan, log(e_sdre));
+plot(tspan, log(e));
+hold off
 xlabel('Nondimensional epoch');
-ylabel('Absolute error');
+ylabel('Absolute error $\log{e}$');
 grid on;
-title('Absolute error in the configuration space (L2 norm)');
+legend('LQR', 'SDRE', 'SMC')
+title('Absolute rendezvous error in the configuration space');
+
+figure(5)
+view(3) 
+hold on
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'r', 'Linewidth', 0.1); 
+r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'b', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+hold off
+text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_1$');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
+grid on;
+legend('Target orbit', 'Rendezvous arc', 'Location', 'northeast');
+title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 
 if (false)

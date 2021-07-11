@@ -48,9 +48,9 @@ function [u] = LQR_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
     r_t = St(1:3).';                                %Synodic position of the target
     
     %Sanity check on the libration point 
-    if ((Ln == 0) && (model ~= 'Target'))
+    if ((Ln == 0) && (model ~= 'RLM'))
         if (gamma == 0)
-            model = 'Target'; 
+            model = 'RLM'; 
         else
             error('No valid linear model was selected');
         end
@@ -58,17 +58,17 @@ function [u] = LQR_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
 
     %Select linear model 
     switch (model)
-        case 'Steady libration point'
+        case 'SLLM'
             cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
             c2 = cn(2); 
             Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
             
-        case 'Unsteady libration point' 
+        case 'ULLM' 
             cn = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
             c2 = cn(2); 
             Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
             
-        case 'Target' 
+        case 'RLM' 
             %Relative position between the primaries and the target 
             Ur(:,1) = r_t-R(:,1);                %Position of the target with respect to the first primary
             ur(:,1) = Ur(:,1)/norm(Ur(:,1));     %Unit vector of the relative position of the target with respect to the primary

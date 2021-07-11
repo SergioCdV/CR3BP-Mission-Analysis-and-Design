@@ -128,7 +128,7 @@ hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Absolute error $\log{e}$');
-title('L2 norm error in the phase space vector')
+title('Absolute phase space error to the true dynamics')
 legend('Encke formulation', 'Newtonian formulation');
 
 %Relative orbit plots

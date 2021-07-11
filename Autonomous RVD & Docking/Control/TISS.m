@@ -46,7 +46,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 60e6;                                                  %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                 %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -64,7 +64,7 @@ Bif_tol = 1e-2;                                             %Bifucartion toleran
 num = 5;                                                    %Number of orbits to continuate
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};         %Object and characteristics to continuate
+object = {'Orbit', halo_seed, period};                      %Object and characteristics to continuate
 corrector = 'Plane Symmetric';                              %Differential corrector method
 direction = 1;                                              %Direction to continuate (to the Earth)
 setup = [mu maxIter tol direction];                         %General setup
@@ -73,7 +73,7 @@ setup = [mu maxIter tol direction];                         %General setup
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial target conditions
+r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
@@ -91,7 +91,7 @@ tol = 1e-10;                                                        %Differentia
 [St, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
 
 %Total maneuver metrics 
-effort = control_effort(tspan, dV);
+effort = control_effort(tspan, dV, true);
 
 %Error in time 
 [e, merit] = figures_merit(tspan, St);
@@ -101,7 +101,7 @@ effort = control_effort(tspan, dV);
 [St2, dV2, state2] = TISS_control(mu, tf, s0, tol, 'Position', false);      
 
 %Total maneuver metrics 
-effort2 = control_effort(tspan, dV2);
+effort2 = control_effort(tspan, dV2, true);
 
 %Error in time 
 [e2, merit2] = figures_merit(tspan, St2);
@@ -181,23 +181,22 @@ plot(tspan, log(e));
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
 grid on;
-title('L2 norm of the absolute error in the configuration space');
+title('Absolute rendezvous error in the configuration space');
 
-%Configuration space error 
 figure(5)
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
-r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k'); 
-t = plot3(Sn(size(St,1):end,1), Sn(size(St,1):end,2), Sn(size(St,1):end,3), 'r');
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
+r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+text(L(1,Ln), L(2,Ln), 5e-3, '$L_2$');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-t.Color(4) = 0.70; 
-c.Color(4) = 0.70;
-legend('Initial trajectory', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
+legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
 title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 

@@ -63,7 +63,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     manifold = 'S';                                                          %Integrate the stable manifold
     seed = target_orbit.Trajectory;                                          %Periodic orbit seed
     tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
-    rho = 10;                                                                %Density of fibres to analyze
+    rho = 50;                                                                %Density of fibres to analyze
     S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);     %Initial trajectories
     
     %Relative distance to the primary of interest

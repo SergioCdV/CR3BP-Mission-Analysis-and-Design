@@ -41,9 +41,9 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 60e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -69,7 +69,7 @@ setup = [mu maxIter tol direction];                                 %General set
 
 %% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
@@ -98,10 +98,11 @@ safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking
 safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corridor
 
 %Compute the guidance law
-[Sg, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, s0);
+[St, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, s0);
 
-effort = control_effort(tspan, u);                                          %Control effort made
-[e, merit] = figures_merit(tspan, Sg);                                      %Figures of merit of the rendezvous error 
+%Performance indices
+effort = control_effort(tspan, u, true);         %Control effort made
+[e, merit] = figures_merit(tspan, St);           %Figures of merit of the rendezvous error 
 
 %% Results 
 %Plot results 
@@ -112,9 +113,9 @@ plot3(Sn(:,1), Sn(:,2), Sn(:,3));
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target motion', 'Chaser motion'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Reconstruction of the natural chaser motion');
 
@@ -122,50 +123,65 @@ title('Reconstruction of the natural chaser motion');
 figure(2) 
 view(3) 
 hold on
-plot3(Sg(:,7), Sg(:,8), Sg(:,9));
 for i = 1:size(So,2)
-    scatter3(So(1,i), So(2,i), So(3,i))
+    scatter3(So(1,i), So(2,i), So(3,i), 'k', 'filled');
 end
+plot3(St(:,7), St(:,8), St(:,9)); 
 hold off
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
-title('Relative motion in the configuration space');
-legend('Rendezvous trajectory', 'Obstacles')
+title('Motion in the relative configuration space');
 
 %Configuration space evolution
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, Sg(:,7)); 
-plot(tspan, Sg(:,8)); 
-plot(tspan, Sg(:,9)); 
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
+ylabel('Relative configuration coordinates');
 grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
-title('Relative position evolution');
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, Sg(:,10)); 
-plot(tspan, Sg(:,11)); 
-plot(tspan, Sg(:,12)); 
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+ylabel('Relative velocity coordinates');
 grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
 plot(tspan, log(e)); 
 xlabel('Nondimensional epoch');
-ylabel('Absolute error  (log)');
+ylabel('Absolute error $\log{e}$');
 grid on;
-title('Absolute error in the configuration space (L2 norm)');
+title('Absolute rendezvous error in the configuration space');
+
+figure(5)
+view(3) 
+hold on
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
+r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+hold off
+text(L(1,Ln)+1e-3, L(2,Ln), 5e-20, '$L_2$');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
+grid on;
+legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
+title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 
 if (false)

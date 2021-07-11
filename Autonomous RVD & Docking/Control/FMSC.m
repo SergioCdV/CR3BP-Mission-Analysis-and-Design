@@ -24,6 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
+tf = 0.6;                           %Rendezvous time
 tspan = 0:dt:2*pi;                  %Integration time span
 
 %CR3BP constants 
@@ -38,9 +39,9 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                 %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around L1
+Ln = 2;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 
@@ -67,45 +68,67 @@ setup = [mu maxIter tol direction];                         %General setup
 
 %% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
-Phi = eye(length(r_t0));                                    %Initial STM
-Phi = reshape(Phi, [length(r_t0)^2 1]);                     %Initial STM
-s0 = [s0; Phi];                                             %Initial conditions
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% Obstacle in the relative phase space 
+%% GNC: TITA %%
+%Differential corrector set up
+tol = 1e-5;                                 %Differential corrector tolerance
+
+%Cost function matrices
+penalties.R = eye(3);                       %Penalty on the impulse
+penalties.Q = eye(6);                       %Penalty on the state error
+penalties.M  = 0.1*eye(6);                  %Penalty on the state noise
+
+%Select measuring times 
+target_points.Noise = true;                 %Boolean to account for state noise
+target_points.Times = tf*rand(1,3);         %Times to measure the state noise
+
+thruster_model.Sigma = 0.01;                %Velocity noise dependance on the velocity impulse
+
+%Rotational misalignment of the thrusters
+thruster_model.Rotation = [1 0 0; 0 cos(pi/18) sin(pi/18); 0 -sin(pi/18) cos(pi/18)];           
+
+%Cost function 
+cost_function = 'Position';                 %Cost function to target
+two_impulsive = true;                       %Two-impulsive rendezvous boolean
+
+[St, ~, state] = TITA_control(mu, tf, s0, tol, cost_function, zeros(1,3), two_impulsive, ...
+                               penalties, target_points, thruster_model);
+                           
+%% GNC: FMSC %% 
 %Obstacle definition in space and time
-index(1) = randi([1 2000]);                 %Time location of the collision 
-index(2) = 20;                              %Detection time
-so = [S(index(1),7:9) 0 0 0];               %Phase space state of the object
-R = 5e-4;                                   %Radius of the CA sphere
-[xo, yo, zo] = sphere;                      %Collision avoidance sphere
+index(1) = fix(0.5/dt);                         %Time location of the collision 
+index(2) = fix(0.2/dt);                         %Detection time
+so = [St(index(1),7:9) 0 0 0];                  %Phase space state of the object
+R = 5e-4;                                       %Radius of the CA sphere
+[xo, yo, zo] = sphere;                          %Collision avoidance sphere
 xo = R*xo;
 yo = R*yo;
 zo = R*zo;
 
 %Safety parameters 
-Q = eye(3);                                 %Safety ellipsoid size to avoid the collision
+Q = eye(3);                                     %Safety ellipsoid size to avoid the collision
 
-%% GNC: FMSC %% 
-%Select the collision time (randomly)
-%TOC = tspan(1942);                      %Time of collision
-TOC = tspan(index(1));
-constraint.Constrained = true;         %No constraints on the maneuver
-constraint.SafeDistance = 1e-4;         %Safety distance at the collision time
+TOC = tspan(index(1));                          %Collision time
+constraint.Constrained = false;                 %No constraints on the maneuver
+constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
 
-[Sc, dV, tm] = FMSC_control(mu, TOC, so, S(index(2),1:12), eye(3), 1e-5, constraint, 'Best');
+[Sc, dV, tm] = FMSC_control(mu, TOC, so, St(index(2),1:12), eye(3), 1e-5, constraint, 'Worst');
 
-Sc = [S(1:index(2),1:12); Sc(:,1:12)];  %Complete trajectory
-ScCAM = Sc(:,1:3)+Sc(:,7:9);            %Chaser CAM trajectory
+Sc = [St(1:index(2),1:12); Sc(:,1:12)];         %Complete trajectory
+ScCAM = Sc(:,1:3)+Sc(:,7:9);                    %Absolute trajectory
+
+%Total maneuver metrics 
+effort = control_effort(tspan, dV, true);
     
 %% Results %% 
 %Plot results 
@@ -114,28 +137,32 @@ view(3)
 hold on 
 surf(xo+so(1),yo+so(2),zo+so(3));
 plot3(Sc(:,7), Sc(:,8), Sc(:,9), 'b'); 
-plot3(S(:,7), S(:,8), S(:,9), 'r'); 
+plot3(St(:,7), St(:,8), St(:,9), 'r'); 
 hold off
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Colliding object', 'CAM trajectory', 'Nominal trajectory');
-title('Relative CAM motion in the configuration space');
+legend('Colliding object', 'Rendezvous and CAM arc', 'Target orbit', 'Location', 'northeast');
+title('Collision avoidance trajectory in the relative configuration space');
 
 figure(2) 
 view(3) 
 hold on 
-surf(xo+so(1)+S(index(1),1),yo+so(2)+S(index(1),2),zo+so(3)+S(index(1),3));
-plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'b'); 
+surf(xo+so(1)+S(index(1),1),yo+so(2)+S(index(1),2),zo+so(3)+S(index(1),3), 'Linewidth', 0.1);
+plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k', 'Linewidth', 0.1); 
+r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'm', 'Linewidth', 0.1); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
 plot3(S(:,1), S(:,2), S(:,3), 'r'); 
+scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+text(L(1,Ln)+1e-3, L(2,Ln), 5e-3, '$L_2$');
 hold off
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Colliding object', 'CAM trajectory', 'Nominal trajectory');
-title('Absolute CAM motion in the configuration space');
+legend('Colliding object', 'Initial orbit', 'Rendezvous arc', 'CAM arc', 'Target orbit', 'Location', 'northeast');
+title('Collision avoidance trajectory in the absolute configuration space');
 
 %Configuration space evolution
 figure(3)
@@ -148,8 +175,8 @@ hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinate');
 grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
-title('Relative position evolution');
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
 subplot(1,2,2)
 hold on
 plot(tspan(1:size(Sc,1)), Sc(:,10)); 
@@ -157,7 +184,7 @@ plot(tspan(1:size(Sc,1)), Sc(:,11));
 plot(tspan(1:size(Sc,1)), Sc(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+ylabel('Relative velocity coordinates');
 grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');

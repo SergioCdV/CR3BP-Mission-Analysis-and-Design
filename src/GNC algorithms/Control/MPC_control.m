@@ -77,7 +77,8 @@ function [Sg, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, c
     end
     
     %Final impulse
-    dV(:,end) = zeros(3,1);
+    dV(:,end) = -Sg(end,10:12);
+    Sg(end,10:12) = zeros(1,3);
        
     %Final error 
     switch (cost_function)

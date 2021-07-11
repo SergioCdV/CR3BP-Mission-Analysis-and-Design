@@ -41,9 +41,9 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -69,7 +69,7 @@ setup = [mu maxIter tol direction];                                 %General set
 
 %% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
+r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
@@ -95,7 +95,7 @@ Tmax = 0.1;                                   %Maximum thrust capability (in vel
 [St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 
 %Control integrals
-energy = control_effort(tspan, dV);
+energy = control_effort(tspan, dV, true);
 
 %Error in time 
 [e, merit] = figures_merit(tspan, St);
@@ -109,9 +109,9 @@ plot3(Sn(:,1), Sn(:,2), Sn(:,3));
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target motion', 'Chaser motion'); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Reconstruction of the natural chaser motion');
 
@@ -119,11 +119,11 @@ title('Reconstruction of the natural chaser motion');
 figure(2) 
 view(3) 
 plot3(St(:,7), St(:,8), St(:,9)); 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
-title('Relative motion in the configuration space');
+title('Motion in the relative configuration space');
 
 %Configuration space evolution
 figure(3)
@@ -134,10 +134,10 @@ plot(tspan, St(:,8));
 plot(tspan, St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
+ylabel('Relative configuration coordinates');
 grid on;
-legend('x coordinate', 'y coordinate', 'z coordinate');
-title('Relative position evolution');
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
 subplot(1,2,2)
 hold on
 plot(tspan, St(:,10)); 
@@ -145,18 +145,18 @@ plot(tspan, St(:,11));
 plot(tspan, St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+ylabel('Relative velocity coordinates');
 grid on;
-legend('x velocity', 'y velocity', 'z velocity');
-title('Relative velocity evolution');
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
 plot(tspan, log(e)); 
 xlabel('Nondimensional epoch');
-ylabel('Absolute error  (log)');
+ylabel('Absolute error $\log{e}$');
 grid on;
-title('Absolute error in the configuration space (L2 norm)');
+title('Absolute rendezvous error in the configuration space');
  
 %Rendezvous animation 
 if (false)

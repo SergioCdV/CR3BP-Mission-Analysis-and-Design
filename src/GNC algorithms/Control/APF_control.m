@@ -78,7 +78,7 @@ function [Sg, dV, state] = APF_control(mu, safe_corridor, Penalties, sO, TOF, s0
 end
 
 %% Auxiliary function 
-%APF gradient function
+% APF gradient function
 function [dPhi] = APF_field(safe_corridor, Penalties, sO, S)    
     %Guidance parameters
     Q = Penalties.AttractivePenalty;             %Penalty on the distance to the origin
