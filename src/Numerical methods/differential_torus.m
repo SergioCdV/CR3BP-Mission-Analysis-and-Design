@@ -155,11 +155,32 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
             iter = iter+1;              %Update the iterations
         end
     end
+    
+    %Final integration 
+    tspan = 0:dt:X(end-1,iter);                 %Stroboscopic time 
+    S = zeros(nodes, length(tspan), m+m^2);     %Quasiperiodic trajectories preallocation
+    figure(1)
+    hold on
+    for i = 1:nodes
+        S0 = X(1+m*(i-1):m*i,iter);         %State vector 
+        STM = reshape(eye(m), [m^2 1]);     %Initial state transition matrix
+        s0 = [S0; STM];                     %Complete initial conditions
+        
+        %Integration
+        [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, s0, options); 
+        
+        %Save trajectory
+        S(i,:,:) = Saux;
+        plot3(Saux(:,1), Saux(:,2), Saux(:,3));
+    end
 
     %Output
+    xf.Trajectory = S;                  %Save trajectories 
+    xf.Period = tspan(end);             %Stroboscopic time 
+    xf.Rotation = X(end,iter);          %Rotation number 
+    xf.Constraint = (J/nodes);          %Final energy constraint
     state.State = ~GoOn;                %Convergence flag
     state.Error = 1;                    %Finall correction error
-    state.Iter = iter;                  %Number of needed iterations
-    
+    state.Iter = iter;                  %Number of needed iterations   
 end
 

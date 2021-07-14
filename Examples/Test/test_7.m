@@ -29,8 +29,8 @@ param_halo = [1 Az Ln gamma m];                             %Halo orbit paramete
 param_lyap = [Ax Az 0 0 Ln gamma m];                        %Lyapunov orbit parameters
 
 %Correction parameters 
-maxIter = 100;     %Maximum allowed iterations in the differential correction schemes
-tol = 1e-5;        %Tolerance 
+maxIter = 20;      %Maximum allowed iterations in the differential correction schemes
+tol = 1e-8;        %Tolerance 
 
 %% Functions
 %Compute seeds
@@ -43,6 +43,10 @@ lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov
 %Halo orbit 
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+%Vertical orbit
+vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             %State vector of a vertical orbit
+[vertical_orbit, state(5)] = differential_correction('Double Plane Symmetric', mu, vertical_seed, maxIter, tol);
+
 %Compute the halo tori 
-J = jacobi_constant(mu, halo_orbit.Trajectory(1,1:6).');
-[xf, state] = differential_torus('Single shooting energy', mu, halo_orbit, maxIter, tol, 5, J);
+J = jacobi_constant(mu, vertical_orbit.Trajectory(end,1:6).');
+[xf, state] = differential_torus('Single shooting energy', mu, vertical_orbit, maxIter, tol, 15, J);

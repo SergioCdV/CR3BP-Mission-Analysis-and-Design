@@ -45,18 +45,18 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. 
+Az = 200e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                             %Northern halo parameters
+halo_param = [-1 Az Ln gamma m];                             %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');  %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index

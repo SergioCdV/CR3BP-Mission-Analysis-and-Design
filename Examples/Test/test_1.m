@@ -75,7 +75,7 @@ ylabel('Synodic $y$ coordinate');
 title('Pseudo-potential function $\tilde{U}$ isocurves');
 grid on 
 colorbar
-
+%%
 figure(2)
 potential_plot(mu, 2);
 figure(2)
@@ -85,7 +85,7 @@ plot(L(1,2), L(2,2), '+k');
 plot(L(1,3), L(2,3), '+k');
 plot(L(1,4), L(2,4), '+k');
 plot(L(1,5), L(2,5), '+k');
-labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_2$'};
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text([L(1,1)-0.2, L(1,2:end)+0.05], L(2,:), labels);
 hold off
 xlabel('Synodic $x$ coordinate'); 
