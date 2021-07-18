@@ -272,14 +272,14 @@ plot(tspan(indexOfInterest), St(indexOfInterest, 8))
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
 hold off
 axis tight
-%%
-if (true)
+
+if (false)
     dh = 50; 
     steps = fix(size(St,1)/dh);
     M = cell(1,steps);
     h = figure;
     filename = 'webb.gif';
-    view([30 20])
+    view([40 20])
     hold on
     plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.r', 'Linewidth', 0.1);
     plot3(St(:,1), St(:,2), St(:,3), '.-b', 'Linewidth', 0.1);
@@ -289,7 +289,7 @@ if (true)
     zlabel('Synodic z coordinate');
     scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
     scatter3(1-mu, 0, 0, 'k', 'filled');
-    text(L(1,Ln)+5e-4, L(2,Ln), 0, '$L_2$');
+    text(L(1,Ln)-2e-3, L(2,Ln), 0, '$L_2$');
     text(1-mu-1e-3, 0, 1e-3, '$M_2$');
     grid on;
     title('Rendezvous simulation');

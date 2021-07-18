@@ -296,7 +296,7 @@ plot(tspan(indexOfInterest), St(indexOfInterest, 9))
 hold off
 axis tight
 
-if (true)
+if (false)
     dh = 50; 
     steps = fix(size(St,1)/dh);
     M = cell(1,steps);
