@@ -9,33 +9,35 @@
 % This function contains the algorithm to compute the invariant manifolds associated with 
 % a particular solution orbit.
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system.
+% Inputs: - scalar mu, the gravitational parameter of the system.
+%         - scalar point, to identify the libration point of the periodic
+%           orbit.
 %         - string manifold, selecting the manifold to compute, either 'U' for the unstable one or 
-%         - 'S', for the stable one. 
+%           'S', for the stable one. 
 %         - character branch, 'R' for the right branch or 'L' for the left
 %           one.
 %         - vector r, a temporal evolution of the orbit in an MxN matrix,
 %           with N = 42, containing the phase space vector and the STM
 %           evolutions, and M being the number of temporal steps to
-%           complete a orbital period.
+%           complete an orbital period.
 %         - scalar rho, a number of fibers/trajectories to compute on the
 %           manifold.
 %         - scalar time, to integrate the dynamics
 %         - string Poincare_map, specifying pre-configured halt integration conditions
 
-% Output: - vector field M, containing the manifold evolution for each
-%           fiber. 
+% Output: - structure M, containing the manifold evolution for each
+%           fiber and the defining properties
 
 % Methods: integration of the dynamics and use of the monodromy matrix and
 %          its propagation all along the orbit.
 
 % New versions:
 
-function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
+function [M] = invariant_manifold(mu, point, manifold, branch, r, rho, tspan, varargin)
     %General constants 
     flagVar = false;             %No STM integration needed
     n = 6;                       %Phase space dimension
-    epsilon = 1e-3;              %Displacement of the initial conditions  
+    epsilon = mu/10;             %Displacement of the initial conditions  
     T = size(r,1);               %Orbit period in nondimensinal units
     
     %Integration tolerances
@@ -55,7 +57,7 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
             case 'Left homoclinic connection' 
                 map = @(t,s)homoclinic_crossing(t,s,mu,0);      %Poincaré map defined by the XZ plane
             case 'Right heteroclinic connection' 
-                map = @(t,s)heteroclinic_crossing(t,s,mu,0);   %Poincaré map defined by the XZ plane
+                map = @(t,s)heteroclinic_crossing(t,s,mu,0);    %Poincaré map defined by the XZ plane
             case 'Left heteroclinic connection' 
                 map = @(t,s)heteroclinic_crossing(t,s,mu,0);    %Poincaré map defined by the XZ plane
             case 'X crossing' 
@@ -75,20 +77,28 @@ function [M] = invariant_manifold(mu, manifold, branch, r, rho, tspan, varargin)
     if (manifold == 'U')
         direction = 1;                                      %Forward integration
         eigenV = 1;                                         %Unstable eigenvector
-        
-        if (branch == 'L')
-            epsilon = -epsilon;
-        end
     elseif (manifold == 'S')
         direction = 1;                                      %Backward integration
         eigenV = n;                                         %Stable eigenvector
         tspan = tspan(end):-tspan(2)+tspan(1):tspan(1);     %Reverse the integration time
-        
-        if (branch == 'R')
-            epsilon = -epsilon;
-        end
     else
         error('No valid manifold was selected'); 
+    end
+    
+    %Switch manifold branch
+    switch (point)
+        case 1
+            if (branch == 'L')
+                epsilon = -epsilon;
+            elseif (r(1,3) == 0) && (r(1,n) == 0) && (r(1,1) < 1-mu) && (branch == 'R') && (manifold == 'S')
+                epsilon = -epsilon;
+            end
+        case 2
+            if (branch == 'R')
+                epsilon = -epsilon;
+            end
+        otherwise 
+            error('No valid libration point was selected')
     end
         
     %Monodromy matrix from the trayectory r

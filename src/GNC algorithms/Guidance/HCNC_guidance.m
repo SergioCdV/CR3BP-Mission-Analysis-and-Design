@@ -44,15 +44,15 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
             map = 'Left homoclinic connection';
         end
         
-        %Globalize the unstable manifold until the Poincare map
+        %Globalize the unstable manifold until the Poincare section
         manifold = 'U'; 
         branch = Branch(1); 
-        Mu = invariant_manifold(mu, manifold, branch, target_orbit, rho, tspan, map);
+        Mu = invariant_manifold(mu, L, manifold, branch, target_orbit, rho, tspan, map);
         
-        %Globalize the stable manifold until the Poincare map
+        %Globalize the stable manifold until the Poincare section
         manifold = 'S'; 
         branch = Branch(2); 
-        Ms = invariant_manifold(mu, manifold, branch, target_orbit, rho, tspan, map);
+        Ms = invariant_manifold(mu, L, manifold, branch, target_orbit, rho, tspan, map);
 
         %Restrict the final position if desired
         if (position_fixed)
@@ -142,12 +142,12 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
         %Globalize the unstable manifold until the Poincare map
         manifold = 'U'; 
         branch = Branch(1); 
-        Mu = invariant_manifold(mu, manifold, branch, target_orbit, rho, tspan, map);
+        Mu = invariant_manifold(mu, L, manifold, branch, target_orbit, rho, tspan, map);
         
         %Globalize the stable manifold until the Poincare map
         manifold = 'S'; 
         branch = Branch(2); 
-        Ms = invariant_manifold(mu, manifold, branch, target_orbit, rho, tspan, map);
+        Ms = invariant_manifold(mu, L, manifold, branch, target_orbit, rho, tspan, map);
 
         %Restrict the final position if desired
         if (position_fixed)

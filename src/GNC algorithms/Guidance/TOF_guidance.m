@@ -72,7 +72,7 @@ function [cost] = costfunc(cost_function, objective_norm, control_scheme, TOF)
             
         case 'Control effort' 
             %Control integrals
-            effort = control_effort(tspan, u);          %Control effort figures of merit
+            effort = control_effort(tspan, u, true);          %Control effort figures of merit
                         
             %Switch the Lp objective norm 
             switch (objective_norm)

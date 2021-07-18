@@ -80,10 +80,11 @@ graphics = true;                %Flag to plot the manifolds
 target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n)); 
 
 %Connection itenerary
-sequence = [1 2];
+sequence = [1 2];       %Connection itenerary
+branch = ['R' 'L'];     %Manifold branches to be propagated
 
 %Trajectory design core
-[Sg, dV] = HTRC_guidance(mu, sequence, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics);
+[Sg, dV] = HTRC_guidance(mu, sequence, branch, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics);
 
 %% Plot results
 %Plot the transfer

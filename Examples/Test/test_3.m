@@ -25,15 +25,17 @@ Az = 50e6;                                                  %Orbit amplitude out
 Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
-m = 1;                                                      %Number of periods to compute
+m = 1;                                                      %Number of orbital periods to compute
+param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
 param = [Ax Az 0 0 Ln gamma m];                             %Lyapunov orbit parameters
 lyapunov_seed = object_seed(mu, param, 'Lyapunov');         %Lyapunov seed     
+[halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Halo orbit seed
 
 %Time integration
 Tf = pi;                                                    %Final time
-dt = 1e-3;                                                  %Time step of 1 second
+dt = 1e-3;                                                  %Time step
 tspan = 0:dt:Tf;                                            %Integration time span
 
 %Differential correction scheme set up
@@ -43,17 +45,18 @@ tol = 1e-5;                                                 %Tolerance
 %% Main test
 %Orbit computation
 [lyapunov_orbit, state] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
+[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Manifolds computation
-rho = 50;                    %Number of manifold fibers to compute
+rho = 10;                    %Number of manifold fibers to compute
+
 manifold_ID = 'S';           %Stable manifold (U or S)
 manifold_branch = 'L';       %Left branch of the manifold (L or R)
-
-StableManifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
+StableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, halo_orbit.Trajectory, rho, tspan);
 
 manifold_ID = 'U';           %Unstable manifold (U or S)
-manifold_branch = 'R';       %Left branch of the manifold (L or R)
-UnstableManifold = invariant_manifold(mu, manifold_ID, manifold_branch, lyapunov_orbit.Trajectory, rho, tspan);
+manifold_branch = 'L';       %Left branch of the manifold (L or R)
+UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, halo_orbit.Trajectory, rho, tspan);
 
 %% Plotting and results 
 figure(1)

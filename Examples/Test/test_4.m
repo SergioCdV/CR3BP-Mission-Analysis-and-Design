@@ -9,8 +9,7 @@
 % This scripts provides a test interface for the rest of the library
 % functions. 
 
-% Test 4 is concerned with validating the single-parameter continuation method, in this case developping 
-% a halo family.
+% Test 4 is concerned with validating the single-parameter continuation method.
 
 %% Test values and constants
 %Set graphical environment 

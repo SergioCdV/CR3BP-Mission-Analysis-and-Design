@@ -28,6 +28,6 @@ function [s, state] = henon_stability(STM)
     if (flag == 1)
         state = false;      %Eigen-decomposition of the STM failed
     else
-        state = true;       %Eigen-decomposition of the SMT succeed
+        state = true;       %Eigen-decomposition of the STM succeed
     end
 end

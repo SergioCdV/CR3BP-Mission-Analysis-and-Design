@@ -41,7 +41,8 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     m = 6;                                          %Phase space dimension
     
     %Parking orbit definition 
-    Primary = parking_orbit.Primary;                %Primary associated to the parking orbit   
+    Primary = parking_orbit.Primary;                %Primary associated to the parking orbit  
+    L = target_orbit.Libration;                     %Libration point associated to a the target orbit
     switch (Primary)
         case 'Primary'
             R = [-mu; 0; 0];                        %Primary location in the configuration space
@@ -64,7 +65,7 @@ function [xf, dVf, state] = HOI_transfer(mu, parking_orbit, target_orbit, maxIte
     seed = target_orbit.Trajectory;                                          %Periodic orbit seed
     tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
     rho = 50;                                                                %Density of fibres to analyze
-    S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);     %Initial trajectories
+    S = invariant_manifold(mu, L, manifold, branch, seed, rho, tspan, map);  %Initial trajectories
     
     %Relative distance to the primary of interest
     distance = zeros(rho,1);    

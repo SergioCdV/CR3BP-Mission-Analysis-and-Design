@@ -12,6 +12,8 @@
 % Inputs: - scalar mu, the gravitational parameter of the system
 %         - vector sequence, indicating from which orbit to which orbit the
 %           connection is desired
+%         - vector branch, containing the branches to be propagated
+%           associated to each periodic orbit
 %         - scalar rho, the number of manifold fiber to compute
 %         - array target_orbit, the final periodic orbit of the connection
 %         - array initial_orbit, the initial periodic orbit of the
@@ -25,7 +27,7 @@
 
 % New versions: 
 
-function [Sg, dV] = HTRC_guidance(mu, sequence, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics)
+function [Sg, dV] = HTRC_guidance(mu, sequence, branch, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics)
     %General parameters 
     if (position_fixed)
         sd = target_orbit.TargetState;             %Target rendezvous state
@@ -39,24 +41,20 @@ function [Sg, dV] = HTRC_guidance(mu, sequence, rho, target_orbit, initial_orbit
     %Globalize the unstable manifold until the Poincare map
     manifold = 'U'; 
     if (sequence(1) == 1)
-        branch = 'R';
         mapu = 'Left heteroclinic connection';
     else
-        branch = 'R';
         mapu = 'Right heteroclinic connection';  
     end
-    Mu = invariant_manifold(mu, manifold, branch, initial_orbit, rho, tspan, mapu);
+    Mu = invariant_manifold(mu, sequence(1), manifold, branch(1), initial_orbit, rho, tspan, mapu);
 
     %Globalize the stable manifold until the Poincare map
     manifold = 'S'; 
     if (sequence(2) == 1)
-        branch = 'L';
         maps = 'Left heteroclinic connection';
     else
-        branch = 'L';
         maps = 'Right heteroclinic connection'; 
     end
-    Ms = invariant_manifold(mu, manifold, branch, target_orbit, rho, tspan, maps);
+    Ms = invariant_manifold(mu, sequence(2), manifold, branch(2), target_orbit, rho, tspan, maps);
 
     %Restrict the final position if desired
     if (position_fixed)
