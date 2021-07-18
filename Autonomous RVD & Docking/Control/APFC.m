@@ -138,9 +138,9 @@ title('Motion in the relative configuration space');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,7)); 
-plot(tspan, St(:,8)); 
-plot(tspan, St(:,9)); 
+plot(tspan(1:2000), St(1:2000,7)); 
+plot(tspan(1:2000), St(1:2000,8)); 
+plot(tspan(1:2000), St(1:2000,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinates');
@@ -149,9 +149,9 @@ legend('$x$', '$y$', '$z$');
 title('Relative position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,10)); 
-plot(tspan, St(:,11)); 
-plot(tspan, St(:,12)); 
+plot(tspan(1:2000), St(1:2000,10)); 
+plot(tspan(1:2000), St(1:2000,11)); 
+plot(tspan(1:2000), St(1:2000,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinates');

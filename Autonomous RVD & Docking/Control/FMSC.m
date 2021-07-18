@@ -109,7 +109,7 @@ two_impulsive = true;                       %Two-impulsive rendezvous boolean
 index(1) = fix(0.5/dt);                         %Time location of the collision 
 index(2) = fix(0.2/dt);                         %Detection time
 so = [St(index(1),7:9) 0 0 0];                  %Phase space state of the object
-R = 5e-4;                                       %Radius of the CA sphere
+R = 2e-3;                                       %Radius of the CA sphere
 [xo, yo, zo] = sphere;                          %Collision avoidance sphere
 xo = R*xo;
 yo = R*yo;
@@ -151,11 +151,12 @@ view(3)
 hold on 
 surf(xo+so(1)+S(index(1),1),yo+so(2)+S(index(1),2),zo+so(3)+S(index(1),3), 'Linewidth', 0.1);
 plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k', 'Linewidth', 0.1); 
-r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'm', 'Linewidth', 0.1); 
+r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1); 
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
 plot3(S(:,1), S(:,2), S(:,3), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 text(L(1,Ln)+1e-3, L(2,Ln), 5e-3, '$L_2$');
+text(xo(:,1), yo(:,1), zo(:,1)+1e-3, 'Collision');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');

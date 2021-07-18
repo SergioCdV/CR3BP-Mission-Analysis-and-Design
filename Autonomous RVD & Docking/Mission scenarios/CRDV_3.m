@@ -272,3 +272,42 @@ plot(tspan(indexOfInterest), St(indexOfInterest, 8))
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
 hold off
 axis tight
+%%
+if (true)
+    dh = 50; 
+    steps = fix(size(St,1)/dh);
+    M = cell(1,steps);
+    h = figure;
+    filename = 'webb.gif';
+    view([30 20])
+    hold on
+    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.r', 'Linewidth', 0.1);
+    plot3(St(:,1), St(:,2), St(:,3), '.-b', 'Linewidth', 0.1);
+    plot3(St4(:,1)+St4(:,7), St4(:,2)+St4(:,8), St4(:,3)+St4(:,9), '.r', 'Linewidth', 0.1); 
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+    scatter3(1-mu, 0, 0, 'k', 'filled');
+    text(L(1,Ln)+5e-4, L(2,Ln), 0, '$L_2$');
+    text(1-mu-1e-3, 0, 1e-3, '$M_2$');
+    grid on;
+    title('Rendezvous simulation');
+    
+    for i = 1:dh:size(St,1)
+        T = scatter3(St(i,1), St(i,2), St(i,3), 20, 'b', 'filled'); 
+        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 20, 'r', 'filled');
+        drawnow;
+        frame = getframe(h);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+        delete(T); 
+        delete(V);
+    end
+    hold off
+end

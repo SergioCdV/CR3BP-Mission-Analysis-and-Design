@@ -150,13 +150,28 @@ grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity in time');
 
+%%
 %Configuration space error 
 figure(4)
+hold on
 plot(tspan, log(e)); 
+plot(tspan, log(e_miss)); 
+plot(tspan, log(e_tiss));
+hold off
+legend('MPC', 'MI', 'TI')
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
 grid on;
 title('Absolute rendezvous error in the configuration space');
+axes('position', [.45 .2 .4 .25])
+box on
+indexOfInterest = (tspan < tspan(550)) & (tspan > tspan(100)); 
+hold on
+plot(tspan(indexOfInterest), log(e(indexOfInterest)))  
+plot(tspan(indexOfInterest), log(e_miss(indexOfInterest)))  
+plot(tspan(indexOfInterest), log(e_tiss(indexOfInterest))) 
+axis tight
+hold off
  
 %Rendezvous animation 
 if (false)
