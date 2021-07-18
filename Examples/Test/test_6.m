@@ -9,7 +9,8 @@
 % This scripts provides a test interface for the rest of the library
 % functions. 
 
-% Test 6 is concerned to the globalization of NHROs and their unstable and stable manifolds.
+% Test 6 is concerned with the computation of libration curves and
+% subsitutes.
 
 %% Test values and constants
 %Set graphical environment 
@@ -22,7 +23,7 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration toleran
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 10e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
+Az = 10e6;                                                  %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary

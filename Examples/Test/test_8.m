@@ -1,13 +1,15 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 24/02/21
-% File: polynomials_graphics.m 
+% File: test_8.m 
 % Issue: 0 
 % Validated: 
 
-%% Polynomials graphics %% 
-% This script provides a function to plot several Legendre and Chebyshev
-% polynomials 
+%% Test 8 %%
+% This scripts provides a test interface for the rest of the library
+% functions. 
+
+% Test 8 is concerned with plotting several polynomial basis.
 
 %% Main computation %%
 set_graphics(); 
