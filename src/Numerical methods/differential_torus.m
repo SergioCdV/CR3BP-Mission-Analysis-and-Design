@@ -39,7 +39,7 @@ end
 function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
     %Constants 
     m = 6;                      %Phase space dimension 
-    epsilon = 1e-3;             %Initial perturbation
+    epsilon = mu/10;            %Initial perturbation
     period = seed.Period;       %Periodic orbit period
     seed = seed.Trajectory;     %Periodic orbit
     
@@ -47,7 +47,7 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
     X = zeros(m*nodes+2,maxIter);                               %Preallocation of the free variables vector
     
     %Initialization of the free variables vector
-    theta = 1/nodes*(0:2*pi:2*pi*(nodes-1));                    %Parametrization of the invariant curve
+    theta = (0:2*pi:2*pi*(nodes-1))/nodes;                      %Parametrization of the invariant curve
     refState = seed(end,:);                                     %Fixed point in the stroboscopic map
     Monodromy = reshape(refState(m+1:end), [m m]);              %Initial monodromy matrix
     [W, lambda] = eig(Monodromy);                               %Eigenspectrum of the monodromy matrix
@@ -70,7 +70,7 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
     end
     
     %Define the Fourier transform operator 
-    D = (1/nodes)*exp(-1i*k.'*theta);
+    D = exp(-1i*k.'*theta)/nodes;
     
     %Integration set up
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration conditions and tolerances                     
@@ -92,16 +92,17 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
     %Differential corrector
     while (GoOn) && (iter < maxIter)
         %Set up the integration 
-        T = real(X(end-1,iter));        %Strobocopic time
+        T = X(end-1,iter);              %Strobocopic time
+        rho = X(end,iter);              %Rotation operator
         tspan = 0:dt:T;                 %Integration time
         
         %Reinitiate the Jacobi constant 
         J = 0; 
         
-        %Compute the rotation operator
-        Q = diag(exp(-1i*k*X(end,iter)));                   %Rotation eigenvalues
-        dQ = diag(k)*diag(-1i*exp(-1i*k*X(end,iter)));      %Derivative of the application with respect to the rotation angle  
-        R = D^(-1)*Q*D;                                     %Rotation operation
+        %Compute the rotation operator associated matrices
+        Q = diag(exp(-1i*k*rho));               %Rotation eigenvalues
+        dQ = diag(k)*diag(-1i*exp(-1i*k*rho));  %Derivative of the application with respect to the rotation angle  
+        R = D^(-1)*Q*D;                         %Rotation operation
         
         %Perform the integration 
         for i = 1:nodes
@@ -130,7 +131,7 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
         for i = 1:nodes
             e(1+m*(i-1):m*i,1) = u(i,:).'-X(1+m*(i-1):m*i,iter);       %Rotation constraint
         end
-        e(end,1) = (1/nodes)*J-constraint;                             %Energy constraint
+        e(end,1) = J/nodes-constraint;                                 %Energy constraint
         
         %Compute the sensibility matrix
         DG = kron(R,eye(m))*bSTM-eye(m*nodes);  %STM-like sensibility matrix
@@ -138,40 +139,38 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
         dRho = reshape(dRho, [m*nodes 1]);      %Derivative with respect to the rotation angle
         
         for i = 1:nodes
-            dJ(1,1+m*(i-1):m*i) = (1/nodes)*jacobi_gradient(mu, u(i,:).');
+            dJ(1,1+m*(i-1):m*i) = jacobi_gradient(mu, urot(i,:).')/nodes;
         end
         
         A = [DG dF dRho; dJ zeros(1,2)];
         
         %Compute the variation 
-        ds = -real(A\e); 
-        norm(ds)
+        ds = real(-pinv(A)*e); 
                         
         %Convergence analysis 
         if (norm(ds) < tol)
-            GoOn = false;               %Finish the correction process
+            GoOn = false;                       %Finish the correction process
         else
-            X(:,iter+1) = X(:,iter)+ds; %Update the variables vector 
-            iter = iter+1;              %Update the iterations
+            X(:,iter+1) = X(:,iter)+ds;         %Update the variables vector 
+            iter = iter+1;                      %Update the iterations
         end
     end
     
-    %Final integration 
+    %Generate the invariant curve over the domain
     tspan = 0:dt:X(end-1,iter);                 %Stroboscopic time 
     S = zeros(nodes, length(tspan), m+m^2);     %Quasiperiodic trajectories preallocation
     figure(1)
     hold on
     for i = 1:nodes
-        S0 = X(1+m*(i-1):m*i,iter);         %State vector 
-        STM = reshape(eye(m), [m^2 1]);     %Initial state transition matrix
-        s0 = [S0; STM];                     %Complete initial conditions
+        S0 = X(1+m*(i-1):m*i,iter);             %State vector 
+        STM = reshape(eye(m), [m^2 1]);         %Initial state transition matrix
+        s0 = [S0; STM];                         %Complete initial conditions
         
         %Integration
         [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, s0, options); 
         
         %Save trajectory
         S(i,:,:) = Saux;
-        plot3(Saux(:,1), Saux(:,2), Saux(:,3));
     end
 
     %Output

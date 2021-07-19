@@ -55,7 +55,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %% Homoclinic connection
 %Manifold definition
-Branch = ['R' 'R'];             %Directions to propagate the manifolds
+Branch = ['L' 'R'];             %Directions to propagate the manifolds
 TOF = tf;                       %Time of flight
 rho = 30;                       %Manifold fibers to compute 
  

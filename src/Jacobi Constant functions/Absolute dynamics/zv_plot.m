@@ -48,11 +48,13 @@ function zv_plot(mu, C, dim)
         scatter3(R(1,2), R(2,2), R(3,2), 'k', 'filled');
         hold off
         labels = {'$M_1$', '$M_2$'};
-        text(R(1,:), R(2,:)+0.1, labels);
+        text(R(1,:), R(2,:)+0.1, [1e-1 1e-1], labels);
         grid on; 
+        axis equal
         xlabel('Synodic $x$ coordinate');
         ylabel('Synodic $y$ coordinate');
         zlabel('Synodic $z$ coordinate');
+        title(sprintf('Zero velocity surface corresponding to C = %.2f', C));
     else
         %3D configuration space meshgrid
         d = -2:0.01:2;
