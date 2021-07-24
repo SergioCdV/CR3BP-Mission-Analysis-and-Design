@@ -87,7 +87,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% Controlability analysis
 model = 'RLM';
-%controlable = controlability_analysis(model, mu, S, index, Ln, gamma);
+%controlable = controlability(model, mu, S, index, Ln, gamma);
 
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
@@ -113,8 +113,10 @@ GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
 int = zeros(1,3);                               %Integral of the relative position
 slqr0 = [Sn(1,:) int];                          %Initial conditions
 
+tic
 %Compute the trajectory
 [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
+toc 
 
 %Error in time 
 [e, merit] = figures_merit(tspan, St);
@@ -219,60 +221,4 @@ if (false)
         delete(V);
     end
     hold off
-end
-
-%% Auxiliary functions
-%Controlability analysis function 
-function [controlable] = controlability_analysis(model, mu, Sn, index, Ln, gamma)
-    %Approximation 
-    n = 6;                              %Dimension of the state vector
-    order = 2;                          %Order of the approximation 
-
-    %Preallocation 
-    controlable = zeros(index,1);       %Controllability boolean
-
-    %Model coefficients 
-    mup(1) = 1-mu;                      %Reduced gravitational parameter of the first primary 
-    mup(2) = mu;                        %Reduced gravitational parameter of the second primary 
-    R(:,1) = [-mu; 0; 0];               %Synodic position of the first primary
-    R(:,2) = [1-mu; 0; 0];              %Synodic position of the second primary
-
-    %Linear model matrices
-    B = [zeros(n/2); zeros(n/2); eye(n/2)];         %Linear model input matrix 
-    Omega = [0 2 0; -2 0 0; 0 0 0];                 %Coriolis dyadic
-
-    for i = 1:index
-        %State coefficients 
-        r_t = Sn(i,1:3).';                          %Synodic position of the target
-        
-        %Select linear model 
-        switch (model)
-            case 'SLLM'
-                cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
-                c2 = cn(2); 
-                Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-            case 'ULLM' 
-                cn = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
-                c2 = cn(2); 
-                Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
-            case 'RLM' 
-                %Relative position between the primaries and the target 
-                Ur1 = r_t-R(:,1);               %Position of the target with respect to the first primary
-                ur1 = Ur1/norm(Ur1);            %Unit vector of the relative position of the target with respect to the primary
-                Ur2 = r_t-R(:,2);               %Position of the target with respect to the first primary
-                ur2 = Ur2/norm(Ur2);            %Unit vector of the relative position of the target with respect to the primary
-
-                %Evaluate the linear model 
-                Sigma = -((mup(1)/norm(Ur1)^3)+(mup(2)/norm(Ur2))^3)*eye(3)+3*((mup(1)/norm(Ur1)^3)*(ur1*ur1.')+(mup(2)/norm(Ur2)^3)*(ur2*ur2.'));
-            otherwise 
-                error('No valid linear model was selected'); 
-        end
-
-        %Linear state model
-        A = [zeros(3) eye(3) zeros(3); zeros(3) zeros(3) eye(3); zeros(3) Sigma Omega];     
-
-        %Controlability matrix 
-        C = ctrb(A,B); 
-        controlable(i) = (rank(C) == size(A,1));
-    end
 end
