@@ -96,7 +96,9 @@ impulses.Times = times;                       %Impulses times
 cost = 'Position';                            %Cost function to target
 
 %Controller scheme
+tic
 [St, dV, state] = MISS_control(mu, tf, s0, tol, cost, impulses);
+toc
 
 %Control effort 
 effort = control_effort(tspan, dV, true);

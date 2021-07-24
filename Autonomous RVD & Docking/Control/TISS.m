@@ -88,7 +88,10 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 %% GNC: two impulsive rendezvous, single shooting scheme %%
 %Differential corrector scheme
 tol = 1e-10;                                                        %Differential corrector tolerance
+
+tic
 [St, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
+toc
 
 %Total maneuver metrics 
 effort = control_effort(tspan, dV, true);

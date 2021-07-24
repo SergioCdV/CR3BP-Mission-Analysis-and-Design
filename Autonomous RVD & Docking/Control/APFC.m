@@ -98,7 +98,9 @@ safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking
 safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corridor
 
 %Compute the guidance law
+tic
 [St, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, s0);
+toc 
 
 %Performance indices
 effort = control_effort(tspan, u, true);         %Control effort made

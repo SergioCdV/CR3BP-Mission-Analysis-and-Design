@@ -92,7 +92,9 @@ Tmin = -0.1;                                  %Minimum thrust capability (in vel
 Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
+tic
 [St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+toc
 
 %Control integrals
 energy = control_effort(tspan, dV, true);

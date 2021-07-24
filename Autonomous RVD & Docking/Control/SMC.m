@@ -45,7 +45,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                  %Orbit amplitude out of the synodic plane. 
+Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -56,7 +56,7 @@ halo_param = [-1 Az Ln gamma m];                             %Northern halo para
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');  %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
@@ -95,7 +95,9 @@ GNC.Control.SMC.Parameters = [1 1 0.9 0.1];     %Controller parameters
 
 %% GNC: SMC control law %%
 %Re-integrate trajectory
+tic
 [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+toc
 
 %Error in time 
 [e, merit] = figures_merit(tspan, St);
@@ -108,10 +110,12 @@ effort = control_effort(tspan, u, false);
    
 %% Optimize the controller parameters
 if (optimization)
-    GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
+    GNC.Control.SMC.Parameters = [1 0.9709 0.4057 0.0256];%SMC_optimization(mu, 'L1', s0, tf)];
     
     %Re-integrate the trajectory
+    tic
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    toc
 
     %Error in time 
     [e, merit] = figures_merit(tspan, St);

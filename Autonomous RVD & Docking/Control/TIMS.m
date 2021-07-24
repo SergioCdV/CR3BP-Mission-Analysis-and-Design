@@ -89,7 +89,9 @@ tol = 1e-8;                                 %Differential corrector tolerance
 nodes = 3;                                  %Number of nodes to compute
 cost_function = 'Position';                 %Targeting rendezvous
 
+tic
 [St, dV, state] = TIMS_control(mu, tf, S, tol, nodes, cost_function, true);
+toc 
 
 %Control effort
 effort = control_effort(tspan, dV);
