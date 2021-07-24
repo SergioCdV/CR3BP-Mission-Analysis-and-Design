@@ -86,31 +86,35 @@ view(3)
 hold on
 plot3(S(:,7), S(:,8), S(:,9));  
 hold off 
-xlabel('Synodic x coordinate');
-ylabel('Synodic y coordinate');
-zlabel('Synodic z coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 grid on;
 title('Relative orbit');
 
-figure(2) 
+figure(2)
+subplot(1,2,1)
 hold on
-plot(t, S(:,7));  
-plot(t, S(:,8));  
-plot(t, S(:,9));  
-hold off 
-legend('Synodic x coordinate', 'Synodic y coordinate', 'Synodic z coordinate');
+plot(tspan, St(:,7)); 
+plot(tspan, St(:,8)); 
+plot(tspan, St(:,9)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative configuration coordinates');
 grid on;
-title('Relative synodic orbit evolution');
-
-figure(3) 
+legend('$x$', '$y$', '$z$');
+title('Relative position in time');
+subplot(1,2,2)
 hold on
-plot(t, S(:,10));  
-plot(t, S(:,11));  
-plot(t, S(:,12));  
-hold off 
-legend('Synodic x velocity', 'Synodic y velocity', 'Synodic z velocity');
+plot(tspan, St(:,10)); 
+plot(tspan, St(:,11)); 
+plot(tspan, St(:,12)); 
+hold off
+xlabel('Nondimensional epoch');
+ylabel('Relative velocity coordinates');
 grid on;
-title('Relative synodic velocity evolution');
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+title('Relative velocity in time');
 
 figure(4) 
 hold on

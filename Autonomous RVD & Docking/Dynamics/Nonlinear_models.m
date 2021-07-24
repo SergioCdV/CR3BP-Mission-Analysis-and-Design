@@ -50,9 +50,22 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 %Correct the seed and obtain initial conditions for a halo orbit
 [halo_orbit, state] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+%Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
+num = 30;                                                    %Number of orbits to continuate
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, period};                      %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+direction = 1;                                              %Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                         %General setup
+
+[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+
 %% Modelling in the synodic frame %% 
 r_t0 = halo_orbit.Trajectory(1,1:6);                        %Initial target conditions
-r_c0 = halo_orbit.Trajectory(2,1:6);                        %Initial chaser conditions 
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0];                                           %Initial conditions of the target and the relative state
 
@@ -60,7 +73,7 @@ s0 = [r_t0 rho0];                                           %Initial conditions 
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 [t, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Full nonlinear', t, s), tspan, s0, options);
-
+ 
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 error = S_c-S_rc;                                           %Error via the full nonlinear model with the Encke method
@@ -135,25 +148,25 @@ legend('Encke formulation', 'Newtonian formulation');
 if (false)
     figure(4) 
     plot3(inertial(:,1), inertial(:,2), inertial(:,3)); 
-    xlabel('Nondimensional x coordinate'); 
-    ylabel('Nondimensional y coordinate');
-    zlabel('Nondimensional z coordinate');
+    xlabel('Nondimensional $x$ coordinate'); 
+    ylabel('Nondimensional $y$ coordinate');
+    zlabel('Nondimensional $z$ coordinate');
     grid on
     title('Relative orbit in the inertial frame'); 
 
     figure(5) 
     plot3(libration(:,1), libration(:,2), libration(:,3)); 
-    xlabel('Nondimensional x coordinate'); 
-    ylabel('Nondimensional y coordinate');
-    zlabel('Nondimensional z coordinate');
+    xlabel('Nondimensional $x$ coordinate'); 
+    ylabel('Nondimensional $y$ coordinate');
+    zlabel('Nondimensional $z$ coordinate');
     grid on
     title('Relative orbit in the libration synodic frame'); 
 
     figure(6) 
     plot3(frenet(:,1), frenet(:,2), frenet(:,3)); 
-    xlabel('Nondimensional x coordinate'); 
-    ylabel('Nondimensional y coordinate');
-    zlabel('Nondimensional z coordinate');
+    xlabel('Nondimensional $x$ coordinate'); 
+    ylabel('Nondimensional $y$ coordinate');
+    zlabel('Nondimensional $z$ coordinate');
     grid on
     title('Relative orbit in the Frenet-Serret frame');
 end
