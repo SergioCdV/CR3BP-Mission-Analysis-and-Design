@@ -66,7 +66,7 @@ manifold = 'S';                                                          %Integr
 seed = Sn;                                                               %Periodic orbit seed
 tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
 rho = 20;                                                                %Density of fibres to analyze
-S = invariant_manifold(mu, manifold, branch, seed, rho, tspan, map);     %Initial trajectories
+S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
 
 %Relative distance to the primary of interest
 distance = zeros(rho,1);    

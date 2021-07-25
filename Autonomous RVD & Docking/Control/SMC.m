@@ -187,15 +187,10 @@ title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
-hold on
-plot(tspan, log(e_lqr)); 
-plot(tspan, log(e_sdre));
 plot(tspan, log(e));
-hold off
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
 grid on;
-legend('LQR', 'SDRE', 'SMC')
 title('Absolute rendezvous error in the configuration space');
 
 figure(5)
