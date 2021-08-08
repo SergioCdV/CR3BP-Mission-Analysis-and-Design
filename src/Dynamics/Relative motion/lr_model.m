@@ -34,36 +34,28 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     s_r = s(7:12);                                                 %State of the chaser
     
     %Equations of motion of the target
-    ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);        %Target equations of motion
-    
+    ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t, varargin);      %Target equations of motion
+    s_t = s_t(1:6);                                                        %Eliminate the variational state
+
     %Equations of motion of the relative state 
     switch (model)
-        case 'Target'
-            drho = target_centered(mu, s_t, s_r);                  %Relative motion equations
-        case 'Fixed libration'
-            drho = librationf_centered(cn, s_r);                   %Relative motion equations
-        case 'Moving libration'
-            drho = librationm_centered(mu, s_t, s_r);              %Relative motion equations
+        case 'RLM'
+            drho = rlm_model(mu, s_t, s_r);                       %Relative motion equations
+        case 'SLLM'
+            drho = sllm_model(cn, s_r);                           %Relative motion equations
+        case 'ULLM'
+            drho = ullm_model(mu, s_t, s_r);                      %Relative motion equations
         otherwise
-            error('No valid model was chosen');
+            error('No valid linear model was chosen');
     end
-    
-    %Add control vector
-    if (~isempty(varargin))
-        control = varargin{1}; 
-        if (control)
-            u = varargin{2};
-            drho = drho + [zeros(3,1); u];
-        end
-    end
-    
+        
     %Vector field 
     ds = [ds_t; drho];
 end
 
 %% Auxiliary functions 
 %Relative motion equations linearized with respect to the target
-function [drho] = target_centered(mu, s_t, s_r)
+function [drho] = rlm_model(mu, s_t, s_r)
     %Constants of the system 
     mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary 
     mup(2) = mu;                            %Reduced gravitational parameter of the second primary 
@@ -98,7 +90,7 @@ function [drho] = target_centered(mu, s_t, s_r)
 end
 
 %Relative motion equations linearized with respect to the global libration point
-function [drho] = librationf_centered(cn, s_r)    
+function [drho] = sllm_model(cn, s_r)    
     %Legendre coefficient c2           
     c2 = cn(2);                             %Second Legendre coefficient
     
@@ -115,7 +107,7 @@ function [drho] = librationf_centered(cn, s_r)
 end
 
 %Relative motion equations linearized with respect to the local libration point
-function [drho] = librationm_centered(mu, s_t, s_r)  
+function [drho] = ullm_model(mu, s_t, s_r)  
     %State variables 
     r_t = s_t(1:3);                             %Position vector of the target
         

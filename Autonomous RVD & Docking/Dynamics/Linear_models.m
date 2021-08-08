@@ -61,9 +61,9 @@ s0 = [r_t0 rho0];                                           %Initial conditions 
 %Integration of the models
 [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 
-[~, S_t] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Target', t, s), tspan, s0, options);
-[~, S_fl] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Fixed libration', t, s), tspan, s0, options);
-[t, S_ml] = ode113(@(t,s)lr_model(mu, cn, true, false, 'Moving libration', t, s), tspan, s0, options);
+[~, S_t] = ode113(@(t,s)lr_model(mu, cn, true, false, 'RLM', t, s), tspan, s0, options);
+[~, S_fl] = ode113(@(t,s)lr_model(mu, cn, true, false, 'SLLM', t, s), tspan, s0, options);
+[t, S_ml] = ode113(@(t,s)lr_model(mu, cn, true, false, 'ULLM', t, s), tspan, s0, options);
 
 %Reconstructed chaser motion 
 S_ct = S_t(:,1:6)+S_t(:,7:12);                              %Chaser motion from the target linearization

@@ -14,16 +14,16 @@
 
 % Outputs: - vector T, the gradient of the Jacobi constant at a certain point.
 
-function [T] = jacobi_gradient(mu, state)
+function [T] = jacobi_gradient(mu, s)
     %Constants of the system 
     mup(1) = 1-mu;                          %Reduced gravitational parameter of the first primary
     mup(2) = mu;                            %Reduced gravitational parameter of the second primary
     
     %State variables 
-    x = state(1);                           %Synodic x coordinate
-    y = state(2);                           %Synodic y coordinate
-    z = state(3);                           %Synodic z coordinate
-    v = state(4:end);                       %Synodic velocity vector
+    x = s(1);                               %Synodic x coordinate
+    y = s(2);                               %Synodic y coordinate
+    z = s(3);                               %Synodic z coordinate
+    v = s(4:end);                           %Synodic velocity vector
     
     %Main procedure 
     r(:,1) = [x+mup(2); y; z];              %Relative position vector to the first primary

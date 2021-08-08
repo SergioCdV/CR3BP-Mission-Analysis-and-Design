@@ -20,7 +20,9 @@
 %           false for only dynamical integration.
 %         - scalar t, a reference epoch. 
 %         - vector s, containing in an Nx1 array the phase space vector,
-%           possibly augmented with the state transition matrix at time t. 
+%           possibly augmented with the state transition matrix at time t.
+%         - cell array varargin, to include GNC requirements on the motion
+%           of the spacecraft
 
 % Outputs: - vector dr, the differential vector field, which will include
 %            the phase space trajectory and the STM integrated state when
@@ -30,7 +32,7 @@
 
 % New versions: 
 
-function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
+function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     %Constants 
     n = 6;       %Phase space dimension 
     
@@ -55,6 +57,42 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s)
         gamma = [x+2*V(2); y-2*V(1); 0];                                %Inertial acceleration
     end
     F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       %Time flow of the system
+    
+    %Compute the GNC requirements 
+    if (~isempty(varargin))
+        GNC = varargin{1};                              %GNC handling structure
+        if (~isempty(GNC))
+            if (iscell(GNC))
+                GNC = GNC{1};
+            end
+            
+            %Integrate the relative position for the PID controller
+            switch (GNC.Algorithms.Control)
+                case 'TISS'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'MISS'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'TITA'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'MPC'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'APF'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'SDRE'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'LQR'
+                    error('No valid control algorithm was selected for integration purposes')
+                case 'SMC'
+                    error('No valid control algorithm was selected for integration purposes')
+                otherwise
+                    error('No valid control algorithm was selected');
+            end
+
+            %GNC scheme
+            [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t, true);   %Compute the control law
+            F = F+u;                                                    %Add the control vector 
+        end
+    end
     
     %Compute the variational equations if needed
     if (flagVar)

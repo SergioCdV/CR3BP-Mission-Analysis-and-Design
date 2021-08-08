@@ -52,7 +52,7 @@ halo_param = [1 Az Ln gamma m];                             %Northern halo param
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 30;                                                    %Number of orbits to continuate
+num = 2;                                                    %Number of orbits to continuate
 method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, period};                      %Object and characteristics to continuate

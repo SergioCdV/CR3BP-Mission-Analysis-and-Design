@@ -11,19 +11,24 @@
 
 % Inputs: - structure GNC, containing the needed flags and parameters for
 %           each algorithm
+%         - vector St, the time evolution of the target spacecraft
+%         - vector S, the time evolution of the spacecraft state 
+%         - scalar t, the time at which the GNC scheme is evaluated
+%         - cell array varargin, used whenever a target spacecraft uses GNC
 
 % Output: - guidance law Sg, the computed guidance law
 %         - estimated state Sn, the output of the navigation filter
 %         - control u, the control law to steer the state to the guidance
 %           law requirements
 
-function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
+function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     %Extract the algorithms flags 
-    guidance = GNC.Algorithms.Guidance;         %Selected guidance algorithm 
-    navigation = GNC.Algorithms.Navigation;     %Selected navigation algorithm 
-    control = GNC.Algorithms.Control;           %Selected control algorithm
-    
+    guidance = GNC.Algorithms.Guidance;              %Selected guidance algorithm 
+    navigation = GNC.Algorithms.Navigation;          %Selected navigation algorithm 
+    control = GNC.Algorithms.Control;                %Selected control algorithm
+
     %Navigation module     
+    Sn = S;
     
     %Guidance module 
     switch (guidance)
@@ -34,11 +39,11 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             So = GNC.Guidance.APF.Obstacles;                %Relative position of the obstacles
             
             %Preallocation 
-            Sg = zeros(size(Sn,1),GNC.Guidance.Dimension);
+            Sg = zeros(size(S,1),GNC.Guidance.Dimension);
             
             %Guidance law
-            for i = 1:size(Sn,1)
-                Sg(i,:) = APF_guidance(safe_corridor, Penalties, So, t, Sn(i,:).', false);
+            for i = 1:size(S,1)
+                Sg(i,:) = APF_guidance(safe_corridor, Penalties, So, t, S(i,:).', false);
             end
             
         case 'CTR'
@@ -60,9 +65,9 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             Sg = [p.' v.' g.'];                             %Guidance trajectory
             
         otherwise
-            Sg = zeros(size(Sn,1),GNC.Guidance.Dimension);  %No guidance requirements
+            Sg = zeros(size(S,1), GNC.Guidance.Dimension); %No guidance requirements
     end
-        
+            
     %Control module
     switch (control)
         case 'TISS'
@@ -76,7 +81,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             two_impulsive = GNC.Control.TISS.Impulses;      %Number of impulses for the differential corrector scheme
             
             %Initial conditions 
-            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            s0 = [St(1,1:6).'; S(1,1:6).'];                 %Initial conditions
             
             switch (cost_function)
                 case 'Position'
@@ -103,7 +108,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             impulses = GNC.Control.MISS.Impulses;           %Impulses definition for the differential corrector scheme
             
             %Initial conditions 
-            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            s0 = [St(1,1:6).'; S(1,1:6).'];                 %Initial conditions
             
             %Compute the control scheme
             [~, u, ~] = TISS_control(mu, TOF, s0, tol, cost_function, impulses);
@@ -122,7 +127,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             thruster_model = GNC.Control.TITA.Thruster;     %Thruster error model
             
             %Initial conditions 
-            s0 = [St(1,1:6).'; Sn(1,1:6).'];                %Initial conditions
+            s0 = [St(1,1:6).'; S(1,1:6).'];                 %Initial conditions
             
             %Compute the control scheme
             [~, u, ~] = TITA_control(mu, TOF, s0, tol, cost_function, two_impulsive, penalties, target_points, thruster_model); 
@@ -155,7 +160,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             M = GNC.Control.SDRE.M;             %Penalty matrix on the control effort
             
             %Control law
-            u = SDRE_control(model, mu, Sg, Sn, St(:,1:6), Ln, gamma, Q, M);
+            u = SDRE_control(model, mu, Sg, S, St(:,1:6), Ln, gamma, Q, M);
             
         case 'SMC'
             %System characteristics 
@@ -163,7 +168,7 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, Sn, t)
             
             %Controller parameters 
             parameters = GNC.Control.SMC.Parameters;        %Parameters of the controller
-            Stotal = [St(:,1:6) Sn(:,1:6)];                 %Complete phase space vector
+            Stotal = [St(:,1:6) S(:,1:6)];                  %Complete phase space vector
             
             %Control law
             u = SMC_control(mu, Sg, Stotal, parameters);
