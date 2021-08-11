@@ -61,37 +61,17 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     %Compute the GNC requirements 
     if (~isempty(varargin))
         GNC = varargin{1};                              %GNC handling structure
-        if (~isempty(GNC))
-            if (iscell(GNC))
-                GNC = GNC{1};
-            end
-            
-            %Integrate the relative position for the PID controller
-            switch (GNC.Algorithms.Control)
-                case 'TISS'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'MISS'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'TITA'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'MPC'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'APF'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'SDRE'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'LQR'
-                    error('No valid control algorithm was selected for integration purposes')
-                case 'SMC'
-                    error('No valid control algorithm was selected for integration purposes')
-                otherwise
-                    error('No valid control algorithm was selected');
-            end
-
-            %GNC scheme
-            [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t, true);   %Compute the control law
-            F = F+u;                                                    %Add the control vector 
+        if (iscell(GNC))
+            GNC = GNC{1};
         end
+
+        %Integrate the relative position for the PID controller
+        switch (GNC.Algorithms.Control)
+        end
+
+        %GNC scheme
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t, true);   %Compute the control law
+        F = F+u;                                                    %Add the control vector 
     end
     
     %Compute the variational equations if needed

@@ -43,8 +43,22 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     end
 
     %Equations of motion of the target
-    ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);   %Target equations of motion
-    s_t = s_t(1:6);                                                     %Eliminate the variational state
+    if (~isempty(varargin))
+        GNC = varargin{1};                                        %GNC handling structure
+        if (iscell(GNC))
+            GNC = GNC{1};
+        end
+        %Target equations of motion
+        if (isfield(GNC, 'Target'))
+            ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t, GNC.Target); 
+        else
+            ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t); 
+        end
+    else
+        GNC = [];                                                 %Empty GNC structure
+        ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);   %Target equations of motion
+    end
+    s_t = s_t(1:6);                                               %Eliminate the variational state
     
     %Equations of motion of the relative state 
     switch (method_ID)
@@ -61,12 +75,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     end
     
     %GNC handler 
-    if (~isempty(varargin))
-        GNC = varargin{1};                              %GNC handling structure
-        if (iscell(GNC))
-            GNC = GNC{1};
-        end
-        
+    if (~isempty(GNC))        
         %Integrate the relative position for the PID controller
         switch (GNC.Algorithms.Control)
             case 'TISS'

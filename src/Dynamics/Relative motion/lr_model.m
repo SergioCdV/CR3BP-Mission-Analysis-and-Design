@@ -34,8 +34,22 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
     s_r = s(7:12);                                                 %State of the chaser
     
     %Equations of motion of the target
-    ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t, varargin);      %Target equations of motion
-    s_t = s_t(1:6);                                                        %Eliminate the variational state
+    if (~isempty(varargin))
+        GNC = varargin{1};                                         %GNC handling structure
+        if (iscell(GNC))
+            GNC = GNC{1};
+        end
+        %Target equations of motion
+        if (isfield(GNC, 'Target'))
+            ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t, GNC.Target); 
+        else
+            ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t); 
+        end
+    else
+        GNC = [];                                                 %Empty GNC structure
+        ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);   %Target equations of motion
+    end
+    s_t = s_t(1:6);                                               %Eliminate the variational state                                                    %Eliminate the variational state
 
     %Equations of motion of the relative state 
     switch (model)
@@ -47,6 +61,35 @@ function [ds] = lr_model(mu, cn, direction, flagVar, model, t, s, varargin)
             drho = ullm_model(mu, s_t, s_r);                      %Relative motion equations
         otherwise
             error('No valid linear model was chosen');
+    end
+    
+    %GNC handler 
+    if (~isempty(GNC))        
+        %Integrate the relative position for the PID controller
+        switch (GNC.Algorithms.Control)
+            case 'TISS'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'MISS'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'TITA'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'MPC'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'APF'
+                error('No valid control algorithm was selected for integration purposes')
+            case 'SDRE'
+                drho = [drho; s_r(7:9)];
+            case 'LQR'
+                drho = [drho; s_r(7:9)];
+            case 'SMC'
+                
+            otherwise
+                error('No valid control algorithm was selected');
+        end
+        
+        %GNC scheme
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t);         %Compute the control law
+        drho(4:6) = drho(4:6)+u;                                    %Add the control vector       
     end
         
     %Vector field 
