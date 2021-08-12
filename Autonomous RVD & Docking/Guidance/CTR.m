@@ -98,11 +98,9 @@ end
 p = Cp*T;                   %Position regression
 v = Cv*T;                   %Velocity regression
 Sr = [p.' v.'];             %Regress the phase space trajectory
-e = zeros(size(Sr,1),1);    %Preallocation of the error vector
 
-for i = 1:size(Sr,1)
-    e(i) = norm(Sn(i,7:12)-Sr(i,:));      %Error
-end
+%Error in time
+[e, merit] = figures_merit(tspan, Sr);
 
 %% Results 
 %Plot the approximation error 

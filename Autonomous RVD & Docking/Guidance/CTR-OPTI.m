@@ -108,22 +108,11 @@ v = Cv*T;                                                           %Velocity re
 Sr = [p.' v.'];                                                     %Regress the phase space trajectory
 
 %Control integrals
-energy = zeros(3,2);                                       %Energy vector preallocation
-for i = 1:size(dV,1)
-    energy(i,1) = trapz(tspan, dV(i,:).^2);                %L2 integral of the control
-    energy(i,2) = trapz(tspan, sum(abs(dV(i,:)),1));       %L1 integral of the control
-end
+%Control effort 
+effort = control_effort(tspan, u, false);
 
 %Error in time 
-e = zeros(1,size(Sr,1));            %Preallocation of the error
-for i = 1:size(Sr,1)
-    e(i) = norm(Sr(i,:));
-end
-e(1) = norm(Sn(1,:));            %Initial error before the burn
-
-%Compute the error figures of merit 
-ISE = trapz(tspan, e.^2);
-IAE = trapz(tspan, abs(e));
+[e, merit] = figures_merit(tspan, Sr);
 
 %% Results %% 
 %Plot results 

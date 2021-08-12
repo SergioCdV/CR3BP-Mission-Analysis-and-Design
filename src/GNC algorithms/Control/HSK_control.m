@@ -26,12 +26,18 @@ function [u] = HSK_control(mu, Sg, Sn, Q, R)
     %Model coefficients 
     B = [zeros(n/2,1); ones(n/2,1)];                %Linear model input matrix 
     
-    %Compute the Jacobi integral associated to the guidance law 
-    Jref = jacobi_constant(mu, Sg);
+    %Preallocation 
+    u = zeros(size(B,1), size(Sg,1));
     
-    %Compute the control law 
-    J = jacobi_constant(mu, Sn);                    %Jacobi Constant of the instantenous state
-    dJ = jacobi_gradient(mu, Sn);                   %Gradient of the Jacobi Constant of the instantenous state 
-    Bj = dot(dJ,B);                                 %Projection of the gradient of the Jacobi Constant on the state space
-    u = -sign(Bj)*Bj*sqrt(Q/R)*(J-Jref);            %Scalar control law 
+    for i = 1:size(Sg,1)
+        %Compute the Jacobi integral associated to the guidance law 
+        Jref = jacobi_constant(mu, Sg(i,:).')+0.1;
+
+        %Compute the control law 
+        J = jacobi_constant(mu, Sn(i,:).');             %Jacobi Constant of the instantenous state
+        dJ = jacobi_gradient(mu, Sn(i,:).');            %Gradient of the Jacobi Constant of the instantenous state 
+        Bj = dot(dJ,B);                                 %Projection of the gradient of the Jacobi Constant on the state space
+        U = -sign(Bj)*sqrt(Q/R)*(J-Jref);               %Scalar control law 
+        u(:,i) = B*U;                                   %Full control vector     
+    end
 end

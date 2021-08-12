@@ -70,7 +70,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
         end
 
         %GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t, true);   %Compute the control law
+        [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
         F = F+u;                                                    %Add the control vector 
     end
     

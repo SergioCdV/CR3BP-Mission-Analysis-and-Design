@@ -23,9 +23,9 @@
 
 function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     %Extract the algorithms flags 
-    guidance = GNC.Algorithms.Guidance;              %Selected guidance algorithm 
-    navigation = GNC.Algorithms.Navigation;          %Selected navigation algorithm 
-    control = GNC.Algorithms.Control;                %Selected control algorithm
+    guidance = GNC.Algorithms.Guidance;              %Selected the guidance algorithm 
+    navigation = GNC.Algorithms.Navigation;          %Selected the navigation algorithm 
+    control = GNC.Algorithms.Control;                %Selected the control algorithm
 
     %Navigation module     
     Sn = S;

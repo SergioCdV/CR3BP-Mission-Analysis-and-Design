@@ -21,9 +21,9 @@
 
 function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
     %Extract the algorithms flags 
-    guidance = GNC.Algorithms.Guidance;              %Selected guidance algorithm 
-    navigation = GNC.Algorithms.Navigation;          %Selected navigation algorithm 
-    stationkeeping = GNC.Algorithms.Stationkeeping;  %Selected control algorithm
+    guidance = GNC.Algorithms.Guidance;              %Selected the guidance algorithm 
+    navigation = GNC.Algorithms.Navigation;          %Selected the navigation algorithm 
+    control = GNC.Algorithms.Control;                %Selected the control algorithm
     
     %Navigation module 
     
@@ -52,13 +52,13 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
     end
     
     %Stationkeeping module 
-    switch (stationkeeping)       
-        case 'Hamiltonian'
+    switch (control)       
+        case 'HSK'
             %Stationkeeping parameters
-            Q = GNC.Stationkeeping.HSK.Q;            %State error penalty
-            M = GNC.Stationkeeping.HSK.M;            %State error penalty
+            Q = GNC.Control.HSK.Q;                   %State error penalty
+            R = GNC.Control.HSK.M;                   %State error penalty
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
-            u = HSK_control(mu, Sg, St, Q, R);       %Stationkeeping control law
+            u = HSK_control(mu, Sg, Sn, Q, R);       %Stationkeeping control law
             
         otherwise 
             u = zeros(6,1);                          %Stationkeeping control law
