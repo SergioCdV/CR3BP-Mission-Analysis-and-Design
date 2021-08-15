@@ -82,16 +82,16 @@ GNC.Guidance.CTR.VelocityCoefficients = Cv;     %Coefficients of the Chebyshev a
 GNC.Guidance.CTR.AccelerationCoefficients = Cg; %Coefficients of the Chebyshev approximation
 
 GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
-GNC.Control.HSK.Q = 1*eye(1);                   %Penalty on the state error
-GNC.Control.HSK.M = eye(1);                     %Penalty on the control effort
+GNC.Control.HSK.Q = eye(1);                     %Penalty on the state error
+GNC.Control.HSK.M = eye(3);                     %Penalty on the control effort
 
 %% GNC: SDRE/LQR control law
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
-s0 = r_t0+0*rand(1,6);                          %Noisy initial conditions
+s0 = r_t0+1e-6*rand(1,6);                          %Noisy initial conditions
 
-tic
 %Compute the trajectory
+tic
 [~, St] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s, GNC), tspan, s0, options);
 toc 
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
@@ -111,7 +111,7 @@ J = zeros(1,size(St,1));                    %Preallocation of the Jacobi constan
 for i = 1:size(St,1)
     J(i) = jacobi_constant(mu, St(i,1:6).');
 end
-ej = J-(Jref+0.1)*ones(1,size(St,1));
+ej = J-(Jref)*ones(1,size(St,1));
 
 %% Results %% 
 %Plot results 

@@ -60,7 +60,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     
     %Compute the GNC requirements 
     if (~isempty(varargin))
-        GNC = varargin{1};                              %GNC handling structure
+        GNC = varargin{1};                                              %GNC handling structure
         if (iscell(GNC))
             GNC = GNC{1};
         end
@@ -71,7 +71,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
 
         %GNC scheme
         [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
-        F = F+u;                                                    %Add the control vector 
+        F(4:6) = F(4:6)+u;                                          %Add the control vector 
     end
     
     %Compute the variational equations if needed
