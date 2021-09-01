@@ -121,9 +121,10 @@ Q = eye(3);                                     %Safety ellipsoid size to avoid 
 TOC = tspan(index(1));                          %Collision time
 constraint.Constrained = false;                 %No constraints on the maneuver
 constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
+constraint.Period = T;                          %Orbital Period
 
 tic
-[Sc, dV, tm] = FMSC_control(mu, TOC, so, St(index(2),1:12), eye(3), 1e-5, constraint, 'Worst');
+[Sc, dV, tm] = FMSC_control(mu, TOC, so, St(index(2),1:12), eye(3), 1e-5, constraint, 'Center');
 toc
 
 Sc = [St(1:index(2),1:12); Sc(:,1:12)];         %Complete trajectory

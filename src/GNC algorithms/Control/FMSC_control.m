@@ -39,6 +39,125 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
     %Select the restriction level of the CAM 
     constrained = constraint.Constrained;                       %Select the type of maneuver
     lambda = constraint.SafeDistance;                           %Safety distance
+    T = constraint.Period;                                      %Reference orbit period
+    
+    %Integration tolerance and setup 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+    
+    dt = 1e-3;                                                  %Integration time step  
+    tspan = 0:dt:TOC;                                           %Integration time span
+    
+    %Initial conditions and integration
+    Phi = eye(m);                                               %Initial STM 
+    Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
+    s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
+    
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+    
+    %Preallocation 
+    dVf = zeros(3,length(tspan)-1);             %Velocity impulse
+    
+    %Differential corrector setup
+    maxIter = 20;                               %Maximum number of iterations
+    
+    %Time horizon 
+    time_horizon = length(tspan)-1;
+        
+    for i = 1:time_horizon
+        %Integration set up 
+        atime = tspan(i:end);                   %New time span
+        s0 = Sn(i,:);                           %Initial conditions
+        
+        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
+        
+        %Differential corrector setup
+        GoOn = true;                            %Convergence boolean
+        iter = 1;                               %Initial iteration
+        
+        while ((GoOn) && (iter < maxIter))
+            %Compute the Floquet modes at each time instant 
+            if (constrained)
+                Monodromy = reshape(Sn(end,13:end), [m m]);              %State transition matrix at each instant 
+            else
+                Monodromy = reshape(Sn(i,13:end), [m m]);                %State transition matrix at each instant
+            end
+
+            [E, lambda] = eig(Monodromy);                                %Eigenspectrum of the STM 
+            for j = 1:size(E,2)
+                E(:,j) = exp(-log(lambda(j,j))*tspan(i)/T)*E(:,j);       %Compute the Floquet Modes
+            end
+            
+            %Compute the maneuver
+            if (constrained)
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
+                STM = Monodromy(1:3,4:6);                                       %Correction matrix
+            else
+                error = s0(7:12).';                                             %State error vector
+                switch (restriction)
+                    case 'Mixed'
+                        STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];        %Linear application
+                    case 'Unstable'
+                        STM = [E(:,1) -[zeros(3,3); eye(3)]];                   %Linear application
+                    case 'Center'
+                        STM = [E(:,3:end) -[zeros(3,3); eye(3)]];               %Linear application
+                    otherwise
+                        error('No valid case was selected');
+                end
+            end
+
+            %Compute the maneuver
+            maneuver = pinv(STM)*error;            %Needed maneuver
+            if (constrained)
+                dV = real(maneuver);               %Needed change in velocity
+            else
+                dV = real(maneuver(end-2:end));    %Needed change in velocity
+            end
+
+            %Integrate the trajectory 
+            s0(10:12) = s0(10:12)+real(dV).';  %Update initial conditions with the velocity impulse
+            [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
+            
+            %Convergence analysis for the constrained case 
+            if (constrained)
+                if (norm(error) < tol)
+                    GoOn = false;
+                else
+                    iter = iter+1;
+                end
+            else
+                GoOn = false;
+            end
+        end
+        
+        %Evaluate the cost function
+        dVf(:,i) = (s0(10:12)-Sn(i,10:12)).';
+    end
+     
+    %Integrate the CAM trajectory
+    [~, best] = sort(dot(dVf,dVf,1));                 %Select the minimum L2 norm solution over the time span
+    tm = tspan(best(1));                              %Time to perform the maneuver since detection
+    atime = 0:dt:TOC-tm;                              %CAM integration time
+    
+    s0 = Sn(best(1),1:12);
+    s0(10:12) = s0(10:12)+dVf(:,best(1)).';           %Update initial conditions with the velocity change
+    
+    dVf = dVf(:,best(1));
+    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);
+end
+
+%% Older versions
+function [Sc, dVf, tm] = FMSC_older_control(mu, TOC, so, s0, Q, tol, constraint, restriction)
+    %Constants 
+    m = 6;       %Phase space dimension
+    
+    %Sanity check on initial conditions dimension 
+    if (size(s0,1) == 1)
+        s0 = s0.';
+    end
+    
+    %Select the restriction level of the CAM 
+    constrained = constraint.Constrained;                       %Select the type of maneuver
+    lambda = constraint.SafeDistance;                           %Safety distance
     
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
@@ -88,9 +207,6 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
                 E(:,j) = E(:,j)/norm(E(:,j));                              %Normalize unit basis
             end
             
-            STM = reshape(S(1,13:end), [m m]);
-            [E2,~] = eig(STM);
-
             %Compute the maneuver
             if (constrained)
                 error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
