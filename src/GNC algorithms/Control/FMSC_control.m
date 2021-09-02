@@ -53,15 +53,15 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
     
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
-    
-    %Preallocation 
-    dVf = zeros(3,length(tspan)-1);             %Velocity impulse
-    
+        
     %Differential corrector setup
     maxIter = 20;                               %Maximum number of iterations
     
     %Time horizon 
     time_horizon = length(tspan)-1;
+    
+    %Preallocation 
+    dVf = zeros(3,time_horizon);                %Velocity impulse
         
     for i = 1:time_horizon
         %Integration set up 
@@ -96,6 +96,8 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
                 switch (restriction)
                     case 'Mixed'
                         STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];        %Linear application
+                    case 'Stable' 
+                        STM = [E(:,2) E(:,3:end) -[zeros(3,3); eye(3)]];        %Linear application
                     case 'Unstable'
                         STM = [E(:,1) -[zeros(3,3); eye(3)]];                   %Linear application
                     case 'Center'
@@ -114,7 +116,7 @@ function [Sc, dVf, tm] = FMSC_control(mu, TOC, so, s0, Q, tol, constraint, restr
             end
 
             %Integrate the trajectory 
-            s0(10:12) = s0(10:12)+real(dV).';  %Update initial conditions with the velocity impulse
+            s0(10:12) = s0(10:12)+real(dV).';      %Update initial conditions with the velocity impulse
             [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
             
             %Convergence analysis for the constrained case 
