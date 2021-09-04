@@ -81,25 +81,25 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% GNC: TITA %%
 %Differential corrector set up
-tol = 1e-5;                                 %Differential corrector tolerance
+tol = 1e-5;                                     %Differential corrector tolerance
 
 %Cost function matrices
-penalties.R = eye(3);                       %Penalty on the impulse
-penalties.Q = eye(6);                       %Penalty on the state error
-penalties.M  = 0.1*eye(6);                  %Penalty on the state noise
+penalties.R = eye(3);                           %Penalty on the impulse
+penalties.Q = eye(6);                           %Penalty on the state error
+penalties.M  = 0.1*eye(6);                      %Penalty on the state noise
 
 %Select measuring times 
-target_points.Noise = true;                 %Boolean to account for state noise
-target_points.Times = tf*rand(1,3);         %Times to measure the state noise
+target_points.Noise = true;                     %Boolean to account for state noise
+target_points.Times = tf*rand(1,3);             %Times to measure the state noise
 
-thruster_model.Sigma = 0.01;                %Velocity noise dependance on the velocity impulse
+thruster_model.Sigma = 0.01;                    %Velocity noise dependance on the velocity impulse
 
 %Rotational misalignment of the thrusters
 thruster_model.Rotation = [1 0 0; 0 cos(pi/18) sin(pi/18); 0 -sin(pi/18) cos(pi/18)];           
 
 %Cost function 
-cost_function = 'Position';                 %Cost function to target
-two_impulsive = true;                       %Two-impulsive rendezvous boolean
+cost_function = 'Position';                     %Cost function to target
+two_impulsive = true;                           %Two-impulsive rendezvous boolean
 
 [St, ~, state] = TITA_control(mu, tf, s0, tol, cost_function, zeros(1,3), two_impulsive, ...
                                penalties, target_points, thruster_model);
@@ -116,19 +116,26 @@ yo = R*yo;
 zo = R*zo;
 
 %Safety parameters 
-Q = eye(3);                                     %Safety ellipsoid size to avoid the collision
 TOC = tspan(index(1));                          %Collision time
 constraint.Constrained = false;                 %No constraints on the maneuver
 constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
 constraint.Period = T;                          %Orbital Period
 
 tic
-[Sc, dV, tm] = FMSC_control(mu, TOC, so, St(index(2),1:12), eye(3), 1e-5, constraint, 'Center');
+[Sc, dV, tm] = FMSC_control(mu, TOC, St(index(2),1:12), 1e-5, constraint, 'Center');
 toc
+Sc = [St(1:index(2)-1,1:12); Sc(:,1:12)];       %Complete trajectory
 
-[~, Ss] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Sc(end,:), options);
-Sc = [St(1:index(2),1:12); Sc(:,1:12); Ss(:,1:12)];         %Complete trajectory
-ScCAM = Sc(:,1:3)+Sc(:,7:9);                                %Absolute trajectory
+%Re-insertion
+if (false)
+    tic
+    [Ss, dVf, tm] = FMSC_control(mu, TOC, Sc(end,1:12), 1e-5, constraint, 'Stable');
+    toc
+    Sc = [Sc(1:end-1,1:12); Ss];                %Complete trajectory
+    dV = [dV dVf];                              %Complete control law
+end
+
+ScCAM = Sc(:,1:3)+Sc(:,7:9);                    %Absolute trajectory
 
 %Total maneuver metrics 
 effort = control_effort(tspan, dV, true);
