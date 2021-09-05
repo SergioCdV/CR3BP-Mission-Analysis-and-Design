@@ -195,7 +195,7 @@ safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corri
 [St3, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, St2(end,1:12));
 
 %Performance indices
-effort = control_effort(tspan, u, true);         %Control effort made
+effort = control_effort(tspan, u, false);         %Control effort made
 
 %% Third phase: escape
 %Phase definition

@@ -99,16 +99,6 @@ effort = control_effort(tspan, dV, true);
 %Error in time 
 [e, merit] = figures_merit(tspan, St);
 
-%% GNC: one impulsive rendezvous, single shooting scheme %% 
-%Controller scheme
-[St2, dV2, state2] = TISS_control(mu, tf, s0, tol, 'Position', false);      
-
-%Total maneuver metrics 
-effort2 = control_effort(tspan, dV2, true);
-
-%Error in time 
-[e2, merit2] = figures_merit(tspan, St2);
-
 %% Results %% 
 %Print results 
 disp('SIMULATION RESULTS: ')
@@ -118,15 +108,6 @@ if (state.State)
     fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort(:,1));
 else
     disp('    Two impulsive rendezvous was not achieved');
-end
-
-disp(' ');
-if (state2.State)
-    disp('   One impulsive rendezvous was achieved.');
-    fprintf('   Delta V budget (L1 norm): %.4ei %.4ej %.4ek \n', effort2(:,2));
-    fprintf('   Delta V budget (L2 norm): %.4ei %.4ej %.4ek \n', effort2(:,1));
-else
-     disp('   One impulsive rendezvous was not achieved.');
 end
 
 %Plot results 

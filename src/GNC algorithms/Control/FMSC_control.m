@@ -11,11 +11,8 @@
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
 %         - scalar TOC, the time of flight for the collision condition
-%         - vector so, the relative state of the colliding object
 %         - vector s0, initial conditions of both the target and the
 %           relative particle
-%         - matrix Q, a positive definite matrix projecting the quadratic
-%           form of the error to the colliding object
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 %         - structure constraint, specifying any constraint on the maneuver
@@ -57,7 +54,7 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
     Jref = jacobi_constant(mu, Sn(1,1:6).'+Sn(1,7:12).');  
         
     %Differential corrector setup
-    maxIter = 3;                               %Maximum number of iterations
+    maxIter = 2;                               %Maximum number of iterations
     
     %Time horizon 
     time_horizon = length(tspan)-1;
@@ -91,8 +88,8 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
             
             %Compute the maneuver
             if (constrained)
-                b = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';         %Safety constraint
-                A = Monodromy(1:3,4:6);                                         %Correction matrix
+                error = lambda*(E(1:3,1)+sum(E(1:3,3:end),2))-S(end,7:9).';     %Safety constraint
+                STM = Monodromy(1:3,4:6);                                       %Correction matrix
             else
                 error = s0(7:12).';                                             %State error vector
                 switch (restriction)
@@ -107,8 +104,10 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
                     otherwise
                         error('No valid case was selected');
                 end
-                
-                %Energy constraint 
+            end
+            
+            %Energy constraint 
+            if (constraint.Energy)
                 J = jacobi_constant(mu, s0(1:6).'+s0(7:12).');
                 dJ = jacobi_gradient(mu, s0(1:6).'+s0(7:12).');
                 JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Monodromy(4:6,4:6)];
@@ -116,6 +115,10 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
                 %Sensibility analysis
                 A = [STM; JSTM];
                 b = [error; Jref-J];
+            else
+                %Sensibility analysis
+                A = STM;
+                b = error;
             end
             
             %Compute the maneuver
@@ -127,14 +130,18 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
             end
 
             %Integrate the trajectory 
-            s0(10:12) = s0(10:12)+real(dV).';      %Update initial conditions with the velocity impulse
+            s0(10:12) = s0(10:12)+dV.';            %Update initial conditions with the velocity impulse
             [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
             
             %Convergence analysis for the constrained case 
-            if (norm(error) < tol)
+            if (~constraint.Energy)
                 GoOn = false;
             else
-                iter = iter+1;
+                if (norm(error) < tol)
+                    GoOn = false;
+                else
+                    iter = iter+1;
+                end
             end
         end
         

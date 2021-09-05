@@ -56,7 +56,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 2;                                                            %Number of orbits to continuate
+num = 5;                                                            %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -65,7 +65,7 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(2,:), maxIter, tol);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions

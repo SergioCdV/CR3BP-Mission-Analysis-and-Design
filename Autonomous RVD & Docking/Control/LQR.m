@@ -45,7 +45,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 50e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -92,7 +92,7 @@ model = 'RLM';
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'LQR';                %Control algorithm
+GNC.Algorithms.Control = 'SDRE';                %Control algorithm
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
@@ -113,8 +113,8 @@ GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
 int = zeros(1,3);                               %Integral of the relative position
 slqr0 = [Sn(1,:) int];                          %Initial conditions
 
-tic
 %Compute the trajectory
+tic
 [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
 toc 
 

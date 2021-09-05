@@ -101,8 +101,10 @@ thruster_model.Rotation = [1 0 0; 0 cos(pi/18) sin(pi/18); 0 -sin(pi/18) cos(pi/
 cost_function = 'Position';                     %Cost function to target
 two_impulsive = true;                           %Two-impulsive rendezvous boolean
 
+tic
 [St, ~, state] = TITA_control(mu, tf, s0, tol, cost_function, zeros(1,3), two_impulsive, ...
                                penalties, target_points, thruster_model);
+toc
                            
 %% GNC: FMSC %% 
 %Obstacle definition in space and time
@@ -116,10 +118,11 @@ yo = R*yo;
 zo = R*zo;
 
 %Safety parameters 
-TOC = tspan(index(1));                          %Collision time
+TOC = tspan(index(1))-tspan(index(2));          %Collision time
 constraint.Constrained = false;                 %No constraints on the maneuver
 constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
 constraint.Period = T;                          %Orbital Period
+constraint.Energy = true;                       %Energy constraint
 
 tic
 [Sc, dV, tm] = FMSC_control(mu, TOC, St(index(2),1:12), 1e-5, constraint, 'Center');
@@ -199,3 +202,25 @@ ylabel('Relative velocity coordinates');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity in time');
+
+%Rendezvous animation 
+if (false)
+    figure(5) 
+    view(3) 
+    grid on;
+    hold on
+    plot3(Sc(1:index,1), Sc(1:index,2), Sc(1:index,3), 'k-.'); 
+    xlabel('Synodic x coordinate');
+    ylabel('Synodic y coordinate');
+    zlabel('Synodic z coordinate');
+    title('Rendezvous simulation');
+    for i = 1:size(Sc,1)
+        T = scatter3(Sc(i,1), Sc(i,2), Sc(i,3), 30, 'b'); 
+        V = scatter3(Sc(i,1)+Sc(i,7), Sc(i,2)+Sc(i,8), Sc(i,3)+Sc(i,9), 30, 'r');
+
+        drawnow;
+        delete(T); 
+        delete(V);
+    end
+    hold off
+end

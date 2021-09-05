@@ -63,7 +63,7 @@ function [cost] = costfunc(mu, cost_function, parameters, tspan, s0)
     [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
     
     %Obtain the control law 
-    [~, ~, u] = GNC_handler(GNC, S(:,1:6), S(:,7:12));  
+    [~, ~, u] = GNC_handler(GNC, S(:,1:6), S(:,7:12), tspan);  
     
     %Compute the control effort metrics 
     energy = zeros(3,2);                                       %Energy vector preallocation

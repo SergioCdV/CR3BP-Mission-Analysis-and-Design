@@ -82,7 +82,7 @@ s0 = [r_t0 rho0].';                                         %Initial conditions 
 Sn = S;                
 
 %Reconstructed chaser motion 
-S_rc = S(:,1:6)+S(:,7:12);                  %Reconstructed chaser motion via Encke method
+S_rc = S(:,1:6)+S(:,7:12);                      %Reconstructed chaser motion via Encke method
 
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';               	%Guidance algorithm
@@ -110,10 +110,10 @@ effort = control_effort(tspan, u, false);
    
 %% Optimize the controller parameters
 if (optimization)
-    GNC.Control.SMC.Parameters = [1 0.9709 0.4057 0.0256];%SMC_optimization(mu, 'L1', s0, tf)];
+    GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
     
     %Re-integrate the trajectory
-    tic
+    tic 
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
     toc
 
@@ -121,7 +121,7 @@ if (optimization)
     [e, merit] = figures_merit(tspan, St);
     
     %Control law
-    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12));    
+    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan);    
 
     %Control integrals
     effort = control_effort(tspan, u, false);
