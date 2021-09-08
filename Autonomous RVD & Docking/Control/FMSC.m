@@ -127,6 +127,8 @@ constraint.Energy = true;                       %Energy constraint
 tic
 [Sc, dV, tm] = FMSC_control(mu, TOC, St(index(2),1:12), 1e-5, constraint, 'Center');
 toc
+[~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), 0:dt:0.3, Sc(end,1:12), options);
+Sc = [Sc; Sc2];
 Sc = [St(1:index(2)-1,1:12); Sc(:,1:12)];       %Complete trajectory
 
 %Re-insertion
@@ -141,7 +143,7 @@ end
 ScCAM = Sc(:,1:3)+Sc(:,7:9);                    %Absolute trajectory
 
 %Total maneuver metrics 
-effort = control_effort(tspan, dV, true);
+effort = control_effort(tspan(1:size(Sc,1)), dV, true);
     
 %% Results %% 
 %Plot results 
@@ -156,26 +158,26 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Colliding object', 'Rendezvous and CAM arc', 'Target orbit', 'Location', 'northeast');
+legend('Colliding object', 'Rendezvous and CAM arc', 'Target orbit');
 title('Collision avoidance trajectory in the relative configuration space');
 
 figure(2) 
 view(3) 
 hold on 
-surf(xo+so(1)+S(index(1),1),yo+so(2)+S(index(1),2),zo+so(3)+S(index(1),3), 'Linewidth', 0.1);
-plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k', 'Linewidth', 0.1); 
-r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
 plot3(S(:,1), S(:,2), S(:,3), 'r'); 
+r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1);
+plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+scatter3(so(1)+S(index(1),1), so(2)+S(index(1),2), so(3)+S(index(1),3), 'k', 'filled');
 text(L(1,Ln)+1e-3, L(2,Ln), 5e-3, '$L_2$');
-text(xo(:,1), yo(:,1), zo(:,1)+1e-3, 'Collision');
+text(so(1)+S(index(1),1)-3e-3, so(2)+S(index(1),2), so(3)+S(index(1),3)+1e-2, '$t_c$');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Colliding object', 'Initial orbit', 'Rendezvous arc', 'CAM arc', 'Target orbit', 'Location', 'northeast');
+legend('Initial orbit', 'Target orbit', 'Rendezvous arc', 'CAM arc', 'Location', 'northeast');
 title('Collision avoidance trajectory in the absolute configuration space');
 
 %Configuration space evolution

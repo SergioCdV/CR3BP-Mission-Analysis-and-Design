@@ -2,9 +2,8 @@
 % Sergio Cuevas del Valle % 
 % 20/05/21 % 
 
-%% GNC 6: MPC guidance-control law %% 
-% This script provides an interface to test MPC control law rendezvous strategies for
-% rendezvous missions.
+%% GNC 6: Impulsive controllers comparison %% 
+% This script provides an interface to impulsive control schemes within the same mission scenario.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -88,19 +87,58 @@ TOF = tf;                                     %Time of flight
 cost_function = 'Position';                   %Target a position rendezvous
 
 %Thruster characteristics 
-Tmin = -1e-1;                                 %Minimum thrust capability (in velocity impulse)
-Tmax = 1e-1;                                  %Maximum thrust capability (in velocity impulse)
+Tmin = -1e-3;                                 %Minimum thrust capability (in velocity impulse)
+Tmax = 1e-3;                                  %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
 tic
-[St, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+[St_mpc, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 toc
 
 %Control integrals
-energy = control_effort(tspan, dV, true);
+effort_mpc = control_effort(tspan, dV, true);
 
 %Error in time 
-[e, merit] = figures_merit(tspan, St);
+[e_mpc, merit_mpc] = figures_merit(tspan, St_mpc);
+
+%% GNC: multi impulsive rendezvous, generalized targetting approach %%
+%Differential corrector set up
+tol = 1e-8;                                   %Differential corrector tolerance
+
+%Select impulsive times 
+times = [0 tf*rand(1,5)];                     %Times to impulse the spacecraft
+
+%Compute the control law
+impulses.Number = length(times);              %Number of impulses
+impulses.Weights = eye(impulses.Number*3);    %Weightening matrix
+impulses.Times = times;                       %Impulses times
+
+cost = 'Position';                            %Cost function to target
+
+%Controller scheme
+tic
+[St_miss, dV, state] = MISS_control(mu, tf, s0, tol, cost, impulses);
+toc
+
+%Control effort 
+effort_miss = control_effort(tspan, dV, true);
+
+%Error in time 
+[e_miss, merit__miss] = figures_merit(tspan, St_miss);
+
+%% GNC: two impulsive rendezvous, single shooting scheme %%
+%Differential corrector scheme
+tol = 1e-10;                                                        %Differential corrector tolerance
+
+tic
+[St_tiss, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
+toc
+
+%Total maneuver metrics 
+effort_tiss = control_effort(tspan, dV, true);
+
+%Error in time 
+[e_tiss, merit_tiss] = figures_merit(tspan, St_tiss);
 
 %% Results %% 
 %Plot results 
@@ -120,7 +158,7 @@ title('Reconstruction of the natural chaser motion');
 %Plot relative phase trajectory
 figure(2) 
 view(3) 
-plot3(St(:,7), St(:,8), St(:,9)); 
+plot3(St_tiss(:,7), St_tiss(:,8), St_tiss(:,9)); 
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
@@ -131,9 +169,9 @@ title('Motion in the relative configuration space');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,7)); 
-plot(tspan, St(:,8)); 
-plot(tspan, St(:,9)); 
+plot(tspan, St_mpc(:,7)); 
+plot(tspan, St_mpc(:,8)); 
+plot(tspan, St_mpc(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinates');
@@ -142,9 +180,9 @@ legend('$x$', '$y$', '$z$');
 title('Relative position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,10)); 
-plot(tspan, St(:,11)); 
-plot(tspan, St(:,12)); 
+plot(tspan, St_mpc(:,10)); 
+plot(tspan, St_mpc(:,11)); 
+plot(tspan, St_mpc(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinates');
@@ -157,7 +195,7 @@ figure(4)
 hold on 
 plot(tspan, log(e_tiss));
 plot(tspan, log(e_miss));
-plot(tspan, log(e)); 
+plot(tspan, log(e_mpc)); 
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
 legend('TI', 'MI', 'MPC'); 
@@ -167,11 +205,28 @@ axes('position', [.22 .47 .6 .25])
 box on
 indexOfInterest = (tspan > 0.1) & (tspan < 0.5); 
 hold on
-plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
+plot(tspan(indexOfInterest), e_tiss(indexOfInterest))  
+plot(tspan(indexOfInterest), e_miss(indexOfInterest))  
+plot(tspan(indexOfInterest), e_mpc(indexOfInterest))  
 hold off
 axis tight
+
+figure(5)
+view(3) 
+hold on
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
+r = plot3(St_tiss(:,7)+St_tiss(:,1), St_tiss(:,8)+St_tiss(:,2), St_tiss(:,9)+St_tiss(:,3), ...
+          'k', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+text(L(1,Ln), L(2,Ln), 5e-3, '$L_2$');
+hold off
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
+grid on;
+legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
+title('Converged rendezvous trajectory in the absolute configuration space');
  
 %Rendezvous animation 
 if (false)
