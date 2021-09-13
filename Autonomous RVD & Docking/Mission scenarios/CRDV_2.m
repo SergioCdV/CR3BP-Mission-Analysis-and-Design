@@ -143,11 +143,13 @@ cost_function = 'Position';                 %Cost function to target
 two_impulsive = true;                       %Two-impulsive rendezvous boolean
 
 %TITA controller
+tic
 [St1, dV, state] = TITA_control(mu, tf(1), s0, tol, cost_function, sd, two_impulsive, penalties, target_points, thruster_model);
+toc
 
 %Control effort 
 tspan = 0:dt:tf(1);
-effort = control_effort(tspan, dV, true);
+effort_tita = control_effort(tspan, dV, true);
 
 %% Second phase: close-range rendezvous
 %Phase definition 
@@ -162,7 +164,8 @@ GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
 
 %Controller parameters
-GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St1(end,1:12), tf(2))]; 
+%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St1(end,1:12), tf(2))]; 
+GNC.Control.SMC.Parameters = [1 1.000000000000000 0.985999332287318 0.006010671478548 0.013227007322678]; 
 
 %Integration time 
 tspan = 0:dt:tf(2); 
@@ -171,11 +174,13 @@ tspan = 0:dt:tf(2);
 s0 = St1(end,:); 
 
 %Re-integrate trajectory
+tic
 [~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
+toc
 
 %Control effort
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), tspan); 
-effort = control_effort(tspan, u, false);
+effort_smc1 = control_effort(tspan, u, false);
 
 %% Third phase: formation-flying
 %Phase definition 
@@ -197,7 +202,8 @@ GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
 
 %Controller parameters
-GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
+%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
+GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
 
 %Guidance parameters 
 GNC.Guidance.CTR.Order = order;                     %Order of the approximation
@@ -213,11 +219,13 @@ tspan = 0:dt:tf(3);
 s0 = St2(end,:); 
 
 %Re-integrate trajectory
+tic
 [~, St3] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
+toc
 
 %Control effort
 [~, ~, u] = GNC_handler(GNC, St3(:,1:6), St3(:,7:12), tspan); 
-effort = control_effort(tspan, u, false);
+effort_smc2 = control_effort(tspan, u, false);
 
 %% Third phase: escape
 %Phase definition
@@ -229,7 +237,9 @@ constraint.SafeDistance = 1e-5;               %Safety distance at the collision 
 constraint.Period = target_orbit.Period(end); %Period of the target period
 constraint.Energy = false;                    %No energy constraint
 
+tic
 [St4, dV4, tm] = FMSC_control(mu, 0.1, St3(end,1:12), tol, constraint, 'Center');
+toc
 
 %Re-integrate trajectory
 tspan = 0:dt:tf(4)-0.1;
@@ -237,11 +247,11 @@ tspan = 0:dt:tf(4)-0.1;
 St4 = [St4(1:end-1,:); St4b];
 
 %Control effort 
-effort = control_effort(tspan, dV4, true);
+effort_fmsc = control_effort(tspan, dV4, true);
 
 %% Final results 
 %Complete trajectory 
-St = [St1(1:end-1,1:12); St2(1:end-1,1:12); St3(1:end-1,1:12); St4(1:end-1,1:12)];
+St = [St1(1:end-1,1:12); St2(1:end-1,1:12); St3(1:end-1,1:12); St4(1:end,1:12)];
 
 %Total integration time
 tspan = 0:dt:sum(tf);                                                    
@@ -256,7 +266,7 @@ plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1);
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
-text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_2$');
+text(L(1,Ln)-5e-3, L(2,Ln)+1e-3, 5e-3, '$L_2$');
 text(1-mu+1e-3, 0, 5e-3, '$M_2$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
@@ -294,11 +304,22 @@ title('Relative velocity evolution');
 subplot(1,2,1)
 axes('position', [.17 .52 .25 .25])
 box on
-indexOfInterest = (tspan < 0.6*sum(tf(1:4))) & (tspan > sum(tf(1:2))); 
+indexOfInterest = (tspan < 0.98*sum(tf(1:4))) & (tspan > sum(tf(1))); 
 hold on
 plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
+hold off
+axis tight
+
+subplot(1,2,2)
+axes('position', [0.62 .30 .25 .25])
+box on
+indexOfInterest = (tspan < 0.98*sum(tf(1:4))) & (tspan > sum(tf(1))); 
+hold on
+plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
 hold off
 axis tight
 
@@ -310,9 +331,8 @@ if (false)
     filename = 'nhro.gif';
     view([37 20])
     hold on
-    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.r', 'Linewidth', 0.1);
+    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.b', 'Linewidth', 0.1);
     plot3(St(:,1), St(:,2), St(:,3), '.-b', 'Linewidth', 0.1);
-    plot3(St4(:,1)+St4(:,7), St4(:,2)+St4(:,8), St4(:,3)+St4(:,9), '.r', 'Linewidth', 0.1); 
     xlabel('Synodic x coordinate');
     ylabel('Synodic y coordinate');
     zlabel('Synodic z coordinate');

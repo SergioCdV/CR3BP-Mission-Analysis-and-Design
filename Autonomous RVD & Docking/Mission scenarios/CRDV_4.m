@@ -122,12 +122,14 @@ Tmin = -0.1;                                  %Minimum thrust capability (in vel
 Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
+tic
 [St1, dV, ~] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+toc
 
 %Control integrals
-energy = control_effort(tspan, dV, true);
+effort_mpc = control_effort(tspan, dV, true);
 
-%% GNC algorithms definition 
+%% GNC: SDRE/LQR control law
 %Phase definition 
 tf(2) = pi; 
 tspan = 0:dt:tf(2); 
@@ -158,19 +160,20 @@ GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev 
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
 
-%GNC: SDRE/LQR control law
 %Initial conditions 
 int = zeros(1,3);                                   %Integral of the relative position
 slqr0 = [St1(end,1:12) int];                        %Initial conditions
 
 %Compute the trajectory
+tic
 [~, St2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
+toc
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:end), tspan);
 
 %Control integrals
-energy = control_effort(tspan, u, false);
+efforr_sdre = control_effort(tspan, u, false);
 
 %% Third phase: rendezvous with MI
 %Phase definition 
@@ -190,14 +193,16 @@ impulses.Times = times;                       %Impulses times
 cost = 'Position';                            %Cost function to target
 
 %Compute the guidance law
+tic
 [St3, dV3, state] = MISS_control(mu, tf(3), St2(end,1:12), tol, cost, impulses);
+toc
 
 %Performance indices
-effort = control_effort(tspan, dV3, true);         %Control effort made
+effort_mi = control_effort(tspan, dV3, true); %Control effort made
 
 %% Third phase: escape
 %Phase definition
-tf(4) = 2*pi;                           %End of the escape 
+tf(4) = 1.5*pi;                                 %End of the escape 
 
 %Controller definition
 constraint.Constrained = false;                 %No constraints on the maneuver
@@ -205,7 +210,9 @@ constraint.SafeDistance = 1e-5;                 %Safety distance at the collisio
 constraint.Period = target_orbit.Period(end);   %Orbital period
 constraint.Energy = false;                      %No energy constraint
 
+tic
 [St4, dV4, tm] = FMSC_control(mu, 0.1, St3(end,1:12), tol, constraint, 'Center');
+toc
 
 %Re-integrate trajectory
 tspan = 0:dt:tf(4)-0.1;
@@ -213,11 +220,11 @@ tspan = 0:dt:tf(4)-0.1;
 St4 = [St4(1:end-1,:); St4b];
 
 %Control effort 
-effort = control_effort(tspan, dV4, true);
+effort_fmsc = control_effort(tspan, dV4, true);
 
 %% Final results 
 %Complete trajectory 
-St = [St1(1:end-1,1:12); St2(1:end-1,1:12); St3(1:end-1,1:12); St4(1:end-1,1:12)];
+St = [St1(1:end-1,1:12); St2(1:end-1,1:12); St3(1:end-1,1:12); St4(1:end,1:12)];
 
 %Total integration time
 tspan = 0:dt:sum(tf);                                                    
@@ -232,8 +239,8 @@ plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1);
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
-text(L(1,Ln)+1e-4, L(2,Ln), 0, '$L_2$');
-text(1-mu+1e-4, 0, 0, '$M_2$');
+text(L(1,Ln)+1e-4, L(2,Ln), 1e-3, '$L_2$');
+text(1-mu-5e-4, 0, 1e-3, '$M_2$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
@@ -268,13 +275,24 @@ legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity evolution');
 
 subplot(1,2,1)
-axes('position', [.2 .67 .20 .20])
+axes('position', [.17 .52 .25 .25])
 box on
-indexOfInterest = (tspan < sum(tf(1:2))) & (tspan > 0.4*sum(tf(1:2))); 
+indexOfInterest = (tspan < 0.98*sum(tf(3))) & (tspan > 0); 
 hold on
 plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
+hold off
+axis tight
+
+subplot(1,2,2)
+axes('position', [0.62 .30 .25 .25])
+box on
+indexOfInterest = (tspan < 0.98*sum(tf(3))) & (tspan > 0); 
+hold on
+plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
 hold off
 axis tight
 

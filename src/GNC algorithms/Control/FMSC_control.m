@@ -57,15 +57,15 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
     maxIter = 2;                               %Maximum number of iterations
     
     %Time horizon 
-    time_horizon = length(tspan)-1;
+    time_horizon = length(tspan)-2;
     
     %Preallocation 
     dVf = zeros(3,time_horizon);                %Velocity impulse
         
     for i = 1:time_horizon
         %Integration set up 
-        atime = tspan(i:end);                   %New time span
-        s0 = Sn(i,:);                           %Initial conditions
+        atime = tspan(i+1:end);                 %New time span
+        s0 = Sn(i+1,:);                         %Initial conditions
         
         [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, s0, options);
         
@@ -146,7 +146,7 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
         end
         
         %Evaluate the cost function
-        dVf(:,i) = (s0(10:12)-Sn(i,10:12)).';
+        dVf(:,i) = (s0(10:12)-Sn(i+1,10:12)).';
     end
      
     %Integrate the CAM trajectory
