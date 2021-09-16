@@ -171,7 +171,6 @@ plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(so(1)+S(index(1),1), so(2)+S(index(1),2), so(3)+S(index(1),3), 'k', 'filled');
 text(L(1,Ln)+1e-3, L(2,Ln), 5e-3, '$L_2$');
-text(so(1)+S(index(1),1)-3e-3, so(2)+S(index(1),2), so(3)+S(index(1),3)+1e-2, '$t_c$');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');

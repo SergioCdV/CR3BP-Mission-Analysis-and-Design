@@ -151,13 +151,22 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
      
     %Integrate the CAM trajectory
     [~, best] = sort(dot(dVf,dVf,1));                 %Select the minimum L2 norm solution over the time span
-    tm = tspan(best(1));                              %Time to perform the maneuver since detection
+    index = 1; 
+    GoOn = true;
+    while (index <= size(dVf,2) && GoOn)
+        if (norm(dVf(best(index))) ~= 0)
+            GoOn = false;
+        else
+            index = index + 1;
+        end
+    end
+    tm = tspan(best(index));                          %Time to perform the maneuver since detection
     atime = 0:dt:TOC-tm;                              %CAM integration time
     
-    s0 = Sn(best(1),1:12);
-    s0(10:12) = s0(10:12)+dVf(:,best(1)).';           %Update initial conditions with the velocity change
+    s0 = Sn(best(index),1:12);
+    s0(10:12) = s0(10:12)+dVf(:,best(index)).';       %Update initial conditions with the velocity change
     
     dV = zeros(3,size(dVf,2));
-    dV(:,best(1)) = dVf(:,best(1));
+    dV(:,best(index)) = dVf(:,best(index));
     [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), atime, s0, options);
 end
