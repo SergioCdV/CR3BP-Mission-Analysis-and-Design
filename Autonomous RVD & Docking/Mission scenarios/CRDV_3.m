@@ -5,7 +5,7 @@
 %% GNC 11: Complete rendezvous mission example 3 %% 
 % This script provides an interface to test the general control scheme for a rendezvous, docking and undocking mission. 
 
-% The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
+% The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L2 in the
 % Earth-Moon system is analyzed.
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
