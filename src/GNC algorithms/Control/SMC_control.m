@@ -39,9 +39,16 @@ function [u] = SMC_control(mu, Sg, Sn, parameters, method)
         dv = v-Sg(i,4:6).';                             %Velocity error
 
         %Torque computation
-        s = dv+lambda*dr;                                                          %Sliding surface
+        s = dv+lambda*dr;                               %Sliding surface
 
         %Dynamics vector field
+        switch (method)
+            case 'Encke uncertain'
+                mu = 0.85*mu;              %New gravitational parameter
+                method = 'Encke';                       %Integrate the problem usign Encke's method
+            otherwise
+        end
+
         f = nlr_model(mu, true, false, false, method, 0, Sn(i,:).');               %Relative CR3BP 
 
         %Final control law
