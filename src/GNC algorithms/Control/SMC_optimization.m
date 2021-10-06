@@ -54,6 +54,7 @@ function [cost] = costfunc(mu, cost_function, parameters, tspan, s0)
     GNC.Algorithms.Guidance = '';                   %Guidance algorithm
     GNC.Algorithms.Navigation = '';                 %Navigation algorithm
     GNC.Algorithms.Control = 'SMC';                 %Control algorithm
+    GNC.Algorithms.Solver = 'Encke';                %Dynamics vector field to be solved
     GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
     GNC.Control.Dimension = 3;                      %Dimension of the control law
     GNC.System.mu = mu;                             %System reduced gravitational paramete

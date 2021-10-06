@@ -62,6 +62,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     
     %Equations of motion of the relative state 
     switch (method_ID)
+        %Deterministic models
         case 'Encke'
             drho = Encke_method(mu, s_t, s_r, varargin);          %Relative motion equations
         case 'Full nonlinear'
@@ -70,6 +71,12 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
             drho = second_order_model(mu, s_t, s_r);              %Relative motion equations 
         case 'Third order'
             drho = third_order_model(mu, s_t, s_r);               %Relative motion equations
+
+        %Uncertainty models 
+        case 'Two body'
+            drho = two_body(mu, s_t, s_r);
+        case 'Encke uncertain'
+            drho = Encke_uncertain(mu, s_t, s_r, varargin);
         otherwise
             error('No valid model was chosen');
     end
@@ -223,6 +230,40 @@ function [drho] = Encke_method(mu, s_t, s_r, varargin)
         f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
         gamma = gamma - (mu_r(i)/norm(r_t-R(:,i))^3)*(f*(r_t-R(:,i))+(1+f)*r_r);
     end
+    
+    %Equations of motion 
+    drho = [v_r; 
+            gamma];
+end
+
+%Encke method with uncertainty in the gravitational parameter of the system
+function [drho] = Encke_uncertain(mu, s_r, s_t, varargin)
+    %Modify randomly the gravitational parameter of the system 
+    mu = -2*mu + mu*rand; 
+
+    %Compute the state vector derivative in the new system using Encke's method 
+    drho = Encke_method(mu, s_r, s_t, varargin);
+end
+
+%Two body solution around the second primary as a first order approximation of the problem, with a numerical Encke's method
+function [drho] = two_body(mu, s_r, s_t)
+    %Constants of the system 
+    mu_r = mu;                    %Reduced gravitational parameter of the second primary 
+    
+    %State variables 
+    r_t = s_t(1:3);               %Synodic position of the target
+    r_r = s_r(1:3);               %Synodic relative position 
+    v_r = s_r(4:6);               %Synodic relative velocity 
+    
+    %Synodic position of the primaries 
+    R(1:3,1) = [-mu; 0; 0];       %Synodic position of the first primary
+    R(1:3,2) = [1-mu; 0; 0];      %Synodic position of the second primary
+    
+    %Encke acceleration method
+    gamma = [2*v_r(2)+r_r(1); -2*v_r(1)+r_r(2); 0];
+    q = -dot(2*(r_t-R)+r_r,r_r)/norm(r_t+r_r-R)^2;
+    f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
+    gamma = gamma - (mu_r/norm(r_t-R)^3)*(f*(r_t-R)+(1+f)*r_r);
     
     %Equations of motion 
     drho = [v_r; 
