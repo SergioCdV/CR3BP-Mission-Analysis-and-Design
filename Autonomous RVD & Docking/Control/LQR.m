@@ -97,7 +97,7 @@ GNC.Algorithms.Control = 'SDRE';                %Control algorithm
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 
-GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
+GNC.System.mu = 0.8*mu;                             %Systems's reduced gravitational parameter
 GNC.System.Libration = [Ln gamma];              %Libration point ID
 
 GNC.Control.LQR.Model = model;                  %LQR model
