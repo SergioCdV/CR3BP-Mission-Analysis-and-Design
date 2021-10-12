@@ -61,7 +61,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Target halo characteristics 
 Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L2
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -85,8 +85,8 @@ graphics = true;                %Flag to plot the manifolds
 target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n)); 
 
 %Connection itenerary
-sequence = [1 2];       %Connection itenerary
-branch = ['R' 'L'];     %Manifold branches to be propagated
+sequence = [2 1];       %Connection itenerary
+branch = ['L' 'R'];     %Manifold branches to be propagated
 
 %Trajectory design core
 [Sg, dV] = HTRC_guidance(mu, sequence, branch, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics);
@@ -133,14 +133,35 @@ v = Cv*T;                   %Velocity regression
 Sr = St0+[p.' v.'];         %Regress the phase space trajectory
 
 %% GNC algorithms definition 
-%Control parameters
+%Navigation architecture
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
+
+%Control parameters
 GNC.Algorithms.Control = 'SMC';                 %Control algorithm
-GNC.Algorithms.Solver = 'Encke';                %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
-GNC.Control.Dimension = 3;                      %Dimension of the control law
-GNC.System.mu = mu;                             %System reduced gravitational parameter
-GNC.Control.SMC.Parameters = [100 1 0.9 1e-3];     %Controller parameters
+
+switch (GNC.Algorithms.Control)
+    case 'SMC'
+        GNC.Algorithms.Solver = 'Encke';                %Dynamics vector field to be solved
+        GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
+        GNC.Control.Dimension = 3;                      %Dimension of the control law
+        GNC.System.mu = mu;                             %System reduced gravitational parameter
+        GNC.Control.SMC.Parameters = [1 1 0.9 1e-3];    %Controller parameters
+    case 'LQR'
+        GNC.System.mu = mu;                             %System reduced gravitational parameter
+        GNC.System.Libration = [Ln gamma];              %Libration point ID
+        GNC.Control.LQR.Model = 'RLM';                  %LQR model
+        GNC.Control.LQR.Q = 2*eye(9);                   %Penalty on the state error
+        GNC.Control.LQR.M = eye(3);                     %Penalty on the control effort
+        GNC.Control.LQR.Reference = St0(end,1:3);       %Penalty on the control effort
+    case 'SDRE'
+        GNC.System.mu = mu;                             %System reduced gravitational parameter
+        GNC.System.Libration = [Ln gamma];              %Libration point ID
+        GNC.Control.SDRE.Model = 'RLM';                 %SDRE model
+        GNC.Control.SDRE.Q = 2*eye(9);                  %Penalty on the state error
+        GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
+    otherwise 
+        error('Impulsive guidance tracking has not been implemented yet'); 
+end
 
 %Guidance parameters 
 GNC.Algorithms.Guidance = 'CTR';               	    %Guidance algorithm
@@ -152,9 +173,16 @@ GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebysh
 
 %% GNC: SMC control law for the transfer phase %%
 %Initial conditions 
-r_c0 = initial_orbit.Trajectory(1,1:6);            %Initial chaser conditions 
-rho0 = r_c0-r_t0;                                  %Initial relative conditions
-s0 = [r_t0 rho0].';                                %Initial conditions of the target and the relative state
+r_c0 = Sg.Trajectory(1,1:6);        %Initial chaser conditions 
+rho0 = r_c0-r_t0;                   %Initial relative conditions
+s0 = [r_t0 rho0].';                 %Initial conditions of the target and the relative state
+
+switch (GNC.Algorithms.Control)
+    case 'LQR'
+        s0 = [s0; zeros(3,1)]; 
+    case 'SDRE'
+        s0 = [s0; zeros(3,1)]; 
+end
 
 %Re-integrate trajectory
 tic
@@ -245,14 +273,6 @@ grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity in time');
 
-%Configuration space error 
-figure(4)
-plot(tspan, log(e));
-xlabel('Nondimensional epoch');
-ylabel('Absolute error $\log{e}$');
-grid on;
-title('Absolute rendezvous error in the configuration space');
-
 figure(5)
 view(3) 
 hold on
@@ -269,6 +289,14 @@ zlabel('Synodic $z$ coordinate');
 grid on;
 legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Guidance trajectory', 'Location', 'northeast');
 title('Converged rendezvous trajectory in the absolute configuration space');
+
+%Configuration space error 
+figure(4)
+plot(tspan, log(e));
+xlabel('Nondimensional epoch');
+ylabel('Absolute error $\log{e}$');
+grid on;
+title('Absolute rendezvous error in the configuration space');
 
 %Rendezvous animation 
 if (false)
