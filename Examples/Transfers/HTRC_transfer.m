@@ -67,7 +67,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Correct the seed and obtain initial conditions for a halo orbit
 [initial_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%% Homoclinic connection
+%% Heteroclinic connection
 %Manifold definition
 TOF = 2*pi;                     %Time of flight
 rho = 30;                       %Manifold fibers to compute 
