@@ -27,6 +27,31 @@ for i = 1:length(u)
     T(:,i) = chebyshev('first', order, u(i));       %Computation of the polynomials
 end
 
+%Regression of the a curve 
+t = 0:1e-3:5; 
+y = [ones(1,length(t)); zeros(2,length(t))]; 
+dy = [zeros(3,length(t))];
+
+u = (2*t-(t(end)+t(1)))/(t(end)-t(1));          %Normalized time domain
+
+%Polynomials evaluation
+L = zeros(order, length(u));                        %Preallocation of the polynomial basis
+T = zeros(order, length(u));                        %Preallocation of the polynomial basis
+
+for i = 1:length(u)
+    L(:,i) = legendre_polynomials(order, u(i));     %Computation of the polynomials
+    T(:,i) = chebyshev('first', order, u(i));       %Computation of the polynomials
+end
+[Cp, Cv, Cg, Ci] =  CTR_guidance(order, t.', [y; dy].');
+
+figure(4)
+yp = Cp*T; 
+yi = Ci*T; 
+hold on 
+plot(t,yp)
+plot(t,y)
+plot(t,yi(1,:))
+
 %% Plots and results %% 
 figure(1) 
 hold on 

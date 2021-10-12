@@ -17,10 +17,11 @@
 % Output: - vector Cp, the position evolution trajectory
 %         - vector Cv, the velocity evolution trajectory
 %         - vector Cg, the acceleration evolution trajectory
+%         - vector Ci, the integral of the position evolution trajectory
 
 % New versions: 
 
-function [Cp, Cv, Cg] = CTR_guidance(order, tspan, S)
+function [Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, S)
     %Constants 
     m = 6;          %Relative phase space dimension
         
@@ -44,4 +45,7 @@ function [Cp, Cv, Cg] = CTR_guidance(order, tspan, S)
     
     %Regress the acceleration 
     Cg = fcheb_derivative(Cv, tspan(end), tspan(1));
+
+    %Regress the integral of the position
+    Ci = fcheb_integral(Cp, tspan(end), tspan(1));
 end

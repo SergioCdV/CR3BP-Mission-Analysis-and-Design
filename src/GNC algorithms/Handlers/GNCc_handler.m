@@ -52,7 +52,6 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             TOF = GNC.Guidance.CTR.TOF;                     %Time of flight
             Cp = GNC.Guidance.CTR.PositionCoefficients;     %Coefficients of the Chebyshev approximation
             Cv = GNC.Guidance.CTR.VelocityCoefficients;     %Coefficients of the Chebyshev approximation
-            Cg = GNC.Guidance.CTR.AccelerationCoefficients; %Coefficients of the Chebyshev approximation
             
             T = zeros(order, length(t));                    %Preallocation of the polynomial basis
             u = (2*t-TOF)/TOF;                              %Normalized domain
@@ -61,8 +60,21 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             end
             p = Cp*T;                                       %Position trajectory
             v = Cv*T;                                       %Velocity trajectory
-            g = Cg*T;                                       %Acceleration trajectory
-            Sg = [p.' v.' g.'];                             %Guidance trajectory
+
+            switch (control) 
+                case 'LQR'
+                    Ci = GNC.Guidance.CTR.IntegralCoefficients;     %Coefficients of the Chebyshev approximation
+                    g = Ci*T;                                       %Integral of the position trajectory
+                case 'SDRE'
+                    Ci = GNC.Guidance.CTR.IntegralCoefficients;     %Coefficients of the Chebyshev approximation
+                    g = Ci*T;                                       %Integral of the position trajectory
+                otherwise
+                    Cg = GNC.Guidance.CTR.AccelerationCoefficients; %Coefficients of the Chebyshev approximation
+                    g = Cg*T;                                       %Acceleration trajectory
+            end
+            
+            %Guidance trajectory
+            Sg = [p.' v.' g.'];                             
             
         otherwise
             Sg = zeros(size(S,1), GNC.Guidance.Dimension); %No guidance requirements
@@ -146,7 +158,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             target = GNC.Control.LQR.Reference; %Reference position of the target spacecraft
             
             %Control law
-            u = LQR_control(model, mu, Sg, Sn, target, Ln, gamma, Q, M);
+            u = LQR_control(model, mu, Sg(:,1:6), Sn, target, Ln, gamma, Q, M);
             
         case 'SDRE'
             %System characteristics 
@@ -160,7 +172,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             M = GNC.Control.SDRE.M;             %Penalty matrix on the control effort
             
             %Control law
-            u = SDRE_control(model, mu, Sg, S, St(:,1:6), Ln, gamma, Q, M);
+            u = SDRE_control(model, mu, Sg(:,1:6), Sn, St(:,1:6), Ln, gamma, Q, M);
             
         case 'SMC'
             %System characteristics 

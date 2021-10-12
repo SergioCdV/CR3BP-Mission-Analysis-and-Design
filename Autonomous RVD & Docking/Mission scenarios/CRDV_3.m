@@ -136,7 +136,7 @@ tspan = 0:dt:tf(2);
 A = dimensionalizer(Lem, 1, 1, 100, 'Position', 0)*[1 1 0];
 Sg = [A.*ones(length(tspan),3) zeros(length(tspan),3)];
 order = 5; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sg);
+[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, Sg);
 
 model = 'RLM';
 GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
@@ -157,6 +157,7 @@ GNC.Guidance.CTR.TOF = tf(2);                       %Time of flight
 GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntegralCoefficients = Ci;         %Coefficients of the Chebyshev approximation
 
 %GNC: SDRE/LQR control law
 %Initial conditions 

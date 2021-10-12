@@ -137,7 +137,7 @@ Sr = St0+[p.' v.'];         %Regress the phase space trajectory
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 
 %Control parameters
-GNC.Algorithms.Control = 'SMC';                 %Control algorithm
+GNC.Algorithms.Control = 'LQR';                 %Control algorithm
 
 switch (GNC.Algorithms.Control)
     case 'SMC'
@@ -169,7 +169,8 @@ GNC.Guidance.CTR.Order = order;                     %Order of the approximation
 GNC.Guidance.CTR.TOF = tspan(end);                  %Time of flight
 GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximati
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntergralCoefficients = Ci;        %Coefficients of the Chebyshev approximation
 
 %% GNC: SMC control law for the transfer phase %%
 %Initial conditions 
