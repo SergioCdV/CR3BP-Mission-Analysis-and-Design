@@ -47,5 +47,5 @@ function [Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, S)
     Cg = fcheb_derivative(Cv, tspan(end), tspan(1));
 
     %Regress the integral of the position
-    Ci = fcheb_integral(Cp, tspan(end), tspan(1));
+    Ci = fcheb_integral(Cv, tspan(end), tspan(1));
 end

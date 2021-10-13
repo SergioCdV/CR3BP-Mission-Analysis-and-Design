@@ -21,20 +21,25 @@ function [iC] = fcheb_integral(C, b, a)
    
    %Preallocation of the Chebyshev polynomials and its integrals
    iC = zeros(size(C));            %Preallocation of the integrated coefficients
-   Con = (1/4)*(b-a);              %Renormalization factor
    fac = 1;                        %Sign coefficient 
    K = 0;                          %Constant of integration
    
    %Compute the derivative coefficients
-   for i = 1:size(C,1)-1       
+   for i = 1:size(C,1)       
        %In-range cases
-       for j = 2:size(C,2)-1
-          iC(i,j) = (C(i,j-1)-C(i,j+1))/(j-1);  %Coefficient
-          K = K + fac*iC(i,j);                    %Constant of integration
-          fac = -fac;
+       for j = 2:n-1
+          iC(i,j) = (C(i,j-1)-C(i,j+1))/(2*j-2);        %Coefficient
+          K = K + fac*iC(i,j);
+          fac = -fac; 
        end
-       iC(i,end) = C(i,end-1)/size(C,2); 
-       K = K + fac*iC(i,end-1); 
-       iC(i,1) = 2*K;                             %Approximation term (C0 coefficient)
+       iC(i,n) = C(i,n-1)/(2*n-2); 
+       K = K + fac*iC(i,end); 
+       iC(i,1) = K; 
+       iC(i,1) = iC(i,1);                             %Approximation term (C0 coefficient)
+
+       %Renormalization
+       for j = 1:size(C,2)
+          iC(i,j) = (2/(b-a))*iC(i,j); 
+       end
    end
 end

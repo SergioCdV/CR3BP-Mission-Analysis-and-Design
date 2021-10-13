@@ -30,7 +30,8 @@ end
 %Regression of the a curve 
 t = 0:1e-3:5; 
 y = [ones(1,length(t)); zeros(2,length(t))]; 
-dy = [zeros(3,length(t))];
+y(1,:) = t;
+dy = [ones(1,length(t)); zeros(2,length(t))];
 
 u = (2*t-(t(end)+t(1)))/(t(end)-t(1));          %Normalized time domain
 
