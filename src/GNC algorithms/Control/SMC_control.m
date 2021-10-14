@@ -50,7 +50,7 @@ function [u] = SMC_control(mu, Sg, Sn, parameters, method)
         end
 
         f = nlr_model(mu, true, false, false, method, 0, Sn(i,:).');               %Relative CR3BP 
-
+        
         %Final control law
         ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);                      %Reachability condition function
         u(:,i) = Sg(i,7:9).'-f(10:12)-lambda*dv-ds;                                %Control vector

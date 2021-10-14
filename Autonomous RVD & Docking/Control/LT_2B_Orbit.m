@@ -93,21 +93,21 @@ branch = ['L' 'R'];     %Manifold branches to be propagated
 
 %% Generate a 2B orbit solution before performing the transfer between halo orbits 
 %Orbit conditions
-r_m2 = Sg.Trajectory(Sg.Index,1:3).'-[1-mu; 0; 0];      %Relative position vector to the Moon 
-r_m2 = norm(r_m2);                                      %Relative orbit semimajor axis
-theta = 0:1e-2:2*pi;                                    %Two body anomaly 
-v_m2 = sqrt(mu/r_m2);                                   %Velocity of the circular orbit 
+index_1 = Sg.Index-100;             %Initial position vector epoch
+index_2 = Sg.Index+100;           %Final position vector epoc
+tof = 1/28;                     %Time of flight for the two body orbit 
+
+s(:,1) = Sg.Trajectory(index_1,1:3).'-[1-mu; 0; 0];      %Initial relative state vector to the Moon 
+s(:,2) = Sg.Trajectory(index_2,1:3).'-[1-mu; 0; 0];      %Final relative state vector to the Moon 
+s = Lem*s;
+Mu = 4.92e12; 
+
+%Compute the trajectory arc
+[v1, v2, path] = lambert_solver(Mu, s(1:3,1), s(1:3,2));
+elements = state2coe(Mu,[s(:,1); v1], 'Inertial');
 
 %Guidance law
-Sg.Trajectory = [Sg.Trajectory(1:Sg.Index,:); zeros(length(theta),6); Sg.Trajectory(Sg.Index+1:end,:)]; 
-
-for i = 1:length(theta)
-    %Position vector
-    Sg.Trajectory(Sg.Index+i,1:3) = [1-mu; 0; 0].' + norm(r_m2)*[cos(theta(i)) sin(theta(i)) 0]; 
-
-    %Velocity vector 
-    Sg.Trajectory(Sg.Index+i,4:6) = v_m2*[-sin(theta(i)) cos(theta(i)) 0];                        
-end
+Sg.Trajectory = [Sg.Trajectory(1:Sg.Index,:); s; Sg.Trajectory(Sg.Index+1:end,:)]; 
 
 %Integration of the target trajectory
 tspan = 0:dt:dt*(size(Sg.Trajectory,1)-1);
@@ -117,7 +117,7 @@ r_t0 = target_orbit.Trajectory(1,1:6);                                          
 %Regression of the guidance coefficients 
 Sgr = Sg.Trajectory-St0;                    %Relative guidance law
 order = 300; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sgr);
+[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, Sgr);
 
 %Reconstructed guidance trajectory
 T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
@@ -137,7 +137,7 @@ Sr = St0+[p.' v.'];         %Regress the phase space trajectory
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 
 %Control parameters
-GNC.Algorithms.Control = 'LQR';                 %Control algorithm
+GNC.Algorithms.Control = 'SMC';                 %Control algorithm
 
 switch (GNC.Algorithms.Control)
     case 'SMC'
@@ -212,14 +212,15 @@ St = [St; St2];
 tspan = [tspan tspan(end)+tspan];
 
 %Control law without any guidance law
-[~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), t);   
+[~, ~, u2] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), t);   
+u = [u u2];
 
 %Error in time 
 [e2, merit2] = figures_merit(t, St2);
 e = [e; e2];
 
 %Control effort 
-effort2 = control_effort(t, u, false); 
+effort2 = control_effort(t, u2, false); 
 
 %% Results %% 
 %Plot the transfer
