@@ -73,10 +73,18 @@ function [elements] = rv2coe(mu, s)
     
     %Mean anomaly
     theta = atan2(r0(2), r0(1));                                         %True anomaly of the orbit
-    sinE = sqrt(1-norm(e)^2)*sin(theta)/(1+norm(e)*cos(theta));          %Sine of the eccentric anomaly
-    cosE = (norm(e)+cos(theta))/(1+norm(e)*cos(theta));                  %Cosine of the eccentric anomaly
-    E = atan2(sinE, cosE);                                               %Eccentric anomaly
-    M = E-norm(e)*sin(E);                                                %Mean anomaly
+
+    if (norm(e) >= 1)
+        sinE = sqrt(norm(e)^2-1)*sin(theta)/(1+norm(e)*cos(theta));          %Sine of the eccentric anomaly
+        cosE = (norm(e)*cos(theta))/(1+norm(e)*cos(theta));                  %Cosine of the eccentric anomaly
+        E = atanh(sinE/cosE);                                                %Hyperbolic anomaly
+        M = norm(e)*sinh(H)-H;                                               %Mean anomaly
+    else
+        sinE = sqrt(1-norm(e)^2)*sin(theta)/(1+norm(e)*cos(theta));          %Sine of the eccentric anomaly
+        cosE = (norm(e)+cos(theta))/(1+norm(e)*cos(theta));                  %Cosine of the eccentric anomaly
+        E = atan2(sinE, cosE);                                               %Eccentric anomaly
+        M = E-norm(e)*sin(E);                                                %Mean anomaly
+    end
         
     %Save the classical orbital elements 
     elements = [a norm(e) RAAN i omega M p];
