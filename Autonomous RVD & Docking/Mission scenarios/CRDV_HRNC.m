@@ -3,12 +3,11 @@
 % 17/04/21 % 
 
 %% GNC 5: SMC control law %% 
-% This script provides an interface to test the Sliding Mode Control strategy for rendezvous missions. 
+% This script provides an interface to test the robustness of the continuous control schemes. 
 
-% The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
-% Earth-Moon system is analyzed.
-
-% The SMC controller is solved to drive the relative phase space vector to the origin (rendezvous condition).
+% The relative motion of two spacecraft in the two different halo orbit around L1 and L2 in the
+% Earth-Moon system is analyzed, where the chaser is obliged to follow an
+% heteroclinic chain between the halos.
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
 % points reference frame as defined by Howell, 1984.
@@ -79,7 +78,7 @@ rho = 30;                       %Manifold fibers to compute
 
 %Computation flags
 position_fixed = false;         %Flag to determine a final target state
-graphics = true;                %Flag to plot the manifolds
+graphics = false;               %Flag to plot the manifolds
 
 %Final target state
 target_orbit.TargetState = shiftdim(target_orbit.Trajectory(1,1:n)); 
@@ -93,21 +92,18 @@ branch = ['L' 'R'];     %Manifold branches to be propagated
 
 %% Generate a 2B orbit solution before performing the transfer between halo orbits 
 %Orbit conditions
-index_1 = Sg.Index-100;             %Initial position vector epoch
-index_2 = Sg.Index+100;           %Final position vector epoc
+index_1 = Sg.Index;             %Initial position vector epoch
+index_2 = Sg.Index+1;           %Final position vector epoc
 tof = 1/28;                     %Time of flight for the two body orbit 
 
 s(:,1) = Sg.Trajectory(index_1,1:3).'-[1-mu; 0; 0];      %Initial relative state vector to the Moon 
 s(:,2) = Sg.Trajectory(index_2,1:3).'-[1-mu; 0; 0];      %Final relative state vector to the Moon 
-s = Lem*s;
-Mu = 4.92e12; 
 
-%Compute the trajectory arc
-[v1, v2, path] = lambert_solver(Mu, s(1:3,1), s(1:3,2));
-elements = state2coe(Mu,[s(:,1); v1], 'Inertial');
+%Compute the trajectory arc (this is not being computed accurately)
+%[v1, v2, path] = lambert_solver(Mu, s(1:3,1), s(1:3,2));
 
 %Guidance law
-Sg.Trajectory = [Sg.Trajectory(1:Sg.Index,:); s; Sg.Trajectory(Sg.Index+1:end,:)]; 
+Sg.Trajectory = Sg.Trajectory; 
 
 %Integration of the target trajectory
 tspan = 0:dt:dt*(size(Sg.Trajectory,1)-1);
@@ -209,7 +205,7 @@ toc
 
 %Complete trajectory
 St = [St; St2];
-tspan = [tspan tspan(end)+tspan];
+tspan = [tspan tspan(end)+t.'];
 
 %Control law without any guidance law
 [~, ~, u2] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), t);   
