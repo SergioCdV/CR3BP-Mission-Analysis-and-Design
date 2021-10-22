@@ -14,6 +14,8 @@
 
 % Outputs: - the array T, containing the three unitary vectors. It is also
 %            the rotation matrix from the synodic frame to the F-S frame
+%          - the vector omega, the angular velocity of the Frenet-Serret
+%            frame
 
 % New versions: .
 
