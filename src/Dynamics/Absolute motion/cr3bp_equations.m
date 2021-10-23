@@ -66,12 +66,23 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
         end
 
         %Integrate the relative position for the PID controller
-        switch (GNC.Algorithms.Control)
+        if (isfield(GNC.Algorithms, 'Control'))
+            switch (GNC.Algorithms.Control)
+            end
+
+            %GNC scheme
+            [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
+            F(4:6) = F(4:6)+u;                                          %Add the control vector 
         end
 
-        %GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
-        F(4:6) = F(4:6)+u;                                          %Add the control vector 
+        %Change to a more numerically stable propagator
+        if (isfield(GNC.Algorithms, 'Propagation'))
+            switch (GNC.Algorithms.Propagation)
+                case 'Battin'
+                    F = Battin_method(mu, s);
+                otherwise
+            end
+        end
     end
     
     %Compute the variational equations if needed
@@ -93,4 +104,32 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     if (direction == -1)
         dr = -dr;
     end
+end
+
+%% Auxiliary propagators 
+% Battin propagator for the three-body problem
+function [drho] = Battin_method(mu, s_t)
+    %Constants of the system 
+    mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
+    mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
+    
+    %State variables 
+    r_t = s_t(1:3);               %Synodic relative position 
+    v_t = s_t(4:6);               %Synodic relative velocity 
+    
+    %Synodic position of the primaries 
+    R(1:3,1) = [-mu; 0; 0];       %Synodic position of the first primary
+    R(1:3,2) = [1-mu; 0; 0];      %Synodic position of the second primary
+    
+    %Encke acceleration method
+    gamma = [2*v_t(2)+r_t(1); -2*v_t(1)+r_t(2); 0];
+    for i = 1:length(mu_r)
+        q = -dot(2*(-R(:,i))+r_t,r_t)/norm(r_t-R(:,i))^2;
+        f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
+        gamma = gamma - (mu_r(i)/norm(R(:,i))^3)*(f*(-R(:,i))+(1+f)*r_t);
+    end
+    
+    %Equations of motion 
+    drho = [v_t; 
+            gamma];
 end

@@ -190,7 +190,7 @@ tspan = 0:dt:tf(3);
 
 %Target trajectory
 s0 = St2(end,1:6);
-[~, Staux] = ode113(@(t,s)cr3bp_equations(mu, 1, false, t, s), tspan, s0, options);   
+[~, Staux] = ode113(@(t,s)cr3bp_equations(mu, 1, false, t, s, GNCt), tspan, s0, options);   
 
 %Compute the Frenet-Serret
 T = zeros(size(Staux,1), 3, 3);    %Preallocation of the frame
