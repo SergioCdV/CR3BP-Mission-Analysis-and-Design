@@ -122,17 +122,18 @@ function [dr] = Encke_method(mu, direction, flagVar, t, s, varargin)
     L = L(1:3,1);                   %L1 equilibrium point coordinate 
     
     %Define the initial phase space vector
-    x = s(1);                       %Synodyc x coordinate
-    y = s(2);                       %Synodyc y coordinate 
-    z = s(3);                       %Synodyc z coordinate 
+    r = s(1:3);                     %Synodic position vector
     V = s(4:6);                     %Synodic velocity vector
+    r = r-L;                        %Relative position to the equilibrium point 
+    x = r(1);                       %Synodyc x coordinate
+    y = r(2);                       %Synodyc y coordinate 
+    z = r(3);                       %Synodyc z coordinate 
     
     %Relevant system parameters
     mup(1) = 1-mu;                  %First primary normalized position
     mup(2) = mu;                    %Second primary normalized position
     R(:,1) = [-mu; 0; 0];           %Synodic position of the first primary
     R(:,2) = [1-mu; 0; 0];          %Synodic position of the second primary
-    r = s(1:3);                     %Synodic target position vector
 
     %Compute the time flow of the system (depending on the time direction)
     if (direction == -1)
