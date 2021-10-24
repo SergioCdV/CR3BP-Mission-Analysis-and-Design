@@ -32,9 +32,26 @@
 
 % New versions: 
 
-function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
+function [ds] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)    
+    %Equations of motion of the CR3BP
+    method_ID = 'Encke'; 
+
+    switch (method_ID)
+        %Deterministic models
+        case 'Encke'
+            ds = Encke_method(mu, direction, flagVar, t, s, varargin);    %Relative motion equations
+        case 'Full nonlinear'
+            ds = full_model(mu, direction, flagVar, t, s, varargin);      %Relative motion equations
+        otherwise
+            error('No valid model was chosen');
+    end
+end
+
+%% Propagators
+% Newtonian model
+function [dr] = full_model(mu, direction, flagVar, t, s, varargin)
     %Constants 
-    n = 6;       %Phase space dimension 
+    n = 6;                          %Phase space dimension 
     
     %Define the initial phase space vector
     x = s(1);                       %Synodyc x coordinate
@@ -59,13 +76,13 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       %Time flow of the system
     
     %Compute the GNC requirements 
-    if (~isempty(varargin))
-        GNC = varargin{1};                                              %GNC handling structure
+    GNC = varargin{1};                                                  %GNC handling structure
+    if (~isempty(GNC))
         if (iscell(GNC))
             GNC = GNC{1};
         end
 
-        %Integrate the relative position for the PID controller
+        %Include the GNC chain in the integration of the equations of motion
         if (isfield(GNC.Algorithms, 'Control'))
             switch (GNC.Algorithms.Control)
             end
@@ -73,15 +90,6 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
             %GNC scheme
             [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
             F(4:6) = F(4:6)+u;                                          %Add the control vector 
-        end
-
-        %Change to a more numerically stable propagator
-        if (isfield(GNC.Algorithms, 'Propagation'))
-            switch (GNC.Algorithms.Propagation)
-                case 'Battin'
-                    F = Battin_method(mu, s);
-                otherwise
-            end
         end
     end
     
@@ -106,30 +114,76 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
     end
 end
 
-%% Auxiliary propagators 
 % Battin propagator for the three-body problem
-function [drho] = Battin_method(mu, s_t)
-    %Constants of the system 
-    mu_r(1) = 1-mu;               %Reduced gravitational parameter of the first primary 
-    mu_r(2) = mu;                 %Reduced gravitational parameter of the second primary 
+function [dr] = Encke_method(mu, direction, flagVar, t, s, varargin)
+    %Constants 
+    n = 6;                          %Phase space dimension 
+    L = libration_points(mu);       %Libration points of the system  
+    L = L(1:3,1);                   %L1 equilibrium point coordinate 
     
-    %State variables 
-    r_t = s_t(1:3);               %Synodic relative position 
-    v_t = s_t(4:6);               %Synodic relative velocity 
+    %Define the initial phase space vector
+    x = s(1);                       %Synodyc x coordinate
+    y = s(2);                       %Synodyc y coordinate 
+    z = s(3);                       %Synodyc z coordinate 
+    V = s(4:6);                     %Synodic velocity vector
     
-    %Synodic position of the primaries 
-    R(1:3,1) = [-mu; 0; 0];       %Synodic position of the first primary
-    R(1:3,2) = [1-mu; 0; 0];      %Synodic position of the second primary
-    
-    %Encke acceleration method
-    gamma = [2*v_t(2)+r_t(1); -2*v_t(1)+r_t(2); 0];
-    for i = 1:length(mu_r)
-        q = -dot(2*(-R(:,i))+r_t,r_t)/norm(r_t-R(:,i))^2;
-        f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
-        gamma = gamma - (mu_r(i)/norm(R(:,i))^3)*(f*(-R(:,i))+(1+f)*r_t);
+    %Relevant system parameters
+    mup(1) = 1-mu;                  %First primary normalized position
+    mup(2) = mu;                    %Second primary normalized position
+    R(:,1) = [-mu; 0; 0];           %Synodic position of the first primary
+    R(:,2) = [1-mu; 0; 0];          %Synodic position of the second primary
+    r = s(1:3);                     %Synodic target position vector
+
+    %Compute the time flow of the system (depending on the time direction)
+    if (direction == -1)
+        gamma = [x-2*V(2); y+2*V(1); 0];               %Inertial acceleration
+    else
+        gamma = [x+2*V(2); y-2*V(1); 0];               %Inertial acceleration
     end
     
-    %Equations of motion 
-    drho = [v_t; 
-            gamma];
+    %Encke acceleration method
+    for i = 1:length(mup)
+        q = -dot((r+2*(L-R(:,i))),r)/norm(r+L-R(:,i))^2;
+        f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));
+        gamma = gamma-mup(i)/norm(L-R(:,i))^3*(f*(L-R(:,i))+(1+f)*r);
+    end
+    F = [V; gamma];                         %Time flow of the system
+
+    %Compute the GNC requirements 
+    GNC = varargin{1};                      %GNC handling structure
+    if (~isempty(GNC))
+        if (iscell(GNC))
+            GNC = GNC{1};
+        end
+
+        %Include the GNC chain in the integration of the equations of motion
+        if (isfield(GNC.Algorithms, 'Control'))
+            switch (GNC.Algorithms.Control)
+            end
+
+            %GNC scheme
+            [~, ~, u] = GNC_handler(GNC, s.', s.', t, true);            %Compute the control law
+            F(4:6) = F(4:6)+u;                                          %Add the control vector 
+        end
+    end
+    
+    %Compute the variational equations if needed
+    if (flagVar)
+        %Compute the initial STM
+        Phi = reshape(s(n+1:end), [n n]);       %State transition matrix
+        J = abs_jacobian(mu,s);                 %Jacobian of the system 
+        dphi = J*Phi;                       	%Variational equations
+        dphi = reshape(dphi, [n^2 1]); 
+        
+        %Update the differential configuration space vector
+        dr = [F; dphi];
+    else
+        %Update the differential configuration space vector
+        dr = F;  
+    end
+    
+    %Reverse the flow for backward integration
+    if (direction == -1)
+        dr = -dr;
+    end
 end
