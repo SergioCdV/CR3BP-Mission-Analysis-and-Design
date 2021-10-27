@@ -34,7 +34,7 @@
 
 function [ds] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)    
     %Equations of motion of the CR3BP
-    method_ID = 'Encke'; 
+    global method_ID;
 
     switch (method_ID)
         %Deterministic models
@@ -118,13 +118,12 @@ end
 function [dr] = Encke_method(mu, direction, flagVar, t, s, varargin)
     %Constants 
     n = 6;                          %Phase space dimension 
-    L = libration_points(mu);       %Libration points of the system  
-    L = L(1:3,1);                   %L1 equilibrium point coordinate 
+    L = libration_points(mu);       %Position array of the libration points
+    L = L(1:3,2);                   %Position vector of the L1 point
     
     %Define the initial phase space vector
     r = s(1:3);                     %Synodic position vector
     V = s(4:6);                     %Synodic velocity vector
-    r = r-L;                        %Relative position to the equilibrium point 
     x = r(1);                       %Synodyc x coordinate
     y = r(2);                       %Synodyc y coordinate 
     z = r(3);                       %Synodyc z coordinate 
