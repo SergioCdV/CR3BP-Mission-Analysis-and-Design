@@ -34,8 +34,6 @@ tol = 1e-10;       %Tolerance
 %Numerical setup 
 format long; 
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration tolerances
-global method_ID; 
-method_ID = 'Full nonlinear';
 
 %% Functions
 %Compute seeds
@@ -50,18 +48,24 @@ s0 = halo_orbit.Trajectory(1,1:6).';       %Initial conditions
 dt = 1e-3;                               %Time step
 tspan = 0:dt:K*halo_orbit.Period;        %Integration time span
 
+%Propagation setup 
+setup.Method = 'Newton';
+
 %Newton integration
 tic
-[~, S_N] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+[~, S_N] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
 toc
 
 %Encke's integration 
-method_ID = 'Encke';
-s0(1:3) = s0(1:3)-L(1:3,2);
+setup.Method = 'Encke';
+setup.LagrangePointID = 3;
+setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
+
+s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
 tic
-[t, S_E] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+[t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
 toc
-S_E(:,1:3) = S_E(:,1:3)+L(1:3,2).'; 
+S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
 
 %Compute the error with respect to the differentially corrected orbit 
 e = zeros(2,size(S_E,1));       %Preallocation 
