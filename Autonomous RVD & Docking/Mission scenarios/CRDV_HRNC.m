@@ -271,7 +271,7 @@ grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity in time');
 
-figure(5)
+figure(4)
 view(3) 
 hold on
 c = plot3(initial_orbit.Trajectory(:,1), initial_orbit.Trajectory(:,2), initial_orbit.Trajectory(:,3), 'r', 'Linewidth', 0.1); 
@@ -289,7 +289,7 @@ legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Guidance trajectory',
 title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Configuration space error 
-figure(4)
+figure(5)
 plot(tspan, log(e));
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
@@ -298,7 +298,7 @@ title('Absolute rendezvous error in the configuration space');
 
 %Rendezvous animation 
 if (false)
-    figure(5) 
+    figure(6) 
     view(3) 
     grid on;
     hold on
