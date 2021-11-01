@@ -23,14 +23,14 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %CR3BP constants 
-mu = 3.003e-6;                      %Earth-Moon reduced gravitational parameter
-Lem = 149597870700;                 %Mean distance from the Earth to the Moon
+mu = 3.003e-6;                      %Sun-Earth reduced gravitational parameter
+Lem = 149597870700;                 %Mean distance from the Sun to the Earth
 
 %% Initial conditions and halo orbit computation %%
 %Initial conditions
 L = libration_points(mu);                                   %System libration points
 Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute

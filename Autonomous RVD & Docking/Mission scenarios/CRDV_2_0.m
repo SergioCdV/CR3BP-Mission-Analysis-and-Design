@@ -30,7 +30,7 @@ Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 %Initial conditions
 L = libration_points(mu);                                   %System libration points
 Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
