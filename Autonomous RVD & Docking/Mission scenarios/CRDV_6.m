@@ -22,21 +22,22 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %CR3BP constants 
-mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
-Lem = 384400e3;                     %Mean distance from the Earth to the Moon
+mu = 3.003e-6;                      %Sun-Earth reduced gravitational parameter
+Lem = 149597870700;                 %Mean distance from the Sun to the Earth
 
 %% Initial conditions and halo orbit computation %%
 %Initial conditions
 L = libration_points(mu);                                   %System libration points
-Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
+Az = 9000e3;                                                %Orbit amplitude out of the synodic plane. Play with it! 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [-1 Az Ln gamma m];                                 %Halo orbit parameters (-1 being for southern halo)
+param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
-center = [0; 0; 0];                                         %Center of the artificial halo orbit  
-n = 4;                                                      %Time of flight in orbital periods of the target halo
+center = [1.01134; 0; 0];                                   %Center of the artificial halo orbit  
+K = 4;                                                      %Time of flight in orbital periods of the target halo
+high_thrust = true;                                         %Do not use a robust control law
 
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
@@ -47,21 +48,15 @@ num = 1;                                                    %Number of orbits to
 direction = -1;                                             %Direction to continuate (to the Earth)
    
 %% Functions
-%Compute the NRHO
+%Compute the halo
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
-%Continuation procedure 
-method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                              %Differential corrector method
-setup = [mu maxIter tol direction];                         %General setup
-
-[target_orbit, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
+%Halo orbit 
+[target_orbit, state] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Generate the initial periodic orbit
-s0 = target_orbit.Seeds(end,:).';
-tspan = 0:dt:target_orbit.Period(end);
+s0 = target_orbit.Trajectory(1,1:n).';
+tspan = 0:dt:target_orbit.Period;
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 Sn = S; 
 
@@ -73,9 +68,9 @@ Sgr(:,1:3) = Sgr(:,1:3)-L(1:3,Ln).';             %Relative trajectory to the tar
 
 %% Guidance (Lissajous trajectory around the target)
 %Phase definition 
-tf = n*target_orbit.Period; 
+tf = K*target_orbit.Period; 
 tspan = 0:dt:tf; 
-Sgr = repmat(Sgr(1:end-1,:),n,1);
+Sgr = repmat(Sgr(1:end-1,:),K,1);
 Sgr(end+1,:) = Sgr(1,:);
 
 %Compute the trajectory as a Chebyshev analytical expression
@@ -94,37 +89,62 @@ end
 p = Cp*T;                   %Position regression
 v = Cv*T;                   %Velocity regression
 
-%% Third phase: formation-flying
-%GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
-GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'SMC';             %Control algorithm
-GNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-GNC.Control.Dimension = 3;                  %Dimension of the control law
-GNC.System.mu = mu;                         %System reduced gravitational parameter
+%% Artificial Halo Orbit generation
+if (high_thrust)
+    %Artificial Halo Orbit with high thrust
+    %GNC algorithms definition 
+    GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
+    GNC.Algorithms.Navigation = '';             %Navigation algorithm
+    GNC.Algorithms.Control = 'SMC';             %Control algorithm
+    GNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
+    GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
+    GNC.Control.Dimension = 3;                  %Dimension of the control law
+    GNC.System.mu = mu;                         %System reduced gravitational parameter
+    
+    %Controller parameters
+    %GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
+    GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
+    
+    %Guidance parameters 
+    GNC.Guidance.CTR.Order = order;                     %Order of the approximation
+    GNC.Guidance.CTR.TOF = tf;                          %Time of flight
+    GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
+    GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
+    GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+     
+    %Re-integrate trajectory
+    s0 = [L(1:3,Ln).' 0 0 0 S(1,1:6)-[L(1:3,Ln).' 0 0 0]];
+    tic
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    toc
+    
+    %Control effort
+    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan); 
+    effort = control_effort(tspan, u, false);  
 
-%Controller parameters
-%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
-GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
-
-%Guidance parameters 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf;                          %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
- 
-%Re-integrate trajectory
-s0 = [L(1:3,Ln).' 0 0 0 S(1,1:6)-[L(1:3,Ln).' 0 0 0]];
-tic
-[~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
-toc
-
-%Control effort
-[~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan); 
-effort_smc = control_effort(tspan, u, false);                                                   
-
+else
+    %Artificial Halo Orbit with low thrust
+    %GNC algorithms definition 
+    GNC.Algorithms.Guidance = '';               %Guidance algorithm
+    GNC.Algorithms.Navigation = '';             %Navigation algorithm
+    GNC.Algorithms.Control = 'TAHO';            %Control algorithm
+    GNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
+    GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
+    GNC.Control.Dimension = 3;                  %Dimension of the control law
+    GNC.System.mu = mu;                         %System reduced gravitational parameter
+    
+    %Controller parameters
+    GNC.Control.TAHO.center = center;
+     
+    %Re-integrate trajectory
+    s0 = [L(1:3,Ln).' 0 0 0 Sgr(1,:)];
+    tic
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    toc
+    
+    %Control effort
+    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan);  
+end
 %% Plotting
 figure(1)
 view(3) 

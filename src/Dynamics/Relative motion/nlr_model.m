@@ -98,7 +98,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
             case 'LQR'
                 drho = [drho; s_r(7:9)];
             case 'SMC'
-                
+            case 'TAHO'
             otherwise
                 error('No valid control algorithm was selected');
         end

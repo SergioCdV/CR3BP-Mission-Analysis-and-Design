@@ -213,6 +213,15 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             
             %Control law
             [~, ~, u] = APF_control(mu, safe_corridor, Penalties, So, TOF, [Sn St]);
+
+        case 'TAHO'
+            %System characteristics 
+            mu = GNC.System.mu;                               %Systems's reduced gravitational parameter
+            Sc = GNC.Control.TAHO.center;                     %Artificial halo orbit equilibrium position
+            Sc = [Sc; zeros(3,1)].';
+            
+            %Control law
+            u = TAHO_control(mu, Sc);
             
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements
