@@ -35,7 +35,7 @@ gamma = L(end,Ln);                                          %Li distance to the 
 m = 1;                                                      %Number of periods to compute
 param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
-center = [1.01134; 0; 0];                                   %Center of the artificial halo orbit  
+center = [0; 0; 0];                                         %Center of the artificial halo orbit  
 K = 4;                                                      %Time of flight in orbital periods of the target halo
 high_thrust = true;                                         %Do not use a robust control law
 

@@ -58,7 +58,7 @@ toc
 
 %Encke's integration 
 setup.Method = 'Encke';
-setup.LagrangePointID = 3;
+setup.LagrangePointID = 1;
 setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
 
 s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
