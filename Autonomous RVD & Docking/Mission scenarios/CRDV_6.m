@@ -22,13 +22,13 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %CR3BP constants 
-mu = 3.003e-6;                      %Sun-Earth reduced gravitational parameter
-Lem = 149597870700;                 %Mean distance from the Sun to the Earth
+mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
+Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 
 %% Initial conditions and halo orbit computation %%
 %Initial conditions
 L = libration_points(mu);                                   %System libration points
-Az = 9000e3;                                                %Orbit amplitude out of the synodic plane. Play with it! 
+Az = 120e6;                                                %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -36,7 +36,7 @@ m = 1;                                                      %Number of periods t
 param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
 center = [0; 0; 0];                                         %Center of the artificial halo orbit  
-K = 4;                                                      %Time of flight in orbital periods of the target halo
+K = 2;                                                      %Time of flight in orbital periods of the target halo
 high_thrust = true;                                         %Do not use a robust control law
 
 %Correction parameters 
@@ -145,6 +145,7 @@ else
     %Control effort
     [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan);  
 end
+
 %% Plotting
 figure(1)
 view(3) 

@@ -43,14 +43,15 @@ tol = 1e-10;       %Tolerance
 %Symplectic integration 
 s0 = halo_orbit.Trajectory(1,1:6);      %Initial conditions 
 dt = 1e-3;                              %Time step
-tspan = 0:dt:0.1;         %Integration time span 
-[S, z] = symplectic_flow(mu, Ln, gamma, s0, tspan);
+tspan = 0:dt:1;                       %Integration time span 
+
+[S, z] = symplectic_flow(mu, Ln, gamma, tspan, s0);
 
 %% Plotting
 figure(1) 
 view(3)
 hold on
-%plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3), 'b');
+plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3), 'b');
 plot3(S(:,1), S(:,2), S(:,3), 'r')
 hold off
 xlabel('Synodic normalized $x$ coordinate');
