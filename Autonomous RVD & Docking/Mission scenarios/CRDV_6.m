@@ -22,22 +22,28 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %CR3BP constants 
-mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
-Lem = 384400e3;                     %Mean distance from the Earth to the Moon
+mu = 3.36e-6;                           %Sun-Earth reduced gravitational parameter
+Lem = 149597870700;                     %Mean distance from the Earth to the Sun
 
 %% Initial conditions and halo orbit computation %%
 %Initial conditions
 L = libration_points(mu);                                   %System libration points
-Az = 120e6;                                                %Orbit amplitude out of the synodic plane. Play with it! 
+Az = 3.5e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
-param = [1 Az Ln gamma m];                                  %Halo orbit parameters (-1 being for southern halo)
 
-center = [0; 0; 0];                                         %Center of the artificial halo orbit  
-K = 2;                                                      %Time of flight in orbital periods of the target halo
 high_thrust = true;                                         %Do not use a robust control law
+center = [1.02; 0; 0];                                      %Center of the artificial halo orbit 
+
+if (high_thrust)
+    param = [1 Az Ln gamma m];                              %Halo orbit parameters (-1 being for southern halo)
+else
+    param = [Az Az 0 0 Ln gamma 4 center.'];                %Halo orbit parameters (-1 being for southern halo)
+end
+
+K = 10;                                                      %Time of flight in orbital periods of the target halo
 
 %Correction parameters 
 dt = 1e-3;                                                  %Time step to integrate converged trajectories
@@ -49,49 +55,70 @@ direction = -1;                                             %Direction to contin
    
 %% Functions
 %Compute the halo
-[halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
+if (high_thrust)
+    %Generate a halo orbit seed
+    [halo_seed, haloT] = object_seed(mu, param, 'Halo');     
 
-%Halo orbit 
-[target_orbit, state] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+    %Halo orbit 
+    [target_orbit, state] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%Generate the initial periodic orbit
-s0 = target_orbit.Trajectory(1,1:n).';
-tspan = 0:dt:target_orbit.Period;
-[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
-Sn = S; 
+    %Integration time span
+    tspan = 0:dt:target_orbit.Period;
 
-%Generate the target artificial periodic orbit
-Sg = S;                                          %Inicialization                              
-Sg(:,1:3) = Sg(:,1:3)-L(1:3,Ln).'+center.';      %Relative trajectory to the artificial Lagrange point
-Sgr = Sg;                                        %Inicialization  
-Sgr(:,1:3) = Sgr(:,1:3)-L(1:3,Ln).';             %Relative trajectory to the target
+    %Generate the initial periodic orbit
+    s0 = target_orbit.Trajectory(1,1:n).';
 
-%% Guidance (Lissajous trajectory around the target)
-%Phase definition 
-tf = K*target_orbit.Period; 
-tspan = 0:dt:tf; 
-Sgr = repmat(Sgr(1:end-1,:),K,1);
-Sgr(end+1,:) = Sgr(1,:);
+    %Relative trajectory 
+    [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+    Sn = S; 
+    
+    %Generate the target artificial periodic orbit
+    Sg = S;                                          %Inicialization                              
+    Sg(:,1:3) = Sg(:,1:3)-L(1:3,Ln).'+center.';      %Relative trajectory to the artificial Lagrange point
+    Sgr = Sg;                                        %Inicialization  
+    Sgr(:,1:3) = Sgr(:,1:3)-L(1:3,Ln).';             %Relative trajectory to the reference Lagrange point
 
-%Compute the trajectory as a Chebyshev analytical expression
-order = 100; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sgr);
+else
+    %Generate an artificial halo orbit seed
+    [halo_seed, haloT] = artobject_seed(mu, param, 'Lyapunov');       
 
-%Reconstructed guidance trajectory
-T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
-u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
+    %Integration time span
+    tspan = 0:dt:haloT;
 
-for i = 1:length(tspan)
-    T(:,i) = chebyshev('first', order, u(i));
+    %Generate the initial periodic orbit
+    s0 = halo_seed(1,1:n);
+
+    %Relative inicial conditions
+    Sn = halo_seed;                                 %Target solution
+    Sg = Sn;                                        %Target solution
+    Sgr = s0-[L(1:3,Ln).' zeros(1,3)];              %Relative trajectory to the target
 end
-
-%Error in the regression
-p = Cp*T;                   %Position regression
-v = Cv*T;                   %Velocity regression
 
 %% Artificial Halo Orbit generation
 if (high_thrust)
-    %Artificial Halo Orbit with high thrust
+    %Guidance (Lissajous trajectory around the target)
+    %Phase definition 
+    tf = K*target_orbit.Period; 
+    tspan = 0:dt:tf; 
+    Sgr = repmat(Sgr(1:end-1,:),K,1);
+    Sgr(end+1,:) = Sgr(1,:);
+    
+    %Compute the trajectory as a Chebyshev analytical expression
+    order = 100; 
+    [Cp, Cv, Cg] = CTR_guidance(order, tspan, Sgr);
+    
+    %Reconstructed guidance trajectory
+    T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
+    u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
+    
+    for i = 1:length(tspan)
+        T(:,i) = chebyshev('first', order, u(i));
+    end
+    
+    %Error in the regression
+    p = Cp*T;                   %Position regression
+    v = Cv*T;                   %Velocity regression
+
     %GNC algorithms definition 
     GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
     GNC.Algorithms.Navigation = '';             %Navigation algorithm
@@ -123,7 +150,6 @@ if (high_thrust)
     effort = control_effort(tspan, u, false);  
 
 else
-    %Artificial Halo Orbit with low thrust
     %GNC algorithms definition 
     GNC.Algorithms.Guidance = '';               %Guidance algorithm
     GNC.Algorithms.Navigation = '';             %Navigation algorithm
@@ -135,6 +161,9 @@ else
     
     %Controller parameters
     GNC.Control.TAHO.center = center;
+
+    %New integration time 
+    tspan = 0:dt:0.001*haloT; 
      
     %Re-integrate trajectory
     s0 = [L(1:3,Ln).' 0 0 0 Sgr(1,:)];

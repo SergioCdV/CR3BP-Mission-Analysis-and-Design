@@ -51,14 +51,33 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
             Sg = zeros(size(Sn,1), GNC.Guidance.Dimension); %No guidance requirements
     end
     
-    %Stationkeeping module 
-    switch (control)       
+    %Control module
+    switch (control)    
+        %Stationkeeping module 
         case 'HSK'
             %Stationkeeping parameters
             Q = GNC.Control.HSK.Q;                   %State error penalty
             R = GNC.Control.HSK.M;                   %State error penalty
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
             u = HSK_control(mu, Sg, Sn, Q, R);       %Stationkeeping control law
+
+        case 'MLQR'
+            %Stationkeeping parameters
+            Q = GNC.Control.MLQR.Q;                  %State error penalty
+            R = GNC.Control.MLQR.M;                  %State error penalty
+            mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
+            Sg = GNC.Control.MLQR.Reference;         %Reference energy state
+            u = MLQR_control(mu, Sg, Sn, Q, R);      %Stationkeeping control law
+
+        %Artificial objects control laws 
+        case 'TAHO'
+            %System characteristics 
+            mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
+            Sc = GNC.Control.TAHO.center;            %Artificial halo orbit equilibrium position
+            Sc = [Sc; zeros(3,1)].';
+            
+            %Control law
+            u = TAHO_control(mu, Sc);
             
         otherwise 
             u = zeros(6,1);                          %Stationkeeping control law

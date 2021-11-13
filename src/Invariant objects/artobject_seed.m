@@ -1,13 +1,13 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 31/12/20
-% File: object_seed.m 
+% Date: 13/11/21
+% File: artobject_seed.m 
 % Issue: 0 
 % Validated: 
 
 %% Linear seed %%
 % This script provides a function to generate a linear seed for various 
-% objects or dynamical solutions.
+% artificial, thursted objects or dynamical solutions.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
 %         - vector parameters, containing the solution characteristic
@@ -26,13 +26,13 @@
 
 % New versions: include L3 solutions.
 
-function [seed, T] = object_seed(mu, parameters, object)
+function [seed, T] = artobject_seed(mu, parameters, object)
     %Main interface 
     switch (object) 
         case 'Lyapunov' 
             [seed, T] = lyapunov_seed(mu, parameters);         %Generate a Lyapunov linear seed
         case 'Halo' 
-            [seed, T] = halo_seed(mu, parameters);             %Generate a Halo 3D third order seed            
+            [seed, T] = lyapunov_seed(mu, parameters);         %Generate a Halo 3D third order seed            
         otherwise 
             error('No valid options was selected');            %Display selection error
     end
@@ -42,23 +42,28 @@ end
 %Lyapunov linear seed orbit 
 function [seed, T] = lyapunov_seed(mu, parameters)
     %Constants 
-    rho = 10000;            %Number of points per period
+    rho = 10000;                %Number of points per period
     
     %Parameters of the Lyapunov orbit
-    Ax = parameters(1);     %In-plane trajectory
-    Az = parameters(2);     %Out-of-plane trajectory     
-    phi = parameters(3);    %In-plane phase
-    psi = parameters(4);    %Out-of-plane phase
-    L = parameters(5);      %Lagrange point identifier
-    gamma = parameters(6);  %Lagrange point coordinate
-    n = parameters(7);      %Number of periods to generate
+    Ax = parameters(1);         %In-plane trajectory
+    Az = parameters(2);         %Out-of-plane trajectory     
+    phi = parameters(3);        %In-plane phase
+    psi = parameters(4);        %Out-of-plane phase
+    L = parameters(5);          %Lagrange point identifier
+    gamma = parameters(6);      %Lagrange point coordinate
+    n = parameters(7);          %Number of periods to generate
+    center = parameters(8:10);  %Center of the artificial orbit
+
+    %Artificial low thrust acceleration 
+    u = (1/2)*jacobi_gradient(mu, [center.'; zeros(3,1)]);
+    a = norm(u(1:3));
         
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
     c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
     wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
+    kap = (wp^2+a)/(2*wp);                                      %Contraint on the planar amplitude
     
     %Temporal parametrization
     T = (2*pi)/wp;                     %Period of the orbit 
