@@ -1,12 +1,12 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 12/11/21
-% File: MLQR_control.m 
+% Date: 20/11/21
+% File: MHCN_control.m 
 % Issue: 0 
 % Validated: 
 
-%% Manifold Linear Quadratic Regulator Control %%
-% This script contains the function to compute the control law by means of an LQR controller to provide low-thrust stationkeeping.
+%% Manifold Hybrid Control %%
+% This script contains the function to compute the control law by means of a hybrid, manifold-based provide low-thrust stationkeeping.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
@@ -20,7 +20,7 @@
 
 % New versions: 
 
-function [u] = MLQR_control(mu, t, T, Sg, Sn, Q, M)
+function [u] = MHCN_control(mu, t, T, Sg, Sn, Q, M)
     %Approximation 
     n = 6;                                          %Dimension of the state vector
     
@@ -37,37 +37,28 @@ function [u] = MLQR_control(mu, t, T, Sg, Sn, Q, M)
 
     for i = 1:size(Sn,1)
         %Compute the actual state 
-        X(1) = jacobi_constant(mu, Sn(i,1:n).');           %Energy level of the spacecraft
-        X(2) = unstable_component(t(i), T, dSn(i,:).');    %Unstable coordinate in the Floquet basis
-        X(3) = stable_component(t(i), T, dSn(i,:).');      %Stable coordinate in the Floquet basis
+        X(1) = unstable_component(t(i), T, dSn(i,:).');    %Unstable coordinate in the Floquet basis
+        X(2) = stable_component(t(i), T, dSn(i,:).');      %Stable coordinate in the Floquet basis
 
         %Compute the feedback control law
-        if (mod(t(i),T) > 0.9 || mod(t(i),T) == 0)
-            u(:,i) = zeros(3,1); 
-        else
+        if (X(1) > 1e-3)
             %Eigenspectrum of the STM
             Monodromy = reshape(Sn(i,n+1:end), [n n]);
-            J = abs_jacobian(mu,Sn(i,1:n));
             [E, lambda] = eig(Monodromy);  
 
             %Numerically compute the derivative of the unstable Floquet mode
-            dtE = J*E-E*lambda;
-            daE = dtE(:,1); 
-            dE = daE./Sn(i,1:n);
-            dalpha = exp(-t(i)/T*log(lambda(1,1)))*(E(:,1).'+dSn(i,1:n)*dE);      %Derivative of the projection onto the unstable manifold
-            dbE = dtE(:,2); 
-            dE = dbE./Sn(i,1:n);
-            dbeta = exp(-t(i)/T*log(lambda(1,1)))*(E(:,2).'+dSn(i,1:n)*dE);       %Derivative of the projection onto the stable manifold
+            dalpha = exp(-t(i)/T*log(lambda(1,1)))*(E(:,1).'+dSn(i,1:n));      %Derivative of the projection onto the unstable manifold;
     
             %Compute the state matrix
-            A = [0 0 0; 0 log(lambda(1,1))/T 0; 0 0 log(lambda(2,2))/T];          %State transition matrix
+            A = [0 0; 0 lambda(1,1)];                   %State transition matrix
     
             %Compute the gradient of the integrals 
             C = jacobi_gradient(mu, Sn(i,1:n).');
-            V = [C.'; dalpha; dbeta]*B;
+            V = [C.'; dalpha]*B;
             [K,~,~] = lqr(A,V,Q,M);
-            e = (X-Sg(i,end-2:end)).';
-            u(:,i) = -K*e;
+            u(:,i) = -K*(X-Sg(i,end-1:end)).';
+        else
+            u(:,i) = zeros(3,1);
         end
     end
 end

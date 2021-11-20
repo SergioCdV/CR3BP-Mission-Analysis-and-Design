@@ -66,15 +66,18 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
             Q = GNC.Control.MLQR.Q;                  %State error penalty
             R = GNC.Control.MLQR.M;                  %State error penalty
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
-            Sg = GNC.Control.MLQR.Reference;         %Reference energy state
-            u = MLQR_control(mu, Sg, Sn, Q, R);      %Stationkeeping control law
+            Hg = GNC.Control.MLQR.Reference;         %Reference energy state
+            Sg = [Sg repmat(Hg.', size(Sg,1), 1)];   %Reference orbital and energy state
+            T = GNC.Control.MLQR.Period;             %Period of the target orbit 
+            
+            %Stationkeeping control law
+            u = MLQR_control(mu, t, T, Sg, Sn, Q, R);      
 
         %Artificial objects control laws 
         case 'TAHO'
             %System characteristics 
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
-            Sc = GNC.Control.TAHO.center;            %Artificial halo orbit equilibrium position
-            Sc = [Sc; zeros(3,1)].';
+            Sc = Sn;                                 %Artificial halo orbit equilibrium position
             
             %Control law
             u = TAHO_control(mu, Sc);

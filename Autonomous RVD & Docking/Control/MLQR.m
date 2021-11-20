@@ -24,8 +24,8 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 n = 6; 
 
 %Time span 
-dt = 1e-4;                          %Time step
-tf = 2*pi;                          %Rendezvous time
+dt = 1e-3;                          %Time step
+tf = 1;                          %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 
 %CR3BP constants 
@@ -62,25 +62,36 @@ Sn = S;
 %Guidance law coefficients
 Cref = jacobi_constant(mu, s0.');               %Reference Jacobi Constant
 Alpharef = 0;                                   %Reference unstable component
-Sg = [Cref; Alpharef];
-Sg = Cref;
+Betaref = 0;                                    %Reference stable component
+Sg = [Cref; Alpharef; Betaref];
+
+%Regress the target orbit as a function of time 
+order = 100; 
+[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn(:,1:n));
 
 %% GNC algorithms definition 
-GNC.Algorithms.Guidance = '';                   %Guidance algorithm
-GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'MLQR';                %Control algorithm
+GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
+GNC.Algorithms.Navigation = '';                     %Navigation algorithm
+GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
 
-GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
-GNC.Control.Dimension = 3;                      %Dimension of the control law
+GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
+GNC.Control.Dimension = 3;                          %Dimension of the control law
 
-GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
-GNC.Control.MLQR.Q = eye(2);                    %Penalty on the state error
-GNC.Control.MLQR.M = 1e6*eye(3);                    %Penalty on the control effort
-GNC.Control.MLQR.Reference = Sg;                %Penalty on the control effort
+GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
+GNC.Control.MLQR.Q = 1e10*eye(3);                        %Penalty on the state error
+GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
+GNC.Control.MLQR.Reference = Sg;                    %Penalty on the control effort
+GNC.Control.MLQR.Period = target_orbit.Period;      %Penalty on the control effort
+
+GNC.Guidance.CTR.Order = order;                     %Order of the approximation
+GNC.Guidance.CTR.TOF = tf;                          %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
 
 %% GNC: MLQR control law
 %Initial conditions 
-k = 1e-8;                                          %Noise gain
+k = 1e-7;                                       %Noise gain
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
@@ -96,10 +107,10 @@ toc
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn]);
 
 %Control law
-%[~, ~, u] = GNCt_handler(GNC, St, tspan);
+[~, ~, u] = GNCt_handler(GNC, St, tspan);
 
 %Control integrals
-%energy = control_effort(tspan, u, false);
+energy = control_effort(tspan, u, false);
 
 %Reference evaluation 
 Jref = jacobi_constant(mu, r_t0.');         %Reference energy level
@@ -139,7 +150,7 @@ grid on;
 legend('$x$', '$y$', '$z$');
 title('Position in time');
 subplot(1,2,2)
-hold off
+hold on
 plot(tspan, St(:,4)); 
 plot(tspan, St(:,5)); 
 plot(tspan, St(:,6)); 

@@ -49,18 +49,15 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     Az = parameters(2);         %Out-of-plane trajectory     
     phi = parameters(3);        %In-plane phase
     psi = parameters(4);        %Out-of-plane phase
-    L = parameters(5);          %Lagrange point identifier
-    gamma = parameters(6);      %Lagrange point coordinate
-    n = parameters(7);          %Number of periods to generate
-    center = parameters(8:10);  %Center of the artificial orbit
+    n = parameters(5);          %Number of periods to generate
+    center = parameters(6:8);   %Center of the artificial orbit
 
     %Artificial low thrust acceleration 
     u = (1/2)*jacobi_gradient(mu, [center.'; zeros(3,1)]);
     a = norm(u(1:3));
         
     %Orbit parameters (frequencies)
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
+    c2 = mu/(center(1)-1+mu)^3+(1-mu)/(center(1)+mu)^3;         %Out-of-plane frequency
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
     wv  = sqrt(c2);                                             %Out of plane frequency
     kap = (wp^2+a)/(2*wp);                                      %Contraint on the planar amplitude
@@ -77,24 +74,9 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     vy = kap*wp*Ax*cos(wp*tspan+phi);  %Vy relative velocity
     vz = wv*Az*cos(wv*tspan+psi);      %Vz relative velocity  
     
-    %Relative to synodic reference frame transformation
-    if (L == 1) 
-        k = -1;
-    elseif (L == 2)
-        k = 1;
-    else
-        error('No valid Lagrange point was selected');
-    end
-    
-    x = gamma*x+(1-mu+k*gamma);             %Synodic X coordinate
-    y = gamma*y;                            %Synodic Y coordinate
-    z = gamma*z;                            %Synodic Z coordinate
-    vx = gamma*vx;                          %Synodic x velocity
-    vy = gamma*vy;                          %Synodic y velocity
-    vz = gamma*vz;                          %Synodic z velocity 
-    
     %Output seed
-    seed = [x.' y.' z.' vx.' vy.' vz.'];    %Seed trajectory
+    seed = [x.' y.' z.' vx.' vy.' vz.'];        %Seed trajectory relative to a Lagrange point
+    seed(:,1:3) = seed(:,1:3)+center;           %Seed trajectory relative to the artificial Lagrange point
 end
 
 %Halo third order seed orbit

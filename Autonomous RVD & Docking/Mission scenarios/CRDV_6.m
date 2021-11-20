@@ -40,7 +40,7 @@ center = [1.02; 0; 0];                                      %Center of the artif
 if (high_thrust)
     param = [1 Az Ln gamma m];                              %Halo orbit parameters (-1 being for southern halo)
 else
-    param = [Az Az 0 0 Ln gamma 4 center.'];                %Halo orbit parameters (-1 being for southern halo)
+    param = [Az Az 0 0 4 center.'];                         %Halo orbit parameters (-1 being for southern halo)
 end
 
 K = 10;                                                      %Time of flight in orbital periods of the target halo
@@ -82,16 +82,10 @@ else
     %Generate an artificial halo orbit seed
     [halo_seed, haloT] = artobject_seed(mu, param, 'Lyapunov');       
 
-    %Integration time span
-    tspan = 0:dt:haloT;
-
-    %Generate the initial periodic orbit
-    s0 = halo_seed(1,1:n);
-
     %Relative inicial conditions
     Sn = halo_seed;                                 %Target solution
     Sg = Sn;                                        %Target solution
-    Sgr = s0-[L(1:3,Ln).' zeros(1,3)];              %Relative trajectory to the target
+    Sgr = Sn;                                       %Relative trajectory to the target
 end
 
 %% Artificial Halo Orbit generation
@@ -163,16 +157,16 @@ else
     GNC.Control.TAHO.center = center;
 
     %New integration time 
-    tspan = 0:dt:0.001*haloT; 
+    tspan = 0:dt:haloT; 
      
     %Re-integrate trajectory
-    s0 = [L(1:3,Ln).' 0 0 0 Sgr(1,:)];
+    s0 = Sgr(1,:);
     tic
-    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    [~, St] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s, GNC), tspan, s0, options);
     toc
     
     %Control effort
-    [~, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), tspan);  
+    [~, ~, u] = GNCt_handler(GNC, St(:,1:6), tspan);  
 end
 
 %% Plotting
@@ -180,11 +174,15 @@ figure(1)
 view(3) 
 hold on
 c = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1); 
-r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'b', 'Linewidth', 0.1); 
+if (high_thrust)
+    r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'b', 'Linewidth', 0.1); 
+else
+    r = plot3(St(:,1), St(:,2), St(:,3), 'b', 'Linewidth', 0.1); 
+end
 g = plot3(Sg(:,1), Sg(:,2), Sg(:,3), 'k', 'Linewidth', 0.1);
-scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+scatter3(center(1), center(2), center(3), 'k', 'filled');
+text(center(1).'+1e-1, center(2).', center(3).', '$L_a$');
 hold off
-text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_1$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
@@ -192,31 +190,33 @@ grid on;
 legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
 title('Converged rendezvous trajectory in the absolute configuration space');
 
-%Configuration space evolution
-figure(2)
-subplot(1,2,1)
-hold on
-plot(tspan(1:size(St,1)), St(:,7)); 
-plot(tspan(1:size(St,1)), St(:,8)); 
-plot(tspan(1:size(St,1)), St(:,9)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
-grid on;
-legend('$x$', '$y$', '$z$');
-title('Relative position evolution');
-
-subplot(1,2,2)
-hold on
-plot(tspan(1:size(St,1)), St(:,10)); 
-plot(tspan(1:size(St,1)), St(:,11)); 
-plot(tspan(1:size(St,1)), St(:,12)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
-grid on;
-legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Relative velocity evolution');
+if (high_thrust)
+    %Configuration space evolution
+    figure(2)
+    subplot(1,2,1)
+    hold on
+    plot(tspan(1:size(St,1)), St(:,7)); 
+    plot(tspan(1:size(St,1)), St(:,8)); 
+    plot(tspan(1:size(St,1)), St(:,9)); 
+    hold off
+    xlabel('Nondimensional epoch');
+    ylabel('Relative configuration coordinate');
+    grid on;
+    legend('$x$', '$y$', '$z$');
+    title('Relative position evolution');
+    
+    subplot(1,2,2)
+    hold on
+    plot(tspan(1:size(St,1)), St(:,10)); 
+    plot(tspan(1:size(St,1)), St(:,11)); 
+    plot(tspan(1:size(St,1)), St(:,12)); 
+    hold off
+    xlabel('Nondimensional epoch');
+    ylabel('Relative velocity coordinate');
+    grid on;
+    legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+    title('Relative velocity evolution');
+end
 
 if (false)
     dh = 50; 
