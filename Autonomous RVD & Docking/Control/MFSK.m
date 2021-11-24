@@ -1,9 +1,9 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 13/11/21 % 
+% 24/11/21 % 
 
-%% GNC 3: MLQR control law %% 
-% This script provides an interface to test the MLQR strategies for optimal long term stationkeeping.
+%% GNC 3: MFSK control law %% 
+% This script provides an interface to test the MFSK strategies for optimal long term stationkeeping.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -24,7 +24,6 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 1.5;                            %Rendezvous time
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -55,71 +54,56 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Integration of the model
 s0 = target_orbit.Trajectory(1,1:6);
 s0 = [s0 reshape(eye(n), [1 n^2])];
-tspan = 0:dt:m*target_orbit.Period;
+tspan = 0:dt:target_orbit.Period;
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
 Sn = S;     
 
-%Guidance law coefficients
-Sg = zeros(6,1);
-
-%Regress the target orbit as a function of time 
-order = 100; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn);
+%Reference Jacobi Constant
+Jref = jacobi_constant(mu, s0(1:n).');
 
 %% GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
-GNC.Algorithms.Navigation = '';                     %Navigation algorithm
-GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
+GNC.Algorithms.Guidance = '';                    %Guidance algorithm
+GNC.Algorithms.Navigation = '';                  %Navigation algorithm
+GNC.Algorithms.Control = 'MFSK';                 %Control algorithm
 
-GNC.Guidance.Dimension = 9;                        %Dimension of the guidance law
-GNC.Control.Dimension = 3;                          %Dimension of the control law
+GNC.Guidance.Dimension = 9;                      %Dimension of the guidance law
+GNC.Control.Dimension = 3;                       %Dimension of the control law
 
-GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
-GNC.Control.MLQR.Q = eye(6);                        %Penalty on the state error
-GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
-GNC.Control.MLQR.Reference = Sg;                    %Penalty on the control effort
-GNC.Control.MLQR.Period = target_orbit.Period;      %Penalty on the control effort
-
-%Floquet mode matrix
-[E, lambda] = eig(reshape(Sn(end,n+1:end), [n n]));
-GNC.Control.MLQR.FloquetModes = diag(log(diag(lambda))/target_orbit.Period);
-for i = 1:size(E,2)
-    E(:,i) = E(:,i)/lambda(i,i);
-end
-GNC.Control.MLQR.FloquetDirections = E; 
-
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf;                          %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+GNC.System.mu = mu;                              %Systems's reduced gravitational parameter
+GNC.Control.MFSK.Reference = Jref;               %Reference energy state
+GNC.Control.MFSK.Period = target_orbit.Period;   %Period of the target orbit 
+GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential corrector process
+GNC.Control.MFSK.Constraint = false;             %Constraint boolean for energy tracking
 
 %% GNC: MLQR control law
 %Initial conditions 
-k = 1e-7;                                       %Noise gain
+k = 1e-10;                                      %Noise gain
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
-tspan = 0:dt:tf;                                %Integration time span
+m = 1;
+tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
-%Compute the trajectory
+%Compute the reference trajectory
+Sn = repmat(Sn, m, 1);
+
+%Compute the natural trajectory
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 
-s0 = [s0 reshape(eye(n), [1 n^2])];
-tic
-[~, St] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s, GNC), tspan, s0, options);
-toc
-
-Sn = repmat(Sn, floor(tf/target_orbit.Period)+1, 1);
+%Compute the stationkeeping trajectory
+tspan = 0:dt:m/2*target_orbit.Period;   
+[St, dV(:,1), state(:,1)] = MFSK_control(mu, target_orbit.Period, s0, tol, false, Sn(1,1:n).', Jref);          
+[~, St1] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St(1,1:n), options);
+[St2, dV(:,2), state(:,2)] = MFSK_control(mu, target_orbit.Period, St1(end,1:n), tol, false, Sn(length(tspan),1:n).', Jref); 
+[~, St2] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St2(1,1:n), options);
+St = [St1(1:end-1,:); St2];
+tspan = 0:dt:m*target_orbit.Period;   
 
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
 
-%Control law
-[~, ~, u] = GNCt_handler(GNC, St, tspan);
-
 %Control integrals
-energy = control_effort(tspan, u, false);
+energy = control_effort(tspan, dV, true);
 
 %% Results %% 
 %Plot results 

@@ -69,9 +69,22 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
             Hg = GNC.Control.MLQR.Reference;         %Reference energy state
             Sg = [Sg repmat(Hg.', size(Sg,1), 1)];   %Reference orbital and energy state
             T = GNC.Control.MLQR.Period;             %Period of the target orbit 
+            L = GNC.Control.MLQR.FloquetModes;       %Floquet modes of the reference trajectory
+            F = GNC.Control.MLQR.FloquetDirections;  %Floquet modes of the reference trajectory
             
             %Stationkeeping control law
-            u = MLQR_control(mu, t, T, Sg, Sn, Q, R);      
+            u = MLQR_control(mu, t, T, L, F, Sg, Sn, Q, R);   
+
+         case 'MFSK'
+            %Stationkeeping parameters
+            mu = GNC.System.mu;                        %Systems's reduced gravitational parameter
+            Jref = GNC.Control.MFSK.Reference;         %Reference energy state
+            T = GNC.Control.MFSK.Period;               %Period of the target orbit 
+            tol = GNC.Control.MFSK.Tolerance;          %Tolerance for the differential corrector process
+            constraint = GNC.Control.MFSK.Constraint;  %Constraint boolean for energy tracking
+            
+            %Stationkeeping control law
+            u = MFSK_control(mu, T, Sn, tol, constraint, Jref);  
 
         %Artificial objects control laws 
         case 'TAHO'

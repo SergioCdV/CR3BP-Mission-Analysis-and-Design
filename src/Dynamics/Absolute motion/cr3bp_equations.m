@@ -69,6 +69,8 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
             %Include the GNC chain in the integration of the equations of motion
             if (isfield(GNC.Algorithms, 'Control'))
                 switch (GNC.Algorithms.Control)
+                    case 'MFKS'
+                        error('MFSK stationkeeping is not available for integration purposes.')
                 end
     
                 %GNC scheme
