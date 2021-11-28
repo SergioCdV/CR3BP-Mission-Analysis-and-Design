@@ -86,7 +86,7 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
             %Stationkeeping control law
             u = MFSK_control(mu, T, Sn, tol, constraint, Jref);  
 
-        %Artificial objects control laws 
+        %Artificial objects control law
         case 'TAHO'
             %System characteristics 
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter

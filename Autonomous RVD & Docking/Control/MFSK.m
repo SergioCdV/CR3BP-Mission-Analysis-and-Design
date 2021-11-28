@@ -76,12 +76,14 @@ GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential
 GNC.Control.MFSK.Constraint = false;             %Constraint boolean for energy tracking
 
 %% GNC: MLQR control law
+%Noise gain
+k = dimensionalizer(Lem, 1, 1, 1e-2, 'Position', 0);  
+
 %Initial conditions 
-k = 1e-10;                                      %Noise gain
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
-m = 1;
+m = 2;
 tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
 %Compute the reference trajectory

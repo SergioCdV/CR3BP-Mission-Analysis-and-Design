@@ -24,7 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 1.5;                            %Rendezvous time
+tf = 1.5;                           %Rendezvous time
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -63,7 +63,7 @@ Sn = S;
 Sg = zeros(6,1);
 
 %Regress the target orbit as a function of time 
-order = 100; 
+order = 50; 
 [Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn);
 
 %% GNC algorithms definition 
@@ -71,7 +71,7 @@ GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
 GNC.Algorithms.Navigation = '';                     %Navigation algorithm
 GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
 
-GNC.Guidance.Dimension = 9;                        %Dimension of the guidance law
+GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
 GNC.Control.Dimension = 3;                          %Dimension of the control law
 
 GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
@@ -104,6 +104,7 @@ tspan = 0:dt:tf;                                %Integration time span
 
 %Compute the trajectory
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+
 
 s0 = [s0 reshape(eye(n), [1 n^2])];
 tic
