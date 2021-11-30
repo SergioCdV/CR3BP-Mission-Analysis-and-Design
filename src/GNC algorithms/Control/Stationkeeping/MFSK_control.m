@@ -54,6 +54,8 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
 
     Constraint = constraint.Method;         %Method to constrain energy 
     constraint_flag = constraint.Flag;      %Constraint flag
+
+    dV = zeros(11,1);                       %Initial iteration of the velocity impulse
         
     while ((GoOn) && (iter < maxIter))
         %Compute the Floquet modes at each time instant 
@@ -73,17 +75,20 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
             switch (Constraint)
                 case 'Impulse'
                     %Sensibility analysis
-                    A = STM;
-                    b = error;
-
-                    %Additional velocity impulse in the stable-center direction
-                    B = [zeros(3,3); eye(3)];
-                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(4:6))*(E(:,2)-dot(E(:,2), E(:,1))));        
-                otherwise
                     dJ = jacobi_gradient(mu, s0(1:6));
                     JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
+                    A = [STM; JSTM];
+                    b = [error; J-Jref];
 
+                    %Additional impulse
+                    B = [zeros(3,3); eye(3)];
+                    un = (E(:,2)-dot(E(:,2),E(:,1)));
+                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(4:6))*un);  
+
+                otherwise
                     %Sensibility analysis
+                    dJ = jacobi_gradient(mu, s0(1:6));
+                    JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
                     A = [STM; JSTM];
                     b = [error; J-Jref];
             end
@@ -99,9 +104,9 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
         %Integrate the trajectory 
         switch (Constraint)
             case 'Impulse'
-                s0(4:6) = s0(4:6)+dV(end-2:end)+dV2;   %Update initial conditions with the velocity impulse
+                s0(4:6) = s0(4:6)+dV(end-2:end)+dV2;               %Update initial conditions with the velocity impulse
             otherwise
-                s0(4:6) = s0(4:6)+dV(end-2:end);       %Update initial conditions with the velocity impulse
+                s0(4:6) = s0(4:6)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
         end
 
         [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);

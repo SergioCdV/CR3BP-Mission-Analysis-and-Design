@@ -79,7 +79,7 @@ GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energ
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 100, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 1e2, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
