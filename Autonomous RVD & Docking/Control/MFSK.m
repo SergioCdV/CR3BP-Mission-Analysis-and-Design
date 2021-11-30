@@ -73,19 +73,19 @@ GNC.System.mu = mu;                              %Systems's reduced gravitationa
 GNC.Control.MFSK.Reference = Jref;               %Reference energy state
 GNC.Control.MFSK.Period = target_orbit.Period;   %Period of the target orbit 
 GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential corrector process
-constraint.Flag = true;                          %Constraint flag for energy tracking
+constraint.Flag = false;                          %Constraint flag for energy tracking
 constraint.Method = 'Corrector';                 %Use a differential corrector technique to impose the energy constraint
 GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energy tracking
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e2, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 1e3, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
-m = 2;
+m = 1;
 tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
 %Compute the reference trajectory
@@ -95,10 +95,13 @@ Sn = repmat(Sn, m, 1);
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 
 %Compute the stationkeeping trajectory
-tspan = 0:dt:m*target_orbit.Period;   
-[St, dV, state] = MFSK_control(mu, target_orbit.Period, s0, tol, constraint, Sn(1,1:n).', Jref);          
-[~, St] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St(1,1:n), options);   
-
+s0 = [r_t0 s0-r_t0];
+[St, dV, state] = MFSK_control(mu, target_orbit.Period, s0, tol, constraint, Jref);
+tic
+[~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, [r_t0 St(1,1:n)-r_t0], options);
+toc
+St = St(:,1:n)+St(:,n+1:2*n);
+   
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
 
@@ -145,6 +148,14 @@ ylabel('Velocity coordinates');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Velocity in time');
+
+%Error plot
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error $\log{e}$');
+grid on;
+title('Absolute rendezvous error in the relative space');
 
 %Rendezvous animation 
 if (false)

@@ -216,6 +216,17 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
 
 
         %Relative stationkeeping
+        case 'MFSK'
+            %Stationkeeping parameters
+            mu = GNC.System.mu;                        %Systems's reduced gravitational parameter
+            Jref = GNC.Control.MFSK.Reference;         %Reference energy state
+            T = GNC.Control.MFSK.Period;               %Period of the target orbit 
+            tol = GNC.Control.MFSK.Tolerance;          %Tolerance for the differential corrector process
+            constraint = GNC.Control.MFSK.Constraint;  %Constraint boolean for energy tracking
+            
+            %Stationkeeping control law
+            u = MFSK_control(mu, T, Sn, tol, constraint, Jref);  
+
         case 'MLQR'
             Q = GNC.Control.MLQR.Q;                  %State error penalty
             R = GNC.Control.MLQR.M;                  %State error penalty

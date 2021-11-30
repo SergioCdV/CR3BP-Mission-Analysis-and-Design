@@ -15,7 +15,6 @@
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 %         - structure constraint, specifying any constraint on the maneuver
-%         - vector Sg, reference initial orbit conditions
 %         - scalar Jref, the Jacobi Constante reference value to be imposed
 
 % Output: - array Sc, the stationkeeping trajectory
@@ -25,7 +24,7 @@
 
 % New versions: 
 
-function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
+function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Jref)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -44,7 +43,7 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
     Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
     
-    [~, Sn] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
     S = Sn;
         
     %Differential corrector setup
@@ -57,23 +56,24 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
         
     while ((GoOn) && (iter < maxIter))
         %Compute the Floquet modes at each time instant 
-        Monodromy = reshape(S(end,m+1:end), [m m]);               %State transition matrix at each instant 
+        Monodromy = reshape(S(end,2*m+1:end), [m m]);             %State transition matrix at each instant 
         [E, Lambda] = eig(Monodromy);                             %Eigenspectrum of the STM/Floquet basis 
         for j = 1:size(E,2)
             E(:,j) = E(:,j)/Lambda(j,j);
         end
             
         %Compute the maneuver
-        error = s0(1:m)-Sg;                                       %State error vector
+        error = s0(m+1:2*m);                                      %State error vector
         STM = [E(:,2:end) -[zeros(3,3); eye(3)]];                 %Linear application
+        S0 = S(1,1:m).'+S(1,m+1:2*m).';                           %Initial absolute state
             
         %Energy constraint 
         if (constraint_flag)
-            J = jacobi_constant(mu, s0(1:6));       %Actual Jacobi Constant
+            J = jacobi_constant(mu, S0); %Actual Jacobi Constant
             switch (Constraint)
                 case 'Impulse'
                     %Sensibility analysis
-                    dJ = jacobi_gradient(mu, s0(1:6));
+                    dJ = jacobi_gradient(mu, S0);
                     JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
                     A = [STM; JSTM];
                     b = [error; J-Jref];
@@ -81,11 +81,11 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
                     %Additional impulse
                     B = [zeros(3,3); eye(3)];
                     un = (E(:,2)-dot(E(:,2),E(:,1)));
-                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(4:6))*un);  
+                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(10:12))*un);  
 
                 otherwise
                     %Sensibility analysis
-                    dJ = jacobi_gradient(mu, s0(1:6));
+                    dJ = jacobi_gradient(mu, S0);
                     JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
                     A = [STM; JSTM];
                     b = [error; J-Jref];
@@ -97,17 +97,17 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
         end
             
         %Compute the maneuver
-        dV = pinv(A)*b;                   %Needed maneuver
+        dV = real(pinv(A)*b);                   %Needed maneuver
 
         %Integrate the trajectory 
         switch (Constraint)
             case 'Impulse'
-                s0(4:6) = s0(4:6)+dV(end-2:end)+dV2;               %Update initial conditions with the velocity impulse
+                s0(10:12) = s0(10:12)+dV(end-2:end)+dV2;               %Update initial conditions with the velocity impulse
             otherwise
-                s0(4:6) = s0(4:6)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
+                s0(10:12) = s0(10:12)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
         end
 
-        [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
+        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
             
         %Convergence analysis for the constrained case 
         if (~constraint_flag)
@@ -122,11 +122,12 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
     end
         
     %Evaluate the cost function
-    dV = (s0(4:6)-Sn(1,4:6).');
+    dV = (s0(10:12)-Sn(1,10:12).');
      
     %Integrate the SK trajectory
-    s0 = Sn(1,1:m);                     
-    [~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+    s0 = s0(1:2*m);
+    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+    Sc = Sc(:,1:m)+Sc(:,m+1:2*m);
 
     %Differential corrector output
     state.State = ~GoOn;                    %Convergence boolean
