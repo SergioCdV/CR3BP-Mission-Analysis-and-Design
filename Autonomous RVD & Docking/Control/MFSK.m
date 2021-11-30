@@ -73,11 +73,13 @@ GNC.System.mu = mu;                              %Systems's reduced gravitationa
 GNC.Control.MFSK.Reference = Jref;               %Reference energy state
 GNC.Control.MFSK.Period = target_orbit.Period;   %Period of the target orbit 
 GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential corrector process
-GNC.Control.MFSK.Constraint = false;             %Constraint boolean for energy tracking
+constraint.Flag = true;                          %Constraint flag for energy tracking
+constraint.Method = 'Corrector';                 %Use a differential corrector technique to impose the energy constraint
+GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energy tracking
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e-2, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 100, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
@@ -93,13 +95,9 @@ Sn = repmat(Sn, m, 1);
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 
 %Compute the stationkeeping trajectory
-tspan = 0:dt:m/2*target_orbit.Period;   
-[St, dV(:,1), state(:,1)] = MFSK_control(mu, target_orbit.Period, s0, tol, false, Sn(1,1:n).', Jref);          
-[~, St1] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St(1,1:n), options);
-[St2, dV(:,2), state(:,2)] = MFSK_control(mu, target_orbit.Period, St1(end,1:n), tol, false, Sn(length(tspan),1:n).', Jref); 
-[~, St2] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St2(1,1:n), options);
-St = [St1(1:end-1,:); St2];
 tspan = 0:dt:m*target_orbit.Period;   
+[St, dV, state] = MFSK_control(mu, target_orbit.Period, s0, tol, constraint, Sn(1,1:n).', Jref);          
+[~, St] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, St(1,1:n), options);   
 
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);

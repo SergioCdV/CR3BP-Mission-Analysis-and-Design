@@ -51,6 +51,9 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
     maxIter = 100;                          %Maximum number of iterations
     GoOn = true;                            %Convergence boolean
     iter = 1;                               %Initial iteration
+
+    Constraint = constraint.Method;         %Method to constrain energy 
+    constraint_flag = constraint.Flag;      %Constraint flag
         
     while ((GoOn) && (iter < maxIter))
         %Compute the Floquet modes at each time instant 
@@ -65,14 +68,25 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
         STM = [E(:,2:end) -[zeros(3,3); eye(3)]];                 %Linear application
             
         %Energy constraint 
-        if (constraint)
-            J = jacobi_constant(mu, s0(1:6));
-            dJ = jacobi_gradient(mu, s0(1:6));
-            JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Monodromy(4:6,4:6)];
+        if (constraint_flag)
+            J = jacobi_constant(mu, s0(1:6));       %Actual Jacobi Constant
+            switch (Constraint)
+                case 'Impulse'
+                    %Sensibility analysis
+                    A = STM;
+                    b = error;
 
-            %Sensibility analysis
-            A = [STM; JSTM];
-            b = [error; Jref-J];
+                    %Additional velocity impulse in the stable-center direction
+                    B = [zeros(3,3); eye(3)];
+                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(4:6))*(E(:,2)-dot(E(:,2), E(:,1))));        
+                otherwise
+                    dJ = jacobi_gradient(mu, s0(1:6));
+                    JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
+
+                    %Sensibility analysis
+                    A = [STM; JSTM];
+                    b = [error; J-Jref];
+            end
         else
             %Sensibility analysis
             A = STM;
@@ -83,12 +97,17 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
         dV = pinv(A)*b;                   %Needed maneuver
 
         %Integrate the trajectory 
-        s0(4:6) = s0(4:6)+dV(end-2:end);  %Update initial conditions with the velocity impulse
+        switch (Constraint)
+            case 'Impulse'
+                s0(4:6) = s0(4:6)+dV(end-2:end)+dV2;   %Update initial conditions with the velocity impulse
+            otherwise
+                s0(4:6) = s0(4:6)+dV(end-2:end);       %Update initial conditions with the velocity impulse
+        end
 
         [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
             
         %Convergence analysis for the constrained case 
-        if (~constraint)
+        if (~constraint_flag)
             GoOn = false;
         else
             if (norm(error) < tol)
