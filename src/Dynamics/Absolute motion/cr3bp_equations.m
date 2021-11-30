@@ -70,7 +70,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
             if (isfield(GNC.Algorithms, 'Control'))
                 switch (GNC.Algorithms.Control)
                     case 'MFKS'
-                        error('MFSK stationkeeping is not available for integration purposes.')
+                        error('MFSK stationkeeping is not available for integration purposes')
                 end
     
                 %GNC scheme

@@ -24,7 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 1.5;                           %Rendezvous time
+tf = 2*pi;                          %Rendezvous time
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -55,19 +55,15 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Integration of the model
 s0 = target_orbit.Trajectory(1,1:6);
 s0 = [s0 reshape(eye(n), [1 n^2])];
-tspan = 0:dt:m*target_orbit.Period;
+tspan = 0:dt:target_orbit.Period;
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
-Sn = S;     
+Sn = repmat(S, floor(tf/target_orbit.Period)+1, 1);     
 
 %Guidance law coefficients
-Sg = zeros(6,1);
-
-%Regress the target orbit as a function of time 
-order = 50; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn);
+Sg = jacobi_constant(mu,Sn(1,1:n).');
 
 %% GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
+GNC.Algorithms.Guidance = '';                       %Guidance algorithm
 GNC.Algorithms.Navigation = '';                     %Navigation algorithm
 GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
 
@@ -75,7 +71,7 @@ GNC.Guidance.Dimension = 9;                         %Dimension of the guidance l
 GNC.Control.Dimension = 3;                          %Dimension of the control law
 
 GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
-GNC.Control.MLQR.Q = eye(6);                        %Penalty on the state error
+GNC.Control.MLQR.Q = eye(2);                        %Penalty on the state error
 GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
 GNC.Control.MLQR.Reference = Sg;                    %Penalty on the control effort
 GNC.Control.MLQR.Period = target_orbit.Period;      %Penalty on the control effort
@@ -88,36 +84,26 @@ for i = 1:size(E,2)
 end
 GNC.Control.MLQR.FloquetDirections = E; 
 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf;                          %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-
 %% GNC: MLQR control law
 %Initial conditions 
-k = 1e-7;                                       %Noise gain
+k = 1e-5;                                       %Noise gain
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
-
-tspan = 0:dt:tf;                                %Integration time span
 
 %Compute the trajectory
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 
-
-s0 = [s0 reshape(eye(n), [1 n^2])];
+s0 = [r_t0 s0-r_t0 reshape(eye(n), [1 n^2])];
 tic
-[~, St] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s, GNC), tspan, s0, options);
+[~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
 toc
-
-Sn = repmat(Sn, floor(tf/target_orbit.Period)+1, 1);
+St = Staux(:,1:n)+Staux(:,n+1:2*n);
 
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
 
 %Control law
-[~, ~, u] = GNCt_handler(GNC, St, tspan);
+[~, ~, u] = GNCc_handler(GNC, Staux(:,1:n), Staux(:,n+1:end), tspan);
 
 %Control integrals
 energy = control_effort(tspan, u, false);
@@ -162,6 +148,14 @@ ylabel('Velocity coordinates');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Velocity in time');
+
+%Error plot
+figure(4)
+plot(tspan, log(e)); 
+xlabel('Nondimensional epoch');
+ylabel('Absolute error $\log{e}$');
+grid on;
+title('Absolute rendezvous error in the relative space');
 
 %Rendezvous animation 
 if (false)

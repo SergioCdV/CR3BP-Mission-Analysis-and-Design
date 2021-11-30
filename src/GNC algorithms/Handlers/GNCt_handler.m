@@ -61,20 +61,6 @@ function [Sg, Sn, u] = GNCt_handler(GNC, Sn, t)
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
             u = HSK_control(mu, Sg, Sn, Q, R);       %Stationkeeping control law
 
-        case 'MLQR'
-            %Stationkeeping parameters
-            Q = GNC.Control.MLQR.Q;                  %State error penalty
-            R = GNC.Control.MLQR.M;                  %State error penalty
-            mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
-            Hg = GNC.Control.MLQR.Reference;         %Reference energy state
-            Sg = [Sg repmat(Hg.', size(Sg,1), 1)];   %Reference orbital and energy state
-            T = GNC.Control.MLQR.Period;             %Period of the target orbit 
-            L = GNC.Control.MLQR.FloquetModes;       %Floquet modes of the reference trajectory
-            F = GNC.Control.MLQR.FloquetDirections;  %Floquet modes of the reference trajectory
-            
-            %Stationkeeping control law
-            u = MLQR_control(mu, t, T, L, F, Sg, Sn, Q, R);   
-
          case 'MFSK'
             %Stationkeeping parameters
             mu = GNC.System.mu;                        %Systems's reduced gravitational parameter

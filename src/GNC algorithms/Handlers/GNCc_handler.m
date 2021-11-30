@@ -213,6 +213,20 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             
             %Control law
             [~, ~, u] = APF_control(mu, safe_corridor, Penalties, So, TOF, [Sn St]);
+
+
+        %Relative stationkeeping
+        case 'MLQR'
+            Q = GNC.Control.MLQR.Q;                  %State error penalty
+            R = GNC.Control.MLQR.M;                  %State error penalty
+            mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
+            Hg = GNC.Control.MLQR.Reference;         %Reference energy state
+            T = GNC.Control.MLQR.Period;             %Period of the target orbit 
+            L = GNC.Control.MLQR.FloquetModes;       %Floquet modes of the reference trajectory
+            F = GNC.Control.MLQR.FloquetDirections;  %Floquet modes of the reference trajectory
+            
+            %Stationkeeping control law
+            u = MLQR_control(mu, t, T, L, F, St, Hg, Sn, Q, R); 
             
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements
