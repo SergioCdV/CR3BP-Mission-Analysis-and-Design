@@ -54,8 +54,6 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Sg, Jref)
 
     Constraint = constraint.Method;         %Method to constrain energy 
     constraint_flag = constraint.Flag;      %Constraint flag
-
-    dV = zeros(11,1);                       %Initial iteration of the velocity impulse
         
     while ((GoOn) && (iter < maxIter))
         %Compute the Floquet modes at each time instant 
