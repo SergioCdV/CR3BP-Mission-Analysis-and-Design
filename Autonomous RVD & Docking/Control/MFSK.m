@@ -73,7 +73,7 @@ GNC.System.mu = mu;                              %Systems's reduced gravitationa
 GNC.Control.MFSK.Reference = Jref;               %Reference energy state
 GNC.Control.MFSK.Period = target_orbit.Period;   %Period of the target orbit 
 GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential corrector process
-constraint.Flag = false;                          %Constraint flag for energy tracking
+constraint.Flag = true;                          %Constraint flag for energy tracking
 constraint.Method = 'Corrector';                 %Use a differential corrector technique to impose the energy constraint
 GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energy tracking
 

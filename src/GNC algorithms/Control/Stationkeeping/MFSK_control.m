@@ -99,12 +99,16 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Jref)
         %Compute the maneuver
         dV = real(pinv(A)*b);                   %Needed maneuver
 
-        %Integrate the trajectory 
-        switch (Constraint)
-            case 'Impulse'
-                s0(10:12) = s0(10:12)+dV(end-2:end)+dV2;               %Update initial conditions with the velocity impulse
-            otherwise
-                s0(10:12) = s0(10:12)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
+        %Integrate the trajectory
+        if (constraint_flag)
+            switch (Constraint)
+                case 'Impulse'
+                    s0(10:12) = s0(10:12)+dV(end-2:end)+dV2;       %Update initial conditions with the velocity impulse
+                otherwise
+                    s0(10:12) = s0(10:12)+dV(end-2:end);           %Update initial conditions with the velocity impulse
+            end
+        else
+            s0(10:12) = s0(10:12)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
         end
 
         [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
