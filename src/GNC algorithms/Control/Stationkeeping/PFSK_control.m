@@ -15,16 +15,18 @@
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 %         - structure constraint, specifying any constraint on the maneuver
-%         - scalar Jref, the Jacobi Constante reference value to be imposed
+%         - string cost_function, to optimize on the l1 or l2 norm of the
+%           control vector
+%         - vector Tmax, the maximum available thrust
 
 % Output: - array Sc, the stationkeeping trajectory
-%         - array dV, containing the required impulse
+%         - array u, containing the required control law
 %         - structure state, with the corresponding differential corrector
 %           figures of merit
 
 % New versions: 
 
-function [Sc, dV, state] = PFSK_control(mu, T, s0, tol, constraint, Jref)
+function [Sc, u, state] = PFSK_control(mu, T, tf, s0, tol, constraint, cost_function, Tmax)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -36,78 +38,82 @@ function [Sc, dV, state] = PFSK_control(mu, T, s0, tol, constraint, Jref)
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
     dt = 1e-3;                                                  %Integration time step  
-    tspan = 0:dt:T;                                             %Integration time span
     
     %Initial conditions and integration
     Phi = eye(m);                                               %Initial STM 
     Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
     
+    tspan = 0:dt:T;                                             %Integration time span
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+
+    %Floquet analysis                                           %Orbit-period time span               
+    Monodromy = reshape(Sn(length(tspan),2*m+1:end), [m,m]);    %Monodromy matrix of the relative orbit
+    [F,J] = eig(Monodromy);                                     %Eigenspectrum of the monodromy matrix
+    J = diag((1/T)*log(diag(J)));                               %Floquet exponents
+    for i = 1:size(F,2)
+        F(:,i) = F(:,2)/J(i,i);                                 %Floquet basis initial conditions
+    end
+
+    tspan = 0:dt:tf;                                            %Integration time span
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
     S = Sn;
         
     %Differential corrector setup
-    maxIter = 100;                          %Maximum number of iterations
-    GoOn = true;                            %Convergence boolean
-    iter = 1;                               %Initial iteration
+    maxIter = 100;                                              %Maximum number of iterations
+    GoOn = true;                                                %Convergence boolean
+    iter = 1;                                                   %Initial iteration
 
-    Constraint = constraint.Method;         %Method to constrain energy 
-    constraint_flag = constraint.Flag;      %Constraint flag
-        
+    %Energy constraint
+    constraint_flag = constraint.Flag;                          %Constraint flag
+    if (constraint_flag)
+        Jref = constraint.JacobiReference;                      %Reference Jacobi Constant
+    end
+
+    %Preallocation of the control vector 
+    u = zeros(3,length(tspan));
+
+    %Definition of the GNC structure
+    GNC.Algorithms.Guidance = '';                       %Guidance algorithm
+    GNC.Algorithms.Navigation = '';                     %Navigation algorithm
+    GNC.Algorithms.Control = 'OPFSK';                   %Control algorithm
+    
+    GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
+    GNC.Control.Dimension = 3;                          %Dimension of the control law
+    
+    GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
+    GNC.Control.OPFSK.CostFunction = cost_function;     %Cost function to optimize
+    GNC.Control.OPFSK.FloquetExponents = J;             %Floquet exponents of the reference trajectory
+    GNC.Control.OPFSK.FloquetDirections = F;            %Floquet directions of the reference trajectory
+    GNC.Control.OPFSK.MaxThrust = Tmax;                 %Maximum available thurst
+
+    %Main computation
     while ((GoOn) && (iter < maxIter))
-        %Compute the Floquet modes at each time instant 
-        Monodromy = reshape(S(end,2*m+1:end), [m m]);             %State transition matrix at each instant 
-        [E, Lambda] = eig(Monodromy);                             %Eigenspectrum of the STM/Floquet basis 
-        for j = 1:size(E,2)
-            E(:,j) = E(:,j)/Lambda(j,j);
-        end
-            
-        %Compute the maneuver
-        error = s0(m+1:2*m);                                      %State error vector
-        STM = [E(:,2:end) -[zeros(3,3); eye(3)]];                 %Linear application
-        S0 = S(1,1:m).'+S(1,m+1:2*m).';                           %Initial absolute state
-            
-        %Energy constraint 
+        %Evaluate the final error 
+        Sf = S(end,1:m).'+S(end,m+1:2*m).';                 %Final absolute location
+        M = reshape(S(end,2*m+1:end), [m m]);               %Instantenous Monodromy matrix
+        E = M*F*expm(-J*mod(tf,T));                         %Instantenous Floquet projection matrix
+        dC = jacobi_gradient(mu, Sf);                       %Gradient of the Jacobi Constant at the final time
+        lambda(:,1) = [ones(2,1); zeros(4,1)] + E.'*dC;     %Final conditions on the primer vector
+
+        %Error analysis
+        J = jacobi_constant(mu, Sf);                        %Final Jacobi Constant
+        alpha = E^(-1)*S(end,m+1:2*m).';                    %Final Floquet coordinates
+        error = alpha(1:2);                                 %Error vector
         if (constraint_flag)
-            J = jacobi_constant(mu, S0); %Actual Jacobi Constant
-            switch (Constraint)
-                case 'Impulse'
-                    %Sensibility analysis
-                    dJ = jacobi_gradient(mu, S0);
-                    JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
-                    A = [STM; JSTM];
-                    b = [error; J-Jref];
-
-                    %Additional impulse
-                    B = [zeros(3,3); eye(3)];
-                    un = (E(:,2)-dot(E(:,2),E(:,1)));
-                    dV2 = real(pinv(E^(-1)*B)*(1/2)*(J-Jref)/norm(s0(10:12))*un);  
-
-                otherwise
-                    %Sensibility analysis
-                    dJ = jacobi_gradient(mu, S0);
-                    JSTM = [zeros(1,size(STM,2)-3) -dJ(4:6).'];
-                    A = [STM; JSTM];
-                    b = [error; J-Jref];
-            end
-        else
-            %Sensibility analysis
-            A = STM;
-            b = error;
-        end
-            
-        %Compute the maneuver
-        dV = real(pinv(A)*b);                   %Needed maneuver
-
-        %Integrate the trajectory 
-        switch (Constraint)
-            case 'Impulse'
-                s0(10:12) = s0(10:12)+dV(end-2:end)+dV2;               %Update initial conditions with the velocity impulse
-            otherwise
-                s0(10:12) = s0(10:12)+dV(end-2:end);                   %Update initial conditions with the velocity impulse
+            error = [error; J-Jref];
         end
 
-        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+        %Evaluate the initial conditions 
+        lambda(:,2) = expm(-J*tf)^(-1)*lambda(:,1);         %Initial primer vector conditions
+        GNC.Control.OPFSK.InitialPrimer = lambda(:,2);      %Initial primer vector
+
+        %Re-integration of the trajectory
+        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
+
+        %Re-assembly of the control vector 
+        [~, ~, du] = GNCc_handler(GNC, S(:,1:m), S(:,m+1:end), tspan);
+        u(:,1:size(du,2)) = u(:,1:size(du,2)) + du;
             
         %Convergence analysis for the constrained case 
         if (~constraint_flag)
@@ -120,16 +126,9 @@ function [Sc, dV, state] = PFSK_control(mu, T, s0, tol, constraint, Jref)
             end
         end
     end
-        
-    %Evaluate the cost function
-    dV = (s0(10:12)-Sn(1,10:12).');
-     
-    %Integrate the SK trajectory
-    s0 = s0(1:2*m);
-    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
-    Sc = Sc(:,1:m)+Sc(:,m+1:2*m);
 
-    %Differential corrector output
+    %Outputs 
+    Sc = S(:,1:m)+S(:,m+1:2*m);             %Final trajectory output
     state.State = ~GoOn;                    %Convergence boolean
     state.Iterations = iter;                %Number of required iterations
     state.Error = norm(error);              %Final error

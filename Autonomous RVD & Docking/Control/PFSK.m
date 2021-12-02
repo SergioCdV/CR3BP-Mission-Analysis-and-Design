@@ -62,24 +62,14 @@ Sn = S;
 Jref = jacobi_constant(mu, s0(1:n).');
 
 %% GNC algorithms definition 
-GNC.Algorithms.Guidance = '';                    %Guidance algorithm
-GNC.Algorithms.Navigation = '';                  %Navigation algorithm
-GNC.Algorithms.Control = 'MFSK';                 %Control algorithm
-
-GNC.Guidance.Dimension = 9;                      %Dimension of the guidance law
-GNC.Control.Dimension = 3;                       %Dimension of the control law
-
-GNC.System.mu = mu;                              %Systems's reduced gravitational parameter
-GNC.Control.MFSK.Period = target_orbit.Period;   %Period of the target orbit 
-GNC.Control.MFSK.Tolerance = tol;                %Tolerance for the differential corrector process
 constraint.Flag = true;                          %Constraint flag for energy tracking
-constraint.Method = 'Corrector';                 %Use a differential corrector technique to impose the energy constraint
 constraint.JacobiReference = Jref;               %Reference Jacobi Constant value
-GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energy tracking
+cost_function = 'L1';                            %L1 norm minimization problem
+Tmax = 0.5;                                      %Maximum available thrust
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e3, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
@@ -96,11 +86,7 @@ Sn = repmat(Sn, m, 1);
 
 %Compute the stationkeeping trajectory
 s0 = [r_t0 s0-r_t0];
-[St, dV, state] = MFSK_control(mu, target_orbit.Period, s0, tol, constraint);
-tic
-[~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, [r_t0 St(1,1:n)-r_t0], options);
-toc
-St = St(:,1:n)+St(:,n+1:2*n);
+[Sc, u, state] = PFSK_control(mu, target_orbit.Period, 0.1, s0, tol, constraint, cost_function, Tmax);
    
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);

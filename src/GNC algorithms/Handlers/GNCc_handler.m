@@ -219,15 +219,15 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
         case 'MFSK'
             %Stationkeeping parameters
             mu = GNC.System.mu;                        %Systems's reduced gravitational parameter
-            Jref = GNC.Control.MFSK.Reference;         %Reference energy state
             T = GNC.Control.MFSK.Period;               %Period of the target orbit 
             tol = GNC.Control.MFSK.Tolerance;          %Tolerance for the differential corrector process
             constraint = GNC.Control.MFSK.Constraint;  %Constraint boolean for energy tracking
             
             %Stationkeeping control law
-            u = MFSK_control(mu, T, Sn, tol, constraint, Jref);  
+            u = MFSK_control(mu, T, Sn, tol, constraint);  
 
         case 'MLQR'
+            %Stationkeeping parameters
             Q = GNC.Control.MLQR.Q;                  %State error penalty
             R = GNC.Control.MLQR.M;                  %State error penalty
             mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
@@ -238,7 +238,24 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             
             %Stationkeeping control law
             u = MLQR_control(mu, t, T, L, F, St, Hg, Sn, Q, R); 
-            
+         
+        case 'OPFSK'
+            %Stationkeeping parameters
+            J = GNC.Control.OPFSK.FloquetExponents;             %Floquet exponents of the reference trajectory
+            lambda = GNC.Control.OPFSK.InitialPrimer;           %Floquet modes of the reference trajectory
+            P = GNC.Control.OPFSK.FloquetDirections;            %Floquet modes of the reference trajectory
+            cost_function = GNC.Control.OPFSK.CostFunction;     %Cost function to minimize
+
+            switch (cost_function)
+                case 'L1'
+                    Tmax = GNC.Control.OPFSK.MaxThrust;         %Maximum available thrust
+                otherwise
+                    Tmax = 0;                                   %Maximum available thrust
+            end
+
+            %Stationkeeping control law
+            u = OPFSK_control(t, Sn, P, J, lambda, cost_function, Tmax); 
+
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements
     end

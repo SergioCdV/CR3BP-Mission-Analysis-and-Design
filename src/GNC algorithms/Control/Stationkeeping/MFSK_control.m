@@ -15,7 +15,6 @@
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 %         - structure constraint, specifying any constraint on the maneuver
-%         - scalar Jref, the Jacobi Constante reference value to be imposed
 
 % Output: - array Sc, the stationkeeping trajectory
 %         - array dV, containing the required impulse
@@ -24,7 +23,7 @@
 
 % New versions: 
 
-function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Jref)
+function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -53,6 +52,9 @@ function [Sc, dV, state] = MFSK_control(mu, T, s0, tol, constraint, Jref)
 
     Constraint = constraint.Method;         %Method to constrain energy 
     constraint_flag = constraint.Flag;      %Constraint flag
+    if (constraint_flag)
+        Jref = constraint.JacobiReference;  %Referece Jacobi Constant
+    end
         
     while ((GoOn) && (iter < maxIter))
         %Compute the Floquet modes at each time instant 
