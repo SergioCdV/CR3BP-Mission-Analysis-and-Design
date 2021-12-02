@@ -94,7 +94,11 @@ function [Sc, u, state] = PFSK_control(mu, T, tf, s0, tol, constraint, cost_func
         M = reshape(S(end,2*m+1:end), [m m]);               %Instantenous Monodromy matrix
         E = M*F*expm(-J*mod(tf,T));                         %Instantenous Floquet projection matrix
         dC = jacobi_gradient(mu, Sf);                       %Gradient of the Jacobi Constant at the final time
-        lambda(:,1) = [ones(2,1); zeros(4,1)] + E.'*dC;     %Final conditions on the primer vector
+
+        lambda(:,1) = [ones(2,1); zeros(4,1)];              %Stationkeeping constraints
+        if (constraint_flag)
+            lambda(:,1) = lambda(:,1) + E.'*dC;             %Final conditions on the primer vector
+        end
 
         %Error analysis
         J = jacobi_constant(mu, Sf);                        %Final Jacobi Constant

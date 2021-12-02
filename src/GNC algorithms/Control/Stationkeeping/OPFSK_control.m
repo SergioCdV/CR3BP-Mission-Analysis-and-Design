@@ -42,7 +42,7 @@ function [u] = OPFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
         switch (cost_function)
             case 'L1' 
                 %Primer vector modulus
-                p = norm(expm(-J*t(i))*lambda); 
+                p = norm(expm(J*t(i))*lambda); 
 
                 %Final control vector
                 if (p > 1)
