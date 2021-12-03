@@ -62,14 +62,14 @@ Sn = S;
 Jref = jacobi_constant(mu, s0(1:n).');
 
 %% GNC algorithms definition 
-constraint.Flag = false;                          %Constraint flag for energy tracking
+constraint.Flag = true;                          %Constraint flag for energy tracking
 constraint.JacobiReference = Jref;               %Reference Jacobi Constant value
-cost_function = 'L2';                            %L1 norm minimization problem
+cost_function = 'L1';                            %L1 norm minimization problem
 Tmax = 1e-3;                                      %Maximum available thrust
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 1e2, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
@@ -79,20 +79,23 @@ m = 2;
 tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
 %Compute the reference trajectory
+s0 = [r_t0 s0-r_t0];
 Sn = repmat(Sn, m, 1);
 
 %Compute the natural trajectory
-[~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
+[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
 
 %Compute the stationkeeping trajectory
 tf = 1;                                           %Stationkeeping time
-s0 = [r_t0 s0-r_t0];
-[St, u, state] = PFSK_control(mu, target_orbit.Period, tf, s0, tol, constraint, cost_function, Tmax);
-s0 = [r_t0 St(end,1:n)-r_t0];
+[St, u, state] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, tol, constraint, cost_function, Tmax);
 tic
-[~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), s0, options);
+[~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), St(end,:), options);
 toc
+
+%Final trajectory 
 St = [St; Staux(2:end,:)];
+St = St(:,1:n)+St(:,n+1:2*n);
  
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);

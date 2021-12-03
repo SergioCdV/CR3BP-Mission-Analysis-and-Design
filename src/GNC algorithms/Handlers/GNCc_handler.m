@@ -239,7 +239,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             %Stationkeeping control law
             u = MLQR_control(mu, t, T, L, F, St, Hg, Sn, Q, R); 
          
-        case 'OPFSK'
+        case 'PFSK'
             %Stationkeeping parameters
             J = GNC.Control.OPFSK.FloquetExponents;             %Floquet exponents of the reference trajectory
             lambda = GNC.Control.OPFSK.InitialPrimer;           %Floquet modes of the reference trajectory
@@ -254,7 +254,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             end
 
             %Stationkeeping control law
-            u = OPFSK_control(t, Sn, P, J, lambda, cost_function, Tmax); 
+            u = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax); 
 
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements

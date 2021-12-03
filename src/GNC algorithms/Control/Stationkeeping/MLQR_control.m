@@ -54,7 +54,9 @@ function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
 
         %SDRE design
         C = ctrb(A,V);                          %Controlabillity matrix
-        [K,~,~] = lqr(A,V,Q,M);            
+        [K,~,~] = lqr(A,V,Q,M);  
+
+       % norm(e)
 
         %Control law
         if (rank(C) ~= max(size(A)))
