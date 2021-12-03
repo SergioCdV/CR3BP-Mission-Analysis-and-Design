@@ -79,24 +79,22 @@ GNC.Control.MFSK.Constraint = constraint;        %Constraint structure for energ
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e3, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 1e4, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
-m = 1;
+m = 3;
 tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
 %Compute the reference trajectory
 Sn = repmat(Sn, m, 1);
 
-%Compute the natural trajectory
-[~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
-
 %Compute the stationkeeping trajectory
 s0 = [r_t0 s0-r_t0];
-[St, dV, state] = MFSK_control(mu, target_orbit.Period, s0, tol, constraint);
+[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+[St, dV, state] = MFSK_control(mu, tspan(end), s0, tol, constraint);
 tic
 [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, [r_t0 St(1,1:n)-r_t0], options);
 toc

@@ -62,10 +62,10 @@ Sn = S;
 Jref = jacobi_constant(mu, s0(1:n).');
 
 %% GNC algorithms definition 
-constraint.Flag = true;                          %Constraint flag for energy tracking
+constraint.Flag = false;                          %Constraint flag for energy tracking
 constraint.JacobiReference = Jref;               %Reference Jacobi Constant value
-cost_function = 'L1';                            %L1 norm minimization problem
-Tmax = 0.5;                                      %Maximum available thrust
+cost_function = 'L2';                            %L1 norm minimization problem
+Tmax = 1e-3;                                      %Maximum available thrust
 
 %% GNC: MLQR control law
 %Noise gain
@@ -75,7 +75,7 @@ k = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 
-m = 1;
+m = 2;
 tspan = 0:dt:m*target_orbit.Period;             %Integration time span
 
 %Compute the reference trajectory
@@ -85,14 +85,20 @@ Sn = repmat(Sn, m, 1);
 [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0, options);
 
 %Compute the stationkeeping trajectory
+tf = 1;                                           %Stationkeeping time
 s0 = [r_t0 s0-r_t0];
-[Sc, u, state] = PFSK_control(mu, target_orbit.Period, 0.1, s0, tol, constraint, cost_function, Tmax);
-   
+[St, u, state] = PFSK_control(mu, target_orbit.Period, tf, s0, tol, constraint, cost_function, Tmax);
+s0 = [r_t0 St(end,1:n)-r_t0];
+tic
+[~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), s0, options);
+toc
+St = [St; Staux(2:end,:)];
+ 
 %Error in time 
 [e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
 
 %Control integrals
-energy = control_effort(tspan, dV, true);
+energy = control_effort(tspan(1:size(u,2)), u, false);
 
 %% Results %% 
 %Plot results 

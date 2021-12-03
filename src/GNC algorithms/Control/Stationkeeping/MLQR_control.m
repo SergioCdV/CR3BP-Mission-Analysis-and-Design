@@ -57,7 +57,7 @@ function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
         [K,~,~] = lqr(A,V,Q,M);            
 
         %Control law
-        if (rank(C) ~= max(size(A)) || mod(t(i),T) > 0.1*T)
+        if (rank(C) ~= max(size(A)))
             u(:,i) = zeros(3,1);           
         else
             u(:,i) = real(-K*e);           

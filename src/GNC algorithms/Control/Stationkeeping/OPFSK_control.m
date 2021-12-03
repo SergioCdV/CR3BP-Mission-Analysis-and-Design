@@ -38,22 +38,23 @@ function [u] = OPFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
         %Compute the projected control matrix in the Floquet space 
         V = F^(-1)*B;
 
+
         %Switch depending on the cot function to minimize
         switch (cost_function)
             case 'L1' 
-                %Primer vector modulus
-                p = norm(expm(J*t(i))*lambda); 
+                %Primer vector 
+                p = -pinv(V)*expm(-J*t(i))*lambda; 
 
                 %Final control vector
-                if (p > 1)
-                    uv = -V.'*expm(J*t(i))*lambda;         %Compute the direction of the control vector
-                    u(:,i) = Tmax*uv/p;                    %Final control law
-                elseif (p < 1)
-                    u(:,i) = zeros(3,1);                   %Final control law
+                if (norm(p) > 1)
+                    uv = p;                     %Compute the direction of the control vector
+                    u(:,i) = Tmax*uv;           %Final control law
+                elseif (norm(p) < 1)
+                    u(:,i) = zeros(3,1);        %Final control law
                 end
 
             case 'L2'
-                u(:,i) = -V.'*expm(J*t(i))*lambda;         %Compute the direction of the control vector
+                u(:,i) = -V.'*expm(-J*t(i))*lambda;          
 
             otherwise
                 error('No valid vector norm to be minimized was selected');

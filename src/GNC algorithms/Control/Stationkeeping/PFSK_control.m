@@ -48,11 +48,11 @@ function [Sc, u, state] = PFSK_control(mu, T, tf, s0, tol, constraint, cost_func
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 
     %Floquet analysis                                           %Orbit-period time span               
-    Monodromy = reshape(Sn(length(tspan),2*m+1:end), [m,m]);    %Monodromy matrix of the relative orbit
+    Monodromy = reshape(Sn(end,2*m+1:end), [m,m]);              %Monodromy matrix of the relative orbit
     [F,J] = eig(Monodromy);                                     %Eigenspectrum of the monodromy matrix
     J = diag((1/T)*log(diag(J)));                               %Floquet exponents
     for i = 1:size(F,2)
-        F(:,i) = F(:,2)/J(i,i);                                 %Floquet basis initial conditions
+        F(:,i) = F(:,i)/J(i,i);                                 %Floquet basis initial conditions
     end
 
     tspan = 0:dt:tf;                                            %Integration time span
@@ -95,21 +95,21 @@ function [Sc, u, state] = PFSK_control(mu, T, tf, s0, tol, constraint, cost_func
         E = M*F*expm(-J*mod(tf,T));                         %Instantenous Floquet projection matrix
         dC = jacobi_gradient(mu, Sf);                       %Gradient of the Jacobi Constant at the final time
 
-        lambda(:,1) = [ones(2,1); zeros(4,1)];              %Stationkeeping constraints
+        lambda(:,1) = [ones(1,1); zeros(5,1)];              %Stationkeeping constraints
         if (constraint_flag)
             lambda(:,1) = lambda(:,1) + E.'*dC;             %Final conditions on the primer vector
         end
 
         %Error analysis
-        J = jacobi_constant(mu, Sf);                        %Final Jacobi Constant
         alpha = E^(-1)*S(end,m+1:2*m).';                    %Final Floquet coordinates
         error = alpha(1:2);                                 %Error vector
         if (constraint_flag)
+            J = jacobi_constant(mu, Sf);                    %Final Jacobi Constant
             error = [error; J-Jref];
         end
 
         %Evaluate the initial conditions 
-        lambda(:,2) = expm(-J*tf)^(-1)*lambda(:,1);         %Initial primer vector conditions
+        lambda(:,2) = expm(J*tf)*lambda(:,1);               %Initial primer vector conditions
         GNC.Control.OPFSK.InitialPrimer = lambda(:,2);      %Initial primer vector
 
         %Re-integration of the trajectory
@@ -119,20 +119,16 @@ function [Sc, u, state] = PFSK_control(mu, T, tf, s0, tol, constraint, cost_func
         [~, ~, du] = GNCc_handler(GNC, S(:,1:m), S(:,m+1:end), tspan);
         u(:,1:size(du,2)) = u(:,1:size(du,2)) + du;
             
-        %Convergence analysis for the constrained case 
-        if (~constraint_flag)
+        %Convergence analysis 
+        if (norm(error) < tol)
             GoOn = false;
         else
-            if (norm(error) < tol)
-                GoOn = false;
-            else
-                iter = iter+1;
-            end
+            iter = iter+1;
         end
     end
 
     %Outputs 
-    Sc = S(:,1:m)+S(:,m+1:2*m);             %Final trajectory output
+    Sc = S(:,1:2*m);                        %Final trajectory output
     state.State = ~GoOn;                    %Convergence boolean
     state.Iterations = iter;                %Number of required iterations
     state.Error = norm(error);              %Final error
