@@ -263,16 +263,16 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
          
         case 'PFSK'
             %Stationkeeping parameters
-            J = GNC.Control.OPFSK.FloquetExponents;             %Floquet exponents of the reference trajectory
-            lambda = GNC.Control.OPFSK.InitialPrimer;           %Floquet modes of the reference trajectory
-            P = GNC.Control.OPFSK.FloquetDirections;            %Floquet modes of the reference trajectory
-            cost_function = GNC.Control.OPFSK.CostFunction;     %Cost function to minimize
+            J = GNC.Control.PFSK.FloquetExponents;             %Floquet exponents of the reference trajectory
+            lambda = GNC.Control.PFSK.InitialPrimer;           %Floquet modes of the reference trajectory
+            P = GNC.Control.PFSK.FloquetDirections;            %Floquet modes of the reference trajectory
+            cost_function = GNC.Control.PFSK.CostFunction;     %Cost function to minimize
 
             switch (cost_function)
                 case 'L1'
-                    Tmax = GNC.Control.OPFSK.MaxThrust;         %Maximum available thrust
+                    Tmax = GNC.Control.PFSK.MaxThrust;         %Maximum available thrust
                 otherwise
-                    Tmax = 0;                                   %Maximum available thrust
+                    Tmax = 0;                                  %Maximum available thrust
             end
 
             %Stationkeeping control law

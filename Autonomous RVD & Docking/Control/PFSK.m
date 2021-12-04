@@ -65,11 +65,11 @@ Jref = jacobi_constant(mu, s0(1:n).');
 constraint.Flag = false;                          %Constraint flag for energy tracking
 constraint.JacobiReference = Jref;               %Reference Jacobi Constant value
 cost_function = 'L1';                            %L1 norm minimization problem
-Tmax = 1e-3;                                      %Maximum available thrust
+Tmax = 1e-6;                                      %Maximum available thrust
 
 %% GNC: MLQR control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e2, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 1e1, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
@@ -96,9 +96,10 @@ toc
 %Final trajectory 
 St = [St; Staux(2:end,:)];
 St = St(:,1:n)+St(:,n+1:2*n);
- 
+
 %Error in time 
-[e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
+[e(:,1), merit(:,1)] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
+[e(:,2), merit(:,2)] = figures_merit(tspan, [Sr(:,1:n) abs(Sr(:,1:n)-Sn(1:size(Sr,1),1:n))]);
 
 %Control integrals
 energy = control_effort(tspan(1:size(u,2)), u, false);
@@ -150,6 +151,7 @@ plot(tspan, log(e));
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
 grid on;
+legend('Controlled', 'Natural')
 title('Absolute rendezvous error in the relative space');
 
 %Rendezvous animation 
