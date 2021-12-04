@@ -45,16 +45,15 @@ function [u] = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
                 p = -pinv(V)*expm(-J*t(i))*lambda; 
 
                 %Direction of the control vector
-                uv = p/norm(p);             
+                if (norm(p) ~= 0)
+                    uv = p/norm(p);
+                else
+                    uv = zeros(3,1);
+                end
 
                 %Final control vector
-                if (norm(p) > 1)
-                    u(:,i) = Tmax*uv;           %Final control law
-                elseif (norm(p) < 1)
-                    u(:,i) = zeros(3,1);        %Final control law
-                else 
-                    u(:,i) = Tmax*uv/2;         %Final control law
-                end
+                delta = 1e6;
+                u(:,i) = Tmax/(1+exp(-delta*(norm(p)-1)))*uv;
 
             case 'L2'
                 u(:,i) = -V.'*expm(-J*t(i))*lambda;          

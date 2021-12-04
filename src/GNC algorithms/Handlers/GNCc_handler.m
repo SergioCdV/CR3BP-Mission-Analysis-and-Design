@@ -68,6 +68,9 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
                 case 'SDRE'
                     Ci = GNC.Guidance.CTR.IntegralCoefficients;     %Coefficients of the Chebyshev approximation
                     g = Ci*T;                                       %Integral of the position trajectory
+                case 'HDRE'
+                    Ci = GNC.Guidance.CTR.IntegralCoefficients;     %Coefficients of the Chebyshev approximation
+                    g = Ci*T;                                       %Integral of the position trajectory
                 otherwise
                     Cg = GNC.Guidance.CTR.AccelerationCoefficients; %Coefficients of the Chebyshev approximation
                     g = Cg*T;                                       %Acceleration trajectory
@@ -77,7 +80,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             Sg = [p.' v.' g.'];                             
             
         otherwise
-            Sg = zeros(size(S,1), GNC.Guidance.Dimension); %No guidance requirements
+            Sg = zeros(size(S,1), GNC.Guidance.Dimension);          %No guidance requirements
     end
             
     %Control module
@@ -158,7 +161,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             target = GNC.Control.LQR.Reference; %Reference position of the target spacecraft
             
             %Control law
-            u = LQR_control(model, mu, Sg(:,1:6), Sn, target, Ln, gamma, Q, M);
+            u = LQR_control(model, mu, Sg, Sn, target, Ln, gamma, Q, M);
             
         case 'SDRE'
             %System characteristics 
@@ -172,7 +175,26 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             M = GNC.Control.SDRE.M;             %Penalty matrix on the control effort
             
             %Control law
-            u = SDRE_control(model, mu, Sg(:,1:6), Sn, St(:,1:6), Ln, gamma, Q, M);
+            u = SDRE_control(model, mu, Sg, Sn, St(:,1:6), Ln, gamma, Q, M);
+
+        case 'HDRE'
+            %System characteristics 
+            mu = GNC.System.mu;                 %Systems's reduced gravitational parameter
+            Ln = GNC.System.Libration(1);       %Libration point ID
+            gamma = GNC.System.Libration(2);    %Libration point distance to the neareast primary
+            
+            %Controller parameters
+            model = GNC.Control.H.Model;        %Linear model to use
+            SDRE = GNC.Control.H.SDRE_flag;     %Time-varying dynamics flag
+            W = GNC.Control.H.Variance;         %Variance of the noise vector
+            if (SDRE)
+                target = St;                    %Final desired target state
+            else
+                target = GNC.Control.H.Target;  %Final desired target state
+            end
+            
+            %Control law
+            u = HDRE_control(model, mu, Sg, Sn, target, Ln, gamma, SDRE, W);
             
         case 'SMC'
             %System characteristics 

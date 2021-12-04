@@ -97,6 +97,8 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
                 drho = [drho; s_r(7:9)];
             case 'LQR'
                 drho = [drho; s_r(7:9)];
+            case 'HDRE'
+                drho = [drho; s_r(7:9)];
             case 'SMC'
             case 'MLQR'
             case 'MFSK'

@@ -26,7 +26,7 @@
 
 % New versions: 
 
-function [u] = SDRE_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
+function [u] = HDRE_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
    %Approximation 
     n = 6;                              %Dimension of the approximation
     order = 2;                          %Order of the approximation 
@@ -64,11 +64,17 @@ function [u] = SDRE_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
                 cn = legendre_coefficients(mu, Ln, gamma, order);     %Compute the relative Legendre coefficient c2 
                 c2 = cn(2); 
                 Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
+
+                %Linear state model
+                A = [zeros(3) eye(3) zeros(3); Sigma Omega zeros(3); eye(3) zeros(3) zeros(3)]; 
                 
             case 'ULLM' 
                 cn = relegendre_coefficients(mu, r_t.', order);       %Compute the relative Legendre coefficient c2 
                 c2 = cn(2); 
                 Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];              %Linear model state matrix
+
+                %Linear state model
+                A = [zeros(3) eye(3) zeros(3); Sigma Omega zeros(3); eye(3) zeros(3) zeros(3)]; 
                 
             case 'RLM' 
                 %Relative position between the primaries and the target 
@@ -80,13 +86,17 @@ function [u] = SDRE_control(model, mu, Sg, Sn, St, Ln, gamma, Q, M)
                 %Evaluate the linear model 
                 Sigma = -((mup(1)/norm(Ur(:,1))^3)+(mup(2)/norm(Ur(:,2)))^3)*eye(3) ...
                         +3*((mup(1)/norm(Ur(:,1))^3)*(ur(:,1)*ur(:,1).')+(mup(2)/norm(Ur(:,2))^3)*(ur(:,2)*ur(:,2).'));
-                    
+
+                %Linear state model
+                A = [zeros(3) eye(3) zeros(3); Sigma Omega zeros(3); eye(3) zeros(3) zeros(3)]; 
+
+            case 'Numerical'
+                %Linear state model
+                A = [rel_jacobian(mu, [St Sn].') zeros(6,3); eye(3) zeros(3) zeros(3)];  
+
             otherwise 
                 error('No valid linear model was selected'); 
         end
-
-        %Linear state model
-        A = [zeros(3) eye(3) zeros(3); Sigma Omega zeros(3); eye(3) zeros(3) zeros(3)]; 
 
         %Compute the feedback control law
         [K,~,~] = lqr(A,B,Q,M);

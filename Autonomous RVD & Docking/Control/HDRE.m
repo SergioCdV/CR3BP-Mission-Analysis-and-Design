@@ -1,17 +1,13 @@
-
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 01/04/21 % 
+% 04/12/21 % 
 
-%% GNC 3: LQR/SDRE control law %% 
-% This script provides an interface to test LQR rendezvous strategies for
+%% GNC 3: H-SDRE control law %% 
+% This script provides an interface to test H norm optimal controllers rendezvous strategies for
 % rendezvous missions.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
-
-% The classical LQR and the SDRE, with their discrete versions, in three
-% different linear models.
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
 % points reference frame as defined by Howell, 1984.
@@ -85,28 +81,20 @@ Sn = S;
 %Reconstructed chaser motion 
 S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chaser motion via Encke method
 
-%% Controlability analysis
-model = 'RLM';
-%controlable = controlability(model, mu, S, index, Ln, gamma);
-
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'SDRE';                %Control algorithm
+GNC.Algorithms.Control = 'HDRE';                %Control algorithm
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 
 GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
 GNC.System.Libration = [Ln gamma];              %Libration point ID
-
-GNC.Control.LQR.Model = model;                  %LQR model
-GNC.Control.SDRE.Model = model;                 %SDRE model
-GNC.Control.LQR.Q = 2*eye(9);                   %Penalty on the state error
-GNC.Control.LQR.M = eye(3);                     %Penalty on the control effort
-GNC.Control.LQR.Reference = Sn(index,1:3);      %Penalty on the control effort
-GNC.Control.SDRE.Q = 2*eye(9);                  %Penalty on the state error
-GNC.Control.SDRE.M = eye(3);                    %Penalty on the control effort
+GNC.Control.H.Model = 'RLM';                    %HDRE model
+GNC.Control.H.SDRE_flag = false;                %Time-varying dynamics flag
+GNC.Control.H.Target = Sn(index,1:3);           %Final desired target stat
+GNC.Control.H.Variance = 1e-7*eye(6);           %Variance matrix of the disturbances
 
 %% GNC: SDRE/LQR control law
 %Initial conditions 
