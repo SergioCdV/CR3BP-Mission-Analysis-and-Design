@@ -88,7 +88,7 @@ Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
 
 %Compute the stationkeeping trajectory
 tf = pi;                                           %Stationkeeping time
-[St, u, state] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, constraint, cost_function, Tmax);
+[St, u] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, constraint, cost_function, Tmax);
 tic
 [~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), St(end,:), options);
 toc
