@@ -43,8 +43,8 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration toleran
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Initial conditions and time span 
-K = 5;                                  %Number of periods to integrate
-s0 = halo_orbit.Trajectory(1,1:6).';       %Initial conditions
+K = 5;                                   %Number of periods to integrate
+s0 = halo_orbit.Trajectory(1,1:6).';     %Initial conditions
 dt = 1e-3;                               %Time step
 tspan = 0:dt:K*halo_orbit.Period;        %Integration time span
 
@@ -58,14 +58,24 @@ toc
 
 %Encke's integration 
 setup.Method = 'Encke';
-setup.LagrangePointID = 1;
-setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
+S0 = s0; 
 
-s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
-tic
-[t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
-toc
-S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
+S_E = zeros(size(S_N));
+
+index = [1 2 4 5];
+for i = 1:length(index)
+    setup.LagrangePointID = index(i);
+    setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
+    
+    s0 = S0; 
+    s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
+    tic
+    [t, Saux] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
+    toc
+    S_E = S_E + Saux; 
+    S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
+end
+S_E = S_E/i;
 
 %Compute the error with respect to the differentially corrected orbit 
 e = zeros(2,size(S_E,1));       %Preallocation 

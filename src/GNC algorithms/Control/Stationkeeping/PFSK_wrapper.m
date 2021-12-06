@@ -24,7 +24,6 @@
 
 % New versions: 
 
-
 function [Sc, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, Tmax)
     %Constants 
     m = 6;       %Phase space dimension
@@ -73,7 +72,6 @@ function [Sc, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function,
     for j = 1:size(F,2)
         F(:,j) = F(:,j)/J(j,j);                                 %Floquet basis initial conditions
     end
-    P = F*expm(-J*mod(tf,T));                                   %Full Floquet projection matrix
 
     GNC.Control.PFSK.FloquetExponents = J;                      %Floquet exponents of the reference trajectory
     GNC.Control.PFSK.FloquetDirections = F;                     %Floquet directions of the reference trajectory
@@ -82,50 +80,42 @@ function [Sc, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function,
     GoOn = true;                                                %Convergence boolean
     maxIter = 100;                                              %Maximum initial iterations
     iter = 0;                                                   %Initial iteration
+    tol = 1e-10;                                                %Differential corrector tolerance
 
     %Main computation
     while (GoOn && (iter < maxIter))
         %Evaluate the final error 
         M = reshape(Saux(end,2*m+1:end), [m m]);                    %Instantenous Monodromy matrix
+        P = F*expm(-J*mod(tf,T));                                   %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
 
         Sf = Saux(end,1:m).'+Saux(end,m+1:2*m).';                   %Final absolute location
-        alpha = E^(-1)*Saux(end,m+1:2*m).';                         %Final Floquet coordinates
-        alpha(1)
+        alpha(:,1) = zeros(6,1);                                    %Initial Floquet coordinates
+        alpha(:,2) = E^(-1)*Saux(end,m+1:2*m).';                    %Final Floquet coordinates
         if (constraint_flag)
             C = jacobi_constant(mu, Sf);                            %Final Jacobi Constant
-            error = [alpha(1); C-Cref];                             %Error vector
+            error = [alpha(:,1); alpha(:,2); C-Cref];               %Error vector
         else
-            error = alpha(1);                                       %Error vector
+            error = [alpha(:,1); alpha(:,2)];                       %Error vector
         end
 
-        if (iter == 0)
-            %Initial stationkeeping constraints guess 
-            if (norm(error) ~= 0)
-                lambda(:,1) = [alpha(1:2)/norm(alpha(1:2)); zeros(4,1)];                      
-            else
-                lambda(:,1) = zeros(6,1);                       
-            end
-
-            if (constraint_flag)
-                dC = jacobi_gradient(mu, Sf);                   %Gradient of the Jacobi Constant at the final time
-                lambda(:,1) = lambda(:,1) + E.'*dC;             %Final conditions on the primer vector
-            end
-
-            %Evaluate the initial conditions 
-            lambda(:,2) = expm(J*tf)*lambda(:,1);               %Initial primer vector conditions
-            GNC.Control.PFSK.InitialPrimer = lambda(:,2);       %Initial primer vector
-
-        else
+        if (iter ~= 0)
             %Sensitivity analysis 
-
+            A = STM_dynamics(tf, E, GNC);
+            STM = expm(A*tf);
+    
             %Compute the differential corrector step 
-            ds = -pinv(STM)*error; 
+            ds = -STM\error; 
     
             %Re-evaluate the initial conditions 
-            lambda(:,2) = lambda(:,2) + ds;                     %Initial primer vector conditions
+            lambda(:,2) = lambda(:,2) + ds(m+1:end);            %Initial primer vector conditions
+            GNC.Control.PFSK.InitialPrimer = lambda(:,2);       %Initial primer vector
+        else
+            %Initial co-state guess 
+            lambda(:,2) = expm(J.'*tf)*alpha(:,2); 
             GNC.Control.PFSK.InitialPrimer = lambda(:,2);       %Initial primer vector
         end
+        norm(error)
 
         %Re-integration of the trajectory
         [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
@@ -143,7 +133,52 @@ function [Sc, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function,
 
     %Outputs 
     Sc = Saux(:,1:2*m);                     %Final trajectory output
+    state.State = ~GoOn;                    %Final convergence
     state.Error = norm(error);              %Final error
+    state.Iter = iter;                      %Final iteration
+end
+
+%% Auxiliary functions 
+% STM dynamics 
+function [A] = STM_dynamics(t, F, GNC)
+    % Constants 
+    m = 6;          % Dimension of the STM 
+    delta = 1e6;    % Saturation coefficient
+
+    J = GNC.Control.PFSK.FloquetExponents;             %Floquet exponents of the reference trajectory
+    lambda = GNC.Control.PFSK.InitialPrimer;           %Floquet modes of the reference trajectory
+    cost_function = GNC.Control.PFSK.CostFunction;     %Cost function to minimize
+
+    switch (cost_function)
+        case 'L1'
+            Tmax = GNC.Control.PFSK.MaxThrust;         %Maximum available thrust
+        otherwise
+            Tmax = 0;                                  %Maximum available thrust
+    end
+
+    % Compute the control law 
+    B = [zeros(3,3); eye(3)];           %Control input matrix in the synodic frame
+
+    %Compute the projected control matrix in the Floquet space 
+    V = F^(-1)*B;
+    p = -V.'*expm(-J.'*t)*lambda;       %Primer vector 
+
+    %Switch depending on the cot function to minimize
+    switch (cost_function)
+        case 'L1' 
+            %Final control vector
+            Gamma = -V*V.'*Tmax/(1+exp(-delta*(norm(p)-1)));
+
+         case 'L2'
+            %Final control vector
+            Gamma = -V*V.';          
+
+         otherwise
+            error('No valid vector norm to be minimized was selected');
+    end
+
+    % Compute the variational equations 
+    A = [J Gamma; zeros(m,m) -J.']; 
 end
 
 %% Auxiliary schemes

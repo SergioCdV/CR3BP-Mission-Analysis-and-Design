@@ -1,9 +1,9 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 24/11/21 % 
+% 06/12/21 % 
 
-%% GNC 3: MFSK control law %% 
-% This script provides an interface to test the MFSK strategies for optimal long term stationkeeping.
+%% GNC 13: Center Manifold Lissajous Guidance %% 
+% This script provides an interface to test the CML guidance core.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
 % Earth-Moon system is analyzed.
@@ -24,6 +24,8 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
+tf = 2.1;                             %Rendezvous time
+tspan = 0:dt:tf;                    %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -37,7 +39,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -50,61 +52,43 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+%Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
+num = 2;                                                            %Number of orbits to continuate
+method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                                      %Differential corrector method
+direction = 1;                                                      %Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                                 %General setup
+
+[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+
 %% Modelling in the synodic frame %%
+r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
+r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
+rho0 = r_c0-r_t0;                                                   %Initial relative conditions
+s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
+
 %Integration of the model
-s0 = target_orbit.Trajectory(1,1:6);
-s0 = [s0 reshape(eye(n), [1 n^2])];
-tspan = 0:dt:target_orbit.Period;
-[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
-Sn = S;     
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+Sn = S;                
 
-%Reference Jacobi Constant
-Jref = jacobi_constant(mu, s0(1:n).');
+%Reconstructed chaser motion 
+Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
 
-%% GNC algorithms definition 
-constraint.Flag = false;                          %Constraint flag for energy tracking
-constraint.JacobiReference = Jref;               %Reference Jacobi Constant value
-cost_function = 'L1';                            %L1 norm minimization problem
-Tmax = 1e-4;                                      %Maximum available thrust
+%% Generate the guidance trajectory
+%Guidance trajectory
+[Str, V2, state(1)] = CML_guidance(mu, Ln, gamma, tf, [r_t0 r_c0], tol);
+St = Str(:,1:6)+Str(:,7:12);
 
-%% GNC: MLQR control law
-%Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e2, 'Position', 0);  
+if (true)
+    Tsyn = (target_orbit.Period*chaser_orbit.Period)/(target_orbit.Period + chaser_orbit.Period);
+    [Str, V2, state(2)] = CMC_guidance(mu, Tsyn, tf, [St(1,1:m) r_c0], tol);
+end
 
-%Initial conditions 
-r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
-s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
-
-m = 2;
-tspan = 0:dt:m*target_orbit.Period;             %Integration time span
-
-%Compute the reference trajectory
-s0 = [r_t0 s0-r_t0];
-Sn = repmat(Sn, m, 1);
-
-%Compute the natural trajectory
-[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
-Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
-
-%Compute the stationkeeping trajectory
-tf = pi;                                           %Stationkeeping time
-[St, u, state] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, constraint, cost_function, Tmax);
-tic
-[~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), St(end,:), options);
-toc
-
-%Final trajectory 
-St = [St; Staux(2:end,:)];
-St = St(:,1:n)+St(:,n+1:2*n);
-
-%Error in time 
-[e(:,1), merit(:,1)] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
-[e(:,2), merit(:,2)] = figures_merit(tspan, [Sr(:,1:n) abs(Sr(:,1:n)-Sn(1:size(Sr,1),1:n))]);
-
-%Control integrals
-energy = control_effort(tspan(1:size(u,2)), u, false);
-
-%% Results %% 
+%% Results 
 %Plot results 
 figure(1) 
 view(3) 
@@ -117,16 +101,16 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Reference orbit', 'Natural orbit', 'Stationkeeping orbit')
+legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit')
 title('Target trajectory in time');
 
 %Configuration space evolution
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,1)); 
-plot(tspan, St(:,2)); 
-plot(tspan, St(:,3)); 
+plot(tspan, Str(:,1)); 
+plot(tspan, Str(:,2)); 
+plot(tspan, Str(:,3)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Configuration coordinates');
@@ -135,24 +119,15 @@ legend('$x$', '$y$', '$z$');
 title('Position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,4)); 
-plot(tspan, St(:,5)); 
-plot(tspan, St(:,6)); 
+plot(tspan, Str(:,4)); 
+plot(tspan, Str(:,5)); 
+plot(tspan, Str(:,6)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Velocity coordinates');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Velocity in time');
-
-%Error plot
-figure(4)
-plot(tspan, log(e)); 
-xlabel('Nondimensional epoch');
-ylabel('Absolute error $\log{e}$');
-grid on;
-legend('Controlled', 'Natural')
-title('Absolute rendezvous error in the relative space');
 
 %Rendezvous animation 
 if (false)

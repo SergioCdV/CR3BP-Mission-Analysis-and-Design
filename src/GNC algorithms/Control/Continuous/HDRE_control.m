@@ -49,11 +49,11 @@ function [u] = HDRE_control(model, mu, Sg, Sn, St, Ln, gamma, SDRE, W)
     %Control input matrix 
     B = [zeros(n/2); eye(n/2); zeros(n/2)];         %Linear model input matrix 
     Bn = [eye(6)*W; zeros(3,6)];                    %Noise input matrix           
-    Bt = [Bn 1e6*B];                                %Total input matrix
+    Bt = [Bn B];                                    %Total input matrix
     ncont = 3;                                      %Number of control inputs
 
     %Performance 
-    pole = 1; 
+    pole = 1e-3; 
 
     %Time-invariant plant
     if (~SDRE)
@@ -62,7 +62,7 @@ function [u] = HDRE_control(model, mu, Sg, Sn, St, Ln, gamma, SDRE, W)
         P = ss(A, Bt, C, D);
 
         %H-infty controller
-        [K, ~, ~] = hinffi(P, ncont, pole);              
+        [K, ~, pole] = hinffi(P, ncont, pole);              
     end
 
     %Compute the trajectory

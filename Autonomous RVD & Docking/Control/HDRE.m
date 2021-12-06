@@ -69,7 +69,7 @@ setup = [mu maxIter tol direction];                                 %General set
 
 %% Modelling in the synodic frame %%
 index = fix(tf/dt);                                         %Rendezvous point
-r_t0 = target_orbit.Trajectory(100,1:6);                    %Initial target conditions
+r_t0 = target_orbit.Trajectory(500,1:6);                    %Initial target conditions
 r_c0 = target_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
