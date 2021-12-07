@@ -65,7 +65,7 @@ Jref = jacobi_constant(mu, s0(1:n).');
 constraint.Flag = false;                          %Constraint flag for energy tracking
 constraint.JacobiReference = Jref;                %Reference Jacobi Constant value
 cost_function = 'L1';                             %L1 norm minimization problem
-Tmax = 1e-5;                                      %Maximum available thrust
+Tmax = 1e-1;                                      %Maximum available thrust
 
 %% GNC: MLQR control law
 %Noise gain
@@ -87,7 +87,7 @@ Sn = repmat(Sn, m, 1);
 Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
 
 %Compute the stationkeeping trajectory
-tf = 0.05;                                           %Stationkeeping time
+tf = 0.1;                                           %Stationkeeping time
 [St, u, state] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, constraint, cost_function, Tmax);
 tic
 [~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), St(end,1:2*n), options);

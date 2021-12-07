@@ -42,7 +42,7 @@ function [u] = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
         switch (cost_function)
             case 'L1' 
                 %Primer vector 
-                p = -pinv(V)*expm(-J*t(i))*lambda; 
+                p = -V.'*expm(-J.'*t(i))*lambda; 
 
                 %Direction of the control vector
                 if (norm(p) ~= 0)

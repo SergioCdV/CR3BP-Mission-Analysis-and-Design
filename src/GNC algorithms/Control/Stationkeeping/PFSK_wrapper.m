@@ -82,19 +82,20 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, 
     GNC.Control.PFSK.FloquetDirections = F;                     %Floquet directions of the reference trajectory
 
     for i = 1:length(tspan)-1
-        %Compute the initial guess
+        %Compute the initial guess        
         M = reshape(Saux(end,2*m+1:end), [m m]);                    %Instantenous Monodromy matrix
-        P = F*expm(-J*mod(tf-tspan(i),T));                          %Full Floquet projection matrix
+        P = F*expm(-J*mod(tspan(i),T));                             %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
-    
-        alpha(:,1) = F^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
+        alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
+        P = F*expm(-J*mod(tf-tspan(i),T));                          %Full Floquet projection matrix
+        E = M*P;  
         alpha(:,2) = E^(-1)*Saux(end,m+1:2*m).';                    %Final Floquet coordinates
-        lambda(:,2) = [1; -1; zeros(4,1)];                          %Final co-state guess 
+        lambda(:,2) = 10*ones(6,1);                                    %Final co-state guess 
         lambda(:,1) = expm(J.'*(tf-tspan(i)))*lambda(:,2);          %Initial co-state guess
-        GNC.Control.PFSK.InitialPrimer = lambda(:,1);               %Initial primer vector
+        GNC.Control.PFSK.InitialPrimer = lambda(:,2);               %Initial primer vector
     
         %Initial guess for the numerical method
-        nsteps = length(0:dt:tf-tspan(i));
+        nsteps = 10*length(0:dt:tf-tspan(i));
         solinit.x = linspace(0, tf-tspan(i), nsteps);
         solinit.y = repmat([alpha(:,1); lambda(:,1)], 1, nsteps);
     
@@ -129,7 +130,7 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, 
     u(:,i+1) = zeros(3,1);
 
     %Outputs 
-    S = S(:,1:2*m);                        %Final trajectory output
+    S = S(:,1:2*m);            %Final trajectory output
     state.Error = dalpha;      %Final error
 end
 
@@ -156,7 +157,7 @@ function [dB] = bounds(x, x2, alpha0)
     dB(1:m) = x(1:m)-alpha0;
 
     %Final state constraints
-    dB(m+1:2*m) = [x2(7)-1; x2(8)+1; x2(m+3:end)];
+    dB(m+1:2*m) = [x2(7)-1; x2(m+2:end)];
 end
 
 % Variational dynamics
