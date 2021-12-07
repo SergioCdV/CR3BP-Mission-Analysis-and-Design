@@ -24,8 +24,8 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 2.1;                             %Rendezvous time
-tspan = 0:dt:tf;                    %Integration time span
+tf = 1;                             %Rendezvous time
+tspan = 0:dt:pi;                    %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -54,7 +54,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 2;                                                            %Number of orbits to continuate
+num = 20;                                                           %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -80,13 +80,12 @@ Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed
 
 %% Generate the guidance trajectory
 %Guidance trajectory
-[Str, V2, state(1)] = CML_guidance(mu, Ln, gamma, tf, [r_t0 r_c0], tol);
-St = Str(:,1:6)+Str(:,7:12);
+Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit.Period);
+constraint.Flag = false; 
+constraint.Period = Tsyn; 
 
-if (true)
-    Tsyn = (target_orbit.Period*chaser_orbit.Period)/(target_orbit.Period + chaser_orbit.Period);
-    [Str, V2, state(2)] = CMC_guidance(mu, Tsyn, tf, [St(1,1:m) r_c0], tol);
-end
+[Str, V(:,1:2), state(1)] = CMC_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
+St = Str(:,1:6)+Str(:,7:12);
 
 %% Results 
 %Plot results 
@@ -108,9 +107,9 @@ title('Target trajectory in time');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan, Str(:,1)); 
-plot(tspan, Str(:,2)); 
-plot(tspan, Str(:,3)); 
+plot(tspan(1:size(Str,1)), Str(:,1)); 
+plot(tspan(1:size(Str,1)), Str(:,2)); 
+plot(tspan(1:size(Str,1)), Str(:,3)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Configuration coordinates');
@@ -119,9 +118,9 @@ legend('$x$', '$y$', '$z$');
 title('Position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, Str(:,4)); 
-plot(tspan, Str(:,5)); 
-plot(tspan, Str(:,6)); 
+plot(tspan(1:size(Str,1)), Str(:,4)); 
+plot(tspan(1:size(Str,1)), Str(:,5)); 
+plot(tspan(1:size(Str,1)), Str(:,6)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Velocity coordinates');
