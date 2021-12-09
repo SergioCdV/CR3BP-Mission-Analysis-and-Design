@@ -267,6 +267,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             lambda = GNC.Control.PFSK.InitialPrimer;           %Floquet modes of the reference trajectory
             P = GNC.Control.PFSK.FloquetDirections;            %Floquet modes of the reference trajectory
             cost_function = GNC.Control.PFSK.CostFunction;     %Cost function to minimize
+            T = GNC.Control.PFSK.Period;                       %Orbital period of the target orbit
 
             switch (cost_function)
                 case 'L1'
@@ -276,7 +277,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             end
 
             %Stationkeeping control law
-            u = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax); 
+            u = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax); 
 
         otherwise
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements

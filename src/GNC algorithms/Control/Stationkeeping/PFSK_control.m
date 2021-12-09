@@ -10,6 +10,7 @@
 
 % Inputs: - vector Sn, the chaser spacecraft state
 %         - vector t, the elapsed time
+%         - scalar T, the orbital period of the target orbit
 %         - array J, the Floquet exponents matrix
 %         - vector lambda, the initial conditions for the primer vector
 %         - string cost_function, to optimize on the l1 or l2 norm of the
@@ -20,7 +21,7 @@
 
 % New versions: 
 
-function [u] = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
+function [u] = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax)
     %Constants 
     m = 6;       %Phase space dimension
 
@@ -33,7 +34,7 @@ function [u] = PFSK_control(t, Sn, P, J, lambda, cost_function, Tmax)
     for i = 1:size(Sn,1)
         %Reassemble the Floquet projection matrix 
         Phi = reshape(Sn(i,m+1:end), [m m]);
-        F = Phi*P*expm(-J*t(i));
+        F = Phi*P*expm(-J*mod(t(i),T));
 
         %Compute the projected control matrix in the Floquet space 
         V = F^(-1)*B;
