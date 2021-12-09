@@ -15,7 +15,8 @@
 %         - structure constraint, specifying any constraint on the maneuver
 %         - string cost_function, to optimize on the l1 or l2 norm of the
 %           control vector
-%         - vector Tmax, the maximum available thrust
+%         - vector Tmax, an initial guess for the maximum available thrust
+%         - string solver, to select a T2BP solver of an algebraic one
 
 % Output: - array Sc, the stationkeeping trajectory
 %         - array u, containing the required control law
@@ -24,7 +25,7 @@
 
 % New versions: 
 
-function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, Tmax)
+function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, Tmax, solver)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -66,7 +67,7 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, 
     
     GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
     GNC.Control.PFSK.CostFunction = cost_function;      %Cost function to optimize
-    GNC.Control.PFSK.MaxThrust = Tmax;                  %Maximum available thurst
+    GNC.Control.PFSK.MaxThrust = Tmax;                  %Maximum available thrust
 
     %Floquet analysis                                             
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), 0:dt:T, s0, options);
@@ -90,23 +91,39 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, 
         P = F*expm(-J*mod(tf-tspan(i),T));                          %Full Floquet projection matrix
         E = M*P;  
         alpha(:,2) = E^(-1)*Saux(end,m+1:2*m).';                    %Final Floquet coordinates
-        lambda(:,2) = 10*ones(6,1);                                    %Final co-state guess 
+        lambda(:,2) = ones(6,1);                                    %Final co-state guess 
         lambda(:,1) = expm(J.'*(tf-tspan(i)))*lambda(:,2);          %Initial co-state guess
         GNC.Control.PFSK.InitialPrimer = lambda(:,2);               %Initial primer vector
+
+        switch (solver)
+            case 'BVP4C'
+                %Initial guess for the numerical method
+                nsteps = 10*length(0:dt:tf-tspan(i));
+                solinit.x = linspace(0, tf-tspan(i), nsteps);
+                solinit.y = repmat([alpha(:,1); lambda(:,1)], 1, nsteps);
+            
+                %Set optimizer options
+                options = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
+            
+                %Solve the problem 
+                sol = bvp4c(@(t,s)dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1)), solinit, options);
     
-        %Initial guess for the numerical method
-        nsteps = 10*length(0:dt:tf-tspan(i));
-        solinit.x = linspace(0, tf-tspan(i), nsteps);
-        solinit.y = repmat([alpha(:,1); lambda(:,1)], 1, nsteps);
-    
-        %Set optimizer options
-        options = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
-    
-        %Solve the problem 
-        sol = bvp4c(@(t,s)dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1)), solinit, options);
-    
-        %Re-compute the physical trajectory 
-        GNC.Control.PFSK.InitialPrimer = sol.y(m+1:2*m,1);     %Initial primer vector
+                %New initial primer vector
+                GNC.Control.PFSK.InitialPrimer = sol.y(m+1:2*m,1);    
+
+            case 'Newton'
+                %Solve the dual minimum time/fuel problem usign a Newton method
+                initial_guess = [alpha(:,1); lambda(:,1); tf; Tmax];
+                sol = fsolve(@(t,s)pfskivp(t, s, alpha, GNC), initial_guess, options);
+
+                %Solution setup
+                GNC.Control.PFSK.InitialPrimer = sol(1:m);       %New initial primer vector   
+                GNC.Control.PFSK.MaxThrust = sol(end);           %Maximum available thrust
+                tspan = 0:dt:sol(end-1);                         %New integration time span
+
+            otherwise
+                error('No valid solver was selected');
+        end
     
         %Re-integration of the trajectory
         options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
@@ -135,6 +152,50 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, cost_function, 
 end
 
 %% Auxiliary functions 
+% Floquet stationkeeping IVP
+function [e] = pfskivp(~, s, GNC, alpha0)
+    %Variables of interest 
+    m = 6;                      %Phase space dimension
+    tf = s(end-1);              %Minimum time of flight
+    Tmax = s(end);              %Maximum thrust
+    lambda = s(1:m);            %Initial co-state
+    s0 = [alpha0; lambda];      %Initial conditions for the IVP
+
+    GNC.Control.PFSK.MaxThrust = Tmax;                          %Maximum available thrust set up
+    problem = GNC.Control.PFSK.Problem;                         %Optimal problem to be solved
+    beta = GNC.Control.PFSK.Beta;                               %Weigth of the minimum fuel problem
+
+    %Integration tolerance and setup 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+    dt = 1e-3;                                                  %Integration time step 
+    tspan = 0:dt:tf;                                            %Integration time span
+
+    %Prepare and solve the IVP 
+    [t, Saux] = ode113(@(t,s)dynamics(t, s, GNC), tspan, s0, options);
+
+    %Evaluate the control law along the trajectory 
+    [~, ~, u] = GNCc_handler(GNC, Saux(:,1:m), Saux(:,1:m), tspan);
+    T = norm(u(:,end)); 
+
+    %Compute the Hamiltonian of the problem evaluated at tf 
+    alpha = Saux(end,1:m).';                        %Final Floquet coordinates
+    lambda = Saux(end,m+1:2*m).';                   %Final co-state
+    dS = dynamics(0, Saux(end,1:2*m).', GNC);       %Final dynamics vector field
+    H = 1 + beta*T + dot(lambda, dS);               %Final problem Hamiltonian
+
+    %Add the rest of the boundary conditions
+    switch (problem)
+        case 'Strict'
+            e = [alpha(1); alpha(2:end)-alpha0(2:end); t-tf; H];                  
+        case 'Minimization'
+            e = [lambda(1)-1; lambda(2:end); t-tf; H];             
+        case 'Rendezvous'
+            e = [alpha; t-tf; H];                              
+        otherwise
+            error('No valid optimal control problem was selected')
+    end
+end
+
 % Optimal problem dynamics 
 function [ds] = dynamics(t, s, GNC)
     % Constants 
@@ -148,7 +209,7 @@ function [ds] = dynamics(t, s, GNC)
     ds = A*s(1:2*m);
 end
 
-% Two-boundary value problem
+% Two-boundary value problem constraints
 function [dB] = bounds(x, x2, alpha0)
     %Constants 
     m = 6;          %Phase space dimension 
@@ -157,7 +218,7 @@ function [dB] = bounds(x, x2, alpha0)
     dB(1:m) = x(1:m)-alpha0;
 
     %Final state constraints
-    dB(m+1:2*m) = [x2(7)-1; x2(m+2:end)];
+    dB(m+1:2*m) = [x2(1); x2(2:6)-alpha0(2:end)];
 end
 
 % Variational dynamics
