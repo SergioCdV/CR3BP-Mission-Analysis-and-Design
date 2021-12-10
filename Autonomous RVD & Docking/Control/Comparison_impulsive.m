@@ -165,33 +165,8 @@ zlabel('Synodic $z$ coordinate');
 grid on;
 title('Motion in the relative configuration space');
 
-%Configuration space evolution
-figure(3)
-subplot(1,2,1)
-hold on
-plot(tspan, St_mpc(:,7)); 
-plot(tspan, St_mpc(:,8)); 
-plot(tspan, St_mpc(:,9)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinates');
-grid on;
-legend('$x$', '$y$', '$z$');
-title('Relative position in time');
-subplot(1,2,2)
-hold on
-plot(tspan, St_mpc(:,10)); 
-plot(tspan, St_mpc(:,11)); 
-plot(tspan, St_mpc(:,12)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinates');
-grid on;
-legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Relative velocity in time');
-
 %Configuration space error 
-figure(4)
+figure(3)
 hold on 
 plot(tspan, log(e_tiss));
 plot(tspan, log(e_miss));
@@ -211,7 +186,7 @@ plot(tspan(indexOfInterest), e_mpc(indexOfInterest))
 hold off
 axis tight
 
-figure(5)
+figure(4)
 view(3) 
 hold on
 c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
@@ -248,4 +223,53 @@ if (false)
         delete(V);
     end
     hold off
+end
+%%
+plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss);
+
+%% Auxiliary functions 
+%Function to plot the three relative state evolutions in the same figure 
+function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
+    %Assemble the three of them in a single array 
+    St = [St_mpc; St_tiss; St_miss]; 
+
+    %Line format array 
+    lines = {'-' '-.' '-.'};
+
+    %Colors
+    colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
+
+    %Markers 
+    markers = {'none', 'none', '*'};
+    markers_size = [6, 5, 6];
+    
+    figure
+    for i = 1:3
+        %Configuration space evolution
+        subplot(1,2,1)
+        hold on
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:22:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:55:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:105:length(tspan)); 
+        hold off
+    end
+    legend('$x$', '$y$', '$z$');
+    xlabel('Nondimensional epoch');
+    ylabel('Relative configuration coordinates');
+    grid on;
+    title('Relative position in time');
+
+    for i = 1:3
+        subplot(1,2,2)
+        hold on
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:35:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:55:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:105:length(tspan)); 
+        hold off
+        legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
+    end
+    xlabel('Nondimensional epoch');
+    ylabel('Relative velocity coordinates');
+    grid on;
+    title('Relative velocity in time');
 end
