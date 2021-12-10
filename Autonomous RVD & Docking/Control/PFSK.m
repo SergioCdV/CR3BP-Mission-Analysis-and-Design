@@ -65,15 +65,15 @@ Jref = jacobi_constant(mu, s0(1:n).');
 constraint.Flag = false;                          %Constraint flag for energy tracking
 constraint.JacobiReference = Jref;                %Reference Jacobi Constant value
 cost_function = 'L1';                             %L1 norm minimization problem
-Tmax = 0.1;                                      %Maximum available thrust
-problem = 'Rendezvous';                         %Optimal problem to solve
+Tmax = 1e-8;                                      %Maximum available thrust
+problem = 'Strict';                         %Optimal problem to solve
 beta = 1;                                         %Weight of the mininium fuel problem
 tf = 0.1;                                         %Time of flight
 solver = 'Newton';                                %Solver to be used
 
-%% GNC: MLQR control law
+%% GNC: PFSK control law
 %Noise gain
-k = dimensionalizer(Lem, 1, 1, 1e1, 'Position', 0);  
+k = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);  
 
 %Initial conditions 
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions

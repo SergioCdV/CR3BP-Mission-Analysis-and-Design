@@ -39,12 +39,12 @@ function [u] = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax)
         %Compute the projected control matrix in the Floquet space 
         V = F^(-1)*B;
 
+        %Primer vector 
+        p = -V.'*expm(-J.'*t(i))*lambda; 
+
         %Switch depending on the cot function to minimize
         switch (cost_function)
             case 'L1' 
-                %Primer vector 
-                p = -V.'*expm(-J.'*t(i))*lambda; 
-
                 %Direction of the control vector
                 if (norm(p) ~= 0)
                     uv = p/norm(p);
@@ -57,7 +57,7 @@ function [u] = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax)
                 u(:,i) = Tmax/(1+exp(-delta*(norm(p)-1)))*uv;
 
             case 'L2'
-                u(:,i) = -V.'*expm(-J*t(i))*lambda;          
+                u(:,i) = p;          
 
             otherwise
                 error('No valid vector norm to be minimized was selected');

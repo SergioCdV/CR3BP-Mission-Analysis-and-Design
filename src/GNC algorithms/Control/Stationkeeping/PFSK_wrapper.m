@@ -86,6 +86,8 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     GNC.Control.PFSK.FloquetExponents = J;                      %Floquet exponents of the reference trajectory
     GNC.Control.PFSK.FloquetDirections = F;                     %Floquet directions of the reference trajectory
 
+    lambda(:,1) = [1; zeros(5,1)];                              %Initial co-state guess
+
     %Receding window
     for i = 1:length(tspan)-1
         %Compute the initial guess        
@@ -93,9 +95,9 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
         P = F*expm(-J*mod(tspan(i),T));                             %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
         alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
-        lambda(:,1) = ones(m,1);                                   %Initial co-state guess
+        lambda(:,1) = [1; zeros(5,1)];                              %Initial primer vector
         GNC.Control.PFSK.InitialPrimer = lambda(:,1);               %Initial primer vector
-
+    
         switch (solver)
             case 'BVP4C'
                 %Initial guess for the numerical method
@@ -107,21 +109,22 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 options = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
             
                 %Solve the problem 
-                sol = bvp4c(@(t,s)dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1), GNC), solinit, options);
+                sol = bvp4c(@(t,s)floquet_dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1), GNC), solinit, options);
     
                 %New initial primer vector
                 GNC.Control.PFSK.InitialPrimer = sol.y(m+1:2*m,1);    
 
             case 'Newton'
                 %Solve the dual minimum time/fuel problem usign a Newton method
+                foptions = optimoptions('fsolve', 'Display', 'none', 'StepTolerance', 1e-10); 
                 initial_guess = [lambda(:,1); tf; Tmax];
-                sol = fsolve(@(s)pfskivp(s, GNC, alpha(:,1)), initial_guess);
+                [sol, fval, exitflag, output] = fsolve(@(s)pfskivp(s, GNC, alpha(:,1)), initial_guess, foptions);
 
                 %Solution setup
                 GNC.Control.PFSK.InitialPrimer = sol(1:m);       %New initial primer vector   
-                Tmax = sol(end);                                 %New maximum needed thrust
+                Tmax = real(sol(end));                           %New maximum needed thrust
                 GNC.Control.PFSK.MaxThrust = Tmax;               %Maximum available thrust
-                tf = sol(end-1);                                 %New final time
+                tf = real(sol(end-1));                           %New final time
                 tspan = 0:dt:tf;                                 %New integration time span
 
             otherwise
@@ -150,8 +153,8 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     u(:,i+1) = zeros(3,1);
 
     %Outputs 
-    S = S(:,1:2*m);            %Final trajectory output
-    state.Error = dalpha;      %Final error
+    S = S(:,1:2*m);                      %Final trajectory output
+    state.Error = norm(alpha(1,1));      %Final error
 end
 
 %% Auxiliary functions 
@@ -174,42 +177,37 @@ function [e] = pfskivp(s, GNC, alpha0)
     tspan = 0:dt:tf;                                            %Integration time span
 
     %Prepare and solve the IVP 
-    [t, Saux] = ode113(@(t,s)dynamics(t, s, GNC), tspan, s0, options);
+    [t, Saux] = ode113(@(t,s)floquet_dynamics(t, s, GNC), tspan, s0, options);
 
     %Evaluate the control law along the trajectory 
     J = GNC.Control.PFSK.FloquetExponents;                      %Floquet exponents of the reference trajectory
     F = GNC.Control.PFSK.FloquetDirections;                     %Floquet directions of the reference trajectory
     cost_function = GNC.Control.PFSK.CostFunction;              %Cost function to optimize
     T = GNC.Control.PFSK.Period;                                %Orbital period of the target orbit
+    Sn = [zeros(1,m) reshape(eye(m), [1 m^2])];                 %False STM 
 
-    Sn = [zeros(1,m) reshape(eye(m), [1 m^2])]; 
-    u = PFSK_control(t(end), T, Sn, F, J, Saux(end,m+1:2*m).', cost_function, Tmax);
+    %Final time thrust
+    u = PFSK_control(t(end), T, Sn, F, J, lambda, cost_function, Tmax);
     Th = norm(u(:,end)); 
 
     %Compute the Hamiltonian of the problem evaluated at tf 
-    alpha = Saux(end,1:m).';                        %Final Floquet coordinates
-    lambda = Saux(end,m+1:2*m).';                   %Final co-state
-    dS = dynamics(0, Saux(end,1:2*m).', GNC);       %Final dynamics vector field
-    H = beta*Th + dot(lambda, dS(1:m));             %Final problem Hamiltonian
+    alpha = Saux(end,1:m).';                                    %Final Floquet coordinates
+    lambda = Saux(end,m+1:2*m).';                               %Final co-state
+    dS = floquet_dynamics(t(end), Saux(end,1:2*m).', GNC);      %Final dynamics vector field
+    H = beta*Th + dot(lambda, dS(1:m));                         %Final problem Hamiltonian
 
     %Add the rest of the boundary conditions
     switch (problem)
         case 'Strict'
-            e = [alpha(1); alpha(2:end)-alpha0(2:end); t(end)-tf; H];                  
+            e = [alpha(1)/norm(alpha0); lambda(2:end); t(end)-tf; H]; 
         case 'Minimization'
             e = [lambda(1)-1; lambda(2:end); t(end)-tf; H];             
         case 'Rendezvous'
-            e = [alpha; t(end)-tf; H];                              
+            e = [alpha; t(end)-tf; H];   
+            e(1:m) = e(1:m)/norm(alpha0);
         otherwise
             error('No valid optimal control problem was selected')
     end
-end
-
-% Optimal problem dynamics 
-function [ds] = dynamics(t, s, GNC)
-    % Floquet space dynamics 
-    F = GNC.Control.PFSK.FloquetDirections;            %Floquet exponents of the reference trajectory
-    ds = STM_dynamics(t, s, F, GNC);                   %Floquet and co-state dynamics
 end
 
 % Two-boundary value problem constraints
@@ -219,14 +217,14 @@ function [e] = bounds(x, x2, alpha0, GNC)
     problem = GNC.Control.PFSK.Problem;     %Optimal problem to be solved
 
     %Initial boundary conditions 
-    e(1:m) = x(1:m)-alpha0; 
+    e(1:m) = (x(1:m)-alpha0)/norm(alpha0); 
 
     %Final boundary conditions
     alpha = x2(1:m);                        %Final Floquet coordinates
     lambda = x2(m+1:2*m);                   %Final co-state 
     switch (problem)
         case 'Strict'
-            e(m+1:2*m) = [alpha(1); alpha(2:end)-alpha0(2:end)];                  
+            e(m+1:2*m) = [alpha(1); lambda(2:end)];                  
         case 'Minimization'
             e(m+1:2*m) = [lambda(1)-1; lambda(2:end)];             
         case 'Rendezvous'
@@ -234,50 +232,29 @@ function [e] = bounds(x, x2, alpha0, GNC)
         otherwise
             error('No valid optimal control problem was selected')
     end
+    e
 end
 
 % Variational dynamics
-function [ds] = STM_dynamics(~, s, F, GNC)
+function [ds] = floquet_dynamics(t, s, GNC)
     % Constants 
     m = 6;                  % Dimension of the STM 
-    delta = 1e6;            % Saturation coefficient
     alpha = s(1:m);         % Floquet coordinates
     lambda = s(m+1:2*m);    % Co-state
 
     J = GNC.Control.PFSK.FloquetExponents;             % Floquet exponents of the reference trajectory
+    F = GNC.Control.PFSK.FloquetDirections;            % Floquet directions of the reference trajectory
     cost_function = GNC.Control.PFSK.CostFunction;     % Cost function to minimize
+    T = GNC.Control.PFSK.Period;                       % Orbital period of the target orbit
+    Tmax = GNC.Control.PFSK.MaxThrust;                 % Maximum available thrust
+    Sn = [zeros(1,m) reshape(eye(m), [1 m^2])];        % False STM
 
-    switch (cost_function)
-        case 'L1'
-            Tmax = GNC.Control.PFSK.MaxThrust;         %Maximum available thrust
-        otherwise
-            Tmax = 0;                                  %Maximum available thrust
-    end
+    % Compute the control law
+    u = PFSK_control(t, T, Sn, F, J, lambda, cost_function, Tmax);
 
-    % Compute the control law 
-    B = [zeros(3,3); eye(3)];           %Control input matrix in the synodic frame
-
-    %Compute the projected control matrix in the Floquet space 
-    V = F^(-1)*B;          % Control input matrix
-    p = -V.'*lambda;       % Primer vector 
-
-    %Switch depending on the cot function to minimize
-    switch (cost_function)
-        case 'L1' 
-            %Final control vector
-            if (norm(p) ~= 0)
-                Gamma = -V*(Tmax/(1+exp(-delta*(norm(p)-1))))*(p/norm(p));
-            else
-                Gamma = zeros(m,1);
-            end
-
-         case 'L2'
-            %Final control vector
-            Gamma = -V*p;          
-
-         otherwise
-            error('No valid vector norm to be minimized was selected');
-    end
+    % Final control vector
+    V = (F*expm(-J*mod(t,T)))^(-1)*[zeros(3); eye(3)];  % Control input matrix
+    Gamma = V*u;
 
     % Compute the variational equations 
     ds = [J*alpha+Gamma; -J.'*lambda]; 
