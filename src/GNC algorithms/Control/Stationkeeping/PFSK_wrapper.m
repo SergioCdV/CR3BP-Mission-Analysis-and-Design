@@ -127,6 +127,9 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 tf = real(sol(end-1));                           %New final time
                 tspan = 0:dt:tf;                                 %New integration time span
 
+                [t, Salpha] = ode113(@(t,s)floquet_dynamics(t, s, GNC), tspan, [alpha(:,1); sol(1:m)], options);
+                alpha(1,1)
+
             otherwise
                 error('No valid solver was selected');
         end
