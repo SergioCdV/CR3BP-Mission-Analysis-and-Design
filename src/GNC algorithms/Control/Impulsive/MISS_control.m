@@ -62,7 +62,7 @@ function [Sc, dV, state] = MISS_control(mu, TOF, s0, tol, cost_function, impulse
     times = fix(times/dt);                             %Position along the time span to impulse the spacecraft
     times = sort(times);                               %Sort the times at which the impulses are made
     
-    %Sanity check on the selected times indeces
+    %Sanity check on the selected times indices
     if (times(end) >= size(Sn,1))
         warning('Redundant docking impulse eliminated');
         times(end) = size(Sn,1)-1; 

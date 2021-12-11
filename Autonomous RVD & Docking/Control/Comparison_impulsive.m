@@ -92,7 +92,7 @@ Tmax = 1e-3;                                  %Maximum thrust capability (in vel
 
 %Main computation 
 tic
-[St_mpc, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+[St_mpc, dV, state{1}] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 toc
 
 %Control integrals
@@ -106,7 +106,8 @@ effort_mpc = control_effort(tspan, dV, true);
 tol = 1e-8;                                   %Differential corrector tolerance
 
 %Select impulsive times 
-times = [0 tf*rand(1,5)];                     %Times to impulse the spacecraft
+%times = tf*rand(1,6);                         %Times to impulse the spacecraft
+times = [0.5743 0.2912 0.4802 0.0851 0.2531 0.5494];
 
 %Compute the control law
 impulses.Number = length(times);              %Number of impulses
@@ -117,7 +118,7 @@ cost = 'Position';                            %Cost function to target
 
 %Controller scheme
 tic
-[St_miss, dV, state] = MISS_control(mu, tf, s0, tol, cost, impulses);
+[St_miss, dV, state{2}] = MISS_control(mu, tf, s0, tol, cost, impulses);
 toc
 
 %Control effort 
@@ -131,7 +132,7 @@ effort_miss = control_effort(tspan, dV, true);
 tol = 1e-10;                                                        %Differential corrector tolerance
 
 tic
-[St_tiss, dV, state] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
+[St_tiss, dV, state{3}] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
 toc
 
 %Total maneuver metrics 
@@ -224,7 +225,7 @@ if (false)
     end
     hold off
 end
-%%
+
 plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss);
 
 %% Auxiliary functions 
@@ -234,7 +235,7 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
     St = [St_mpc; St_tiss; St_miss]; 
 
     %Line format array 
-    lines = {'-' '-.' '-.'};
+    lines = {'-' '-.' '-'};
 
     %Colors
     colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
@@ -248,9 +249,9 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
         %Configuration space evolution
         subplot(1,2,1)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:22:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:55:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:105:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
         hold off
     end
     legend('$x$', '$y$', '$z$');
@@ -262,9 +263,9 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
     for i = 1:3
         subplot(1,2,2)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:35:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:55:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:105:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
         hold off
         legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
     end
