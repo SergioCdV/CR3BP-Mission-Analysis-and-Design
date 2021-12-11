@@ -66,9 +66,9 @@ constraint.Flag = false;                          %Constraint flag for energy tr
 constraint.JacobiReference = Jref;                %Reference Jacobi Constant value
 cost_function = 'L1';                             %L1 norm minimization problem
 Tmax = 1e-1;                                      %Maximum available thrust
-problem = 'Strict';                         %Optimal problem to solve
+problem = 'Strict';                               %Optimal problem to solve
 beta = 1;                                         %Weight of the mininium fuel problem
-tf = 0.1;                                         %Time of flight
+tf = 0.5;                                           %Time of flight
 solver = 'Newton';                                %Solver to be used
 
 %% GNC: PFSK control law
@@ -90,8 +90,15 @@ Sn = repmat(Sn, m, 1);
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
 
-%Compute the stationkeeping trajectory                                         
-[St, u, state] = PFSK_wrapper(mu, target_orbit.Period, tf, s0, constraint, problem, beta, cost_function, Tmax, solver);
+%Compute the stationkeeping trajectory   
+St = s0;
+u = [];
+Dt = 0.1; 
+for i = 1:floor(tf/Dt)
+    [St1, u1, state] = PFSK_wrapper(mu, target_orbit.Period, Dt, St(end,:), constraint, problem, beta, cost_function, Tmax, solver);
+    St = [St; St1(2:end,:)]; 
+    u = [u u1];
+end
 tic
 [~, Staux] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tf:dt:tspan(end), St(end,1:2*n), options);
 toc

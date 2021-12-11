@@ -101,7 +101,7 @@ toc
 St = [Staux1; Staux2(2:end,:)];
 
 %Error in time 
-[e, merit] = figures_merit(tspan, [St(:,1:n) St(:,1:n)-Sn(1:size(St,1),1:n)]);
+[e, merit] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
 
 %Control law
 [~, ~, u] = GNCc_handler(GNC, St(:,1:n), St(:,n+1:end), tspan);

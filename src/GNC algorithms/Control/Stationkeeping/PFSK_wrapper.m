@@ -38,6 +38,9 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+    foptions = optimoptions('fsolve', 'Display', 'none', 'StepTolerance', 1e-10); 
+    boptions = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
+
     dt = 1e-3;                                                  %Integration time step  
     
     %Initial conditions and integration
@@ -91,11 +94,10 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     %Receding window
     for i = 1:length(tspan)-1
         %Compute the initial guess        
-        M = reshape(Saux(end,2*m+1:end), [m m]);                    %Instantenous Monodromy matrix
+        M = reshape(Saux(1,2*m+1:end), [m m]);                      %Instantenous Monodromy matrix
         P = F*expm(-J*mod(tspan(i),T));                             %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
-        alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
-        lambda(:,1) = [1; zeros(5,1)];                              %Initial primer vector
+        alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinatesW
         GNC.Control.PFSK.InitialPrimer = lambda(:,1);               %Initial primer vector
     
         switch (solver)
@@ -104,21 +106,17 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 nsteps = 10*length(0:dt:tf-tspan(i));
                 solinit.x = linspace(0, tf-tspan(i), nsteps);
                 solinit.y = repmat([alpha(:,1); lambda(:,1)], 1, nsteps);
-            
-                %Set optimizer options
-                options = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
-            
+
                 %Solve the problem 
-                sol = bvp4c(@(t,s)floquet_dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1), GNC), solinit, options);
+                sol = bvp4c(@(t,s)floquet_dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1), GNC), solinit, boptions);
     
                 %New initial primer vector
                 GNC.Control.PFSK.InitialPrimer = sol.y(m+1:2*m,1);    
 
             case 'Newton'
                 %Solve the dual minimum time/fuel problem usign a Newton method
-                foptions = optimoptions('fsolve', 'Display', 'none', 'StepTolerance', 1e-10); 
                 initial_guess = [lambda(:,1); tf; Tmax];
-                [sol, fval, exitflag, output] = fsolve(@(s)pfskivp(s, GNC, alpha(:,1)), initial_guess, foptions);
+                sol = fsolve(@(s)pfskivp(s, GNC, alpha(:,1)), initial_guess, foptions);
 
                 %Solution setup
                 GNC.Control.PFSK.InitialPrimer = sol(1:m);       %New initial primer vector   
@@ -127,29 +125,22 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 tf = real(sol(end-1));                           %New final time
                 tspan = 0:dt:tf;                                 %New integration time span
 
-                [t, Salpha] = ode113(@(t,s)floquet_dynamics(t, s, GNC), tspan, [alpha(:,1); sol(1:m)], options);
-                alpha(1,1)
-
             otherwise
                 error('No valid solver was selected');
         end
     
         %Re-integration of the trajectory
         options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
-        [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(i:end), s0, options);
+        [taux, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), [0 dt], s0, options);
     
         %Re-assembly of the control vector 
-        if (i ~= length(tspan)-1)
-            [~, ~, du] = GNCc_handler(GNC, Saux(:,1:m), Saux(:,m+1:end), tspan(i:end));
-        else
-            du = zeros(3,1);
-        end
+        [~, ~, du] = GNCc_handler(GNC, Saux(:,1:m), Saux(:,m+1:end), taux);
     
         %Time-step solution 
-        s0 = Saux(2,:);             %New initial conditions
-        S(i+1,:) = Saux(2,:);       %New time step of the trajectory
-        u(:,i) = du(:,1);           %Applied control vector
-        dalpha(:,i) = alpha(:,1);   %Time history of the Floquet coordinates
+        s0 = Saux(end,:);             %New initial conditions
+        S(i+1,:) = Saux(end,:);       %New time step of the trajectory
+        u(:,i) = du(:,end);           %Applied control vector
+        dalpha(:,i) = alpha(:,1);     %Time history of the Floquet coordinates
     end
 
     %Final step
@@ -235,7 +226,6 @@ function [e] = bounds(x, x2, alpha0, GNC)
         otherwise
             error('No valid optimal control problem was selected')
     end
-    e
 end
 
 % Variational dynamics
