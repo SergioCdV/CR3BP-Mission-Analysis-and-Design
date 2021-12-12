@@ -13,12 +13,12 @@
 %         - scalar L, the identifier of the orbit libration point. 
 %         - scalar gamma, the distance of the orbit libration point to one
 %           of the primaries.
-%         - vector s, phase space vector of at minimum 6x1.
+%         - vector s, phase space vector.
 
 % Outputs: - the vector S, the state vector in the symplectic coordinate
-%            frame
+%            frame.
 
-% New versions: .
+% New versions: 
 
 function [S] = symplectic_frame(mu, L, gamma, s)
     %Compute the eigenvalues of the problem 
@@ -28,14 +28,15 @@ function [S] = symplectic_frame(mu, L, gamma, s)
     alpha(1) = (c2-2+sqrt(9*c2^2-8*c2))/2;                  %Characteristic root
     alpha(2) = (c2-2-sqrt(9*c2^2-8*c2))/2;                  %Characteristic root
     
-    lambda = sqrt(alpha(1));                                %Hyperbolic eigenvalue
-    omegap = sqrt(-alpha(2));                               %Center manifold eigenvalue 
+    lambda = sqrt(alpha(1));                                %Hyperbolic unstable eigenvalue
+    omegap = sqrt(-alpha(2));                               %Hyperbolic stable eigenvalue
     omegav = sqrt(c2);                                      %Center manifold eigenvalue
     
-    %Compute the linearizing matrix
+    %Compute the canonical transformation matrix
     s(1) = 2*lambda*((4+3*c2)*lambda^2+4+5*c2-6*c2^2);      %Scaling factor
     s(2) = omegap*((4+3*c2)*omegap^2-4-5*c2+6*c2^2);        %Scaling factor
-    s = sqrt(s);
+    s = sqrt(s);                                            %Scaling factor
+
     C = zeros(m,m);
     C(1,1) = 2*lambda/s(1); 
     C(2,1) = (lambda^2-2*c2-1)/s(1);

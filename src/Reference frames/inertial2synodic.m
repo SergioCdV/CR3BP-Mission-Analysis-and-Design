@@ -6,11 +6,11 @@
 % Validated: 
 
 %% Inertial to Synodic %%
-% For a given vector v at an epoch e, the inertial2synodic function transforms 
-% the vector from the inertial frame to the synodic one or viceversa.
+% For a given vector v at an epoch e, this function transforms a given vector 
+% from the inertial frame to the synodic one or viceversa.
 
 % Inputs: - scalar epoch, epoch at which the vector r is known (in non-dimensional units).
-%         - vector v, 3x1 array for position vector or 6x1 for velocity ones.
+%         - vector v, 3x1 array for position vector or 6x1 for a complete state vector.
 %         - boolean direction, 0 for inertial-to-synodic change and 1 for the viceversa conversion.
 
 % Outputs: - the vector V, v expressed in the new reference frame.

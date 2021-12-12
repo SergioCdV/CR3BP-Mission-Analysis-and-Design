@@ -6,16 +6,14 @@
 % Validated: 
 
 %% Frenet triad %%
-% For a given gravitational parameter mu and a space state vector, for the CR3BP dynamics, this functions 
+% For a given gravitational parameter mu and a space state vector, for the CR3BP dynamics, this function
 % computes the Frenet-Serret triad evaluated at that phase point.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
-%         - vector s, phase space vector of at minimum 6x1
+%         - vector s, phase space vector of at minimum 6x1.
 
-% Outputs: - the array T, containing the three unitary vectors. It is also
-%            the rotation matrix from the synodic frame to the F-S frame
-%          - the vector omega, the angular velocity of the Frenet-Serret
-%            frame
+% Outputs: - the array T, containing the three unitary vectors of the Frenet triad. It is also
+%            the rotation matrix from the synodic frame to the F-S frame.
 
 % New versions: .
 

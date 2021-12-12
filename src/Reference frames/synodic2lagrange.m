@@ -6,13 +6,12 @@
 % Validated: 
 
 %% Synodic to Lagrange %%
-% For a given vector v at an epoch e, the synodic2lagrange function transforms
-% the vector from the synodic frame to the Lagrange point reference frame.
+% For a given vector v at an epoch e, this function transforms a given vector 
+% from the synodic frame to the Lagrange point reference frame.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
-%         - vector v, 3x1 array for position vector.
-%         - scalar gamma, the x coordinate of the libration point refered
-%           to the least massive primary.
+%         - vector v, a given position vector.
+%         - scalar gamma, the characteristic distance of the libration point.
 %         - boolean point, 1 for L1 or L3 and 2 for L2.
 %         - boolean direction, 0 for synodic-to-lagrange change and 1 for the viceversa conversion.
 

@@ -8,16 +8,15 @@
 %% Dimensionalizer %%
 % For a given gravitational parameter mu, distance between the primaries d and synodic period T, 
 % this function dimensionalizes/normalizes position or velocity vectors and
-% epochs. These variables are imported from a .txt file in the system_constants.m function.
+% epochs.
 
-% Inputs: - scalar V, the most massive primary orbital velocity.
-%         - scalar d, the distance between primaries.
+% Inputs: - scalar V, the characteristic velocity of the system.
+%         - scalar d, the characteristic distance of the system.
 %         - scalar T, the synodic period of the system.
-%         - input X, an epoch, position or velocity vector, specified by
-%           string s.
+%         - string X, an epoch, position or velocity vector.
 %         - boolean direction, 0 to normalize and 1 to dimensionalize.
 
-% Outputs: - output sol.
+% Outputs: - output sol, the normalized variable.
 
 % New versions: 
 
