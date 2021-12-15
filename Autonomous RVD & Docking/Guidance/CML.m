@@ -24,7 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 1;                             %Rendezvous time
+tf = 0.8;                             %Rendezvous time
 tspan = 0:dt:pi;                    %Integration time span
 
 %CR3BP constants 
@@ -81,11 +81,16 @@ Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed
 %% Generate the guidance trajectory
 %Guidance trajectory
 Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit.Period);
-constraint.Flag = false; 
+constraint.Flag = true; 
 constraint.Period = Tsyn; 
 
-[Str, V(:,1:2), state(1)] = CMC_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
+[Str, V, state(1), S0] = CMC_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
 St = Str(:,1:6)+Str(:,7:12);
+
+%Integration of the natural quasi-periodic model
+tspan = 0:dt:2*tf;
+[~, S0] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, S0(1,1:2*6), options);
+S0 = S0(:,1:6)+S0(:,7:12);      
 
 %% Results 
 %Plot results 
@@ -95,6 +100,7 @@ hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
 plot3(St(:,1), St(:,2), St(:,3), 'k'); 
+plot3(S0(:,1), S0(:,2), S0(:,3), 'k'); 
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
@@ -107,9 +113,9 @@ title('Target trajectory in time');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan(1:size(Str,1)), Str(:,1)); 
-plot(tspan(1:size(Str,1)), Str(:,2)); 
-plot(tspan(1:size(Str,1)), Str(:,3)); 
+plot(tspan(1:size(Str,1)), Str(:,7)); 
+plot(tspan(1:size(Str,1)), Str(:,8)); 
+plot(tspan(1:size(Str,1)), Str(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Configuration coordinates');
@@ -118,9 +124,9 @@ legend('$x$', '$y$', '$z$');
 title('Position in time');
 subplot(1,2,2)
 hold on
-plot(tspan(1:size(Str,1)), Str(:,4)); 
-plot(tspan(1:size(Str,1)), Str(:,5)); 
-plot(tspan(1:size(Str,1)), Str(:,6)); 
+plot(tspan(1:size(Str,1)), Str(:,10)); 
+plot(tspan(1:size(Str,1)), Str(:,11)); 
+plot(tspan(1:size(Str,1)), Str(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Velocity coordinates');

@@ -22,7 +22,7 @@
 
 % New versions: 
 
-function [S, dV, state] = CML_guidance(mu, L, gamma, tf, s0, tol)
+function [S, dV, state, S0] = CML_guidance(mu, L, gamma, tf, s0, tol)
     %Constants 
     m = 6;              %Relative phase space dimension
     dt = 1e-3;          %Time step
@@ -61,6 +61,7 @@ function [S, dV, state] = CML_guidance(mu, L, gamma, tf, s0, tol)
     Phi = reshape(eye(m), [1 m^2]);     %Initial STM
     s0 = [s0 Phi];                      %Initial conditions
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    S0 = Saux;
 
     %Differential corrector setup 
     iter = 1;                      %Initial iteration
