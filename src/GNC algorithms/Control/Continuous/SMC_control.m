@@ -13,13 +13,12 @@
 %         - array Sg, the guidance law to follow
 %         - array Sn, the system state
 %         - vector parameters, defining the tuned parameters of the controller
-%         - string method, indiicating the vector field to be solved
 
 % Output: - vector u, the computed control law
 
 % New versions: 
 
-function [u] = SMC_control(mu, Sg, Sn, parameters, method)
+function [u] = SMC_control(mu, Sg, Sn, parameters)
     %SMC parameters 
     lambda = parameters(1);                             %General loop gain
     epsi = parameters(2);                               %Reachability condition gain
@@ -41,15 +40,7 @@ function [u] = SMC_control(mu, Sg, Sn, parameters, method)
         %Torque computation
         s = dv+lambda*dr;                               %Sliding surface
 
-        %Dynamics vector field
-        switch (method)
-            case 'Encke uncertain'
-                mu = 0.85*mu;              %New gravitational parameter
-                method = 'Encke';                       %Integrate the problem usign Encke's method
-            otherwise
-        end
-
-        f = nlr_model(mu, true, false, false, method, 0, Sn(i,:).');               %Relative CR3BP 
+        f = nlr_model(mu, true, false, false, 'Encke', 0, Sn(i,:).');               %Relative CR3BP 
         
         %Final control law
         ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);                      %Reachability condition function

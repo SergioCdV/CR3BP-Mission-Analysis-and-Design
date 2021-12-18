@@ -27,8 +27,9 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     navigation = GNC.Algorithms.Navigation;          %Selected the navigation algorithm 
     control = GNC.Algorithms.Control;                %Selected the control algorithm
 
-    %Navigation module     
+    %Navigation module 
     Sn = S;
+    Sn(1:6) = S(1:6)+1e-20*rand(1,6);
     
     %Guidance module 
     switch (guidance)
@@ -201,12 +202,11 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             mu = GNC.System.mu;                             %Systems's reduced gravitational parameter
             
             %Controller parameters 
-            method = GNC.Algorithms.Solver;                 %Dynamics vector field to be solved
             parameters = GNC.Control.SMC.Parameters;        %Parameters of the controller
             Stotal = [St(:,1:6) S(:,1:6)];                  %Complete phase space vector
             
             %Control law
-            u = SMC_control(mu, Sg, Stotal, parameters, method);
+            u = SMC_control(mu, Sg, Stotal, parameters);
             
         case 'MPC'
             %System characteristics 

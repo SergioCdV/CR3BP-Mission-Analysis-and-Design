@@ -139,6 +139,8 @@ toc
 %Control integrals
 effort_sdre = control_effort(tspan, u, false);
 
+%% Regression of the LQR trajectory
+
 %% GNC: SMC control law %%
 GNC.Algorithms.Guidance = '';               	%Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
@@ -146,7 +148,7 @@ GNC.Algorithms.Control = 'SMC';                 %Control algorithm
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 GNC.System.mu = mu;                             %System reduced gravitational parameters
-GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
+GNC.Control.SMC.Parameters = [1 1 0.9 0.1]; %[1 SMC_optimization(mu, 'L1', s0, tf)];
 
 %Re-integrate the trajectory
 tic 
@@ -186,31 +188,6 @@ ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
 title('Motion in the relative configuration space');
-
-%Configuration space evolution
-figure(3)
-subplot(1,2,1)
-hold on
-plot(tspan, St_smc(:,7)); 
-plot(tspan, St_smc(:,8)); 
-plot(tspan, St_smc(:,9)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinates');
-grid on;
-legend('$x$', '$y$', '$z$');
-title('Relative position in time');
-subplot(1,2,2)
-hold on
-plot(tspan, St_smc(:,10)); 
-plot(tspan, St_smc(:,11)); 
-plot(tspan, St_smc(:,12)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinates');
-grid on;
-legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Relative velocity in time');
 
 %Configuration space error 
 figure(4)
@@ -261,4 +238,53 @@ if (false)
         delete(V);
     end
     hold off
+end
+
+plotTripleEvolution(tspan, St_lqr, St_sdre, St_smc);
+
+%% Auxiliary functions 
+%Function to plot the three relative state evolutions in the same figure 
+function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
+    %Assemble the three of them in a single array 
+    St = [St_mpc(:,1:12); St_tiss(:,1:12); St_miss(:,1:12)]; 
+
+    %Line format array 
+    lines = {'-' '-.' '-'};
+
+    %Colors
+    colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
+
+    %Markers 
+    markers = {'none', 'none', '*'};
+    markers_size = [6, 5, 6];
+    
+    figure
+    for i = 1:3
+        %Configuration space evolution
+        subplot(1,2,1)
+        hold on
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        hold off
+    end
+    legend('$x$', '$y$', '$z$');
+    xlabel('Nondimensional epoch');
+    ylabel('Relative configuration coordinates');
+    grid on;
+    title('Relative position in time');
+
+    for i = 1:3
+        subplot(1,2,2)
+        hold on
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        hold off
+        legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
+    end
+    xlabel('Nondimensional epoch');
+    ylabel('Relative velocity coordinates');
+    grid on;
+    title('Relative velocity in time');
 end
