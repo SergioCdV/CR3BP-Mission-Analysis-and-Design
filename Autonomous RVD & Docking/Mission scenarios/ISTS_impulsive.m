@@ -24,8 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-%tf = 0.6;                           %Rendezvous time
-tf = 0.5;
+tf = 0.5;                           %Rendezvous time
 tspan = 0:dt:tf;                    %Integration time span
 tspann = 0:dt:2*pi;                 %Integration time span
 
@@ -43,8 +42,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 %Halo characteristics 
 Az = 100e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-%Ln = 2;                                                             %Orbits around L1
-Ln = 1;
+Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -109,7 +107,7 @@ tol = 1e-8;                                   %Differential corrector tolerance
 
 %Select impulsive times 
 %times = tf*rand(1,6);                         %Times to impulse the spacecraft
-times = [0.5743 0.2912 0.4802 0.0851 0.2531 0.5494];
+times = [0.4074 0.4529 0.0635 0.4567 0.3162 0.0488];
 
 %Compute the control law
 impulses.Number = length(times);              %Number of impulses
@@ -127,21 +125,7 @@ toc
 effort_miss = control_effort(tspan, dV, true);
 
 %Error in time 
-[e_miss, merit__miss] = figures_merit(tspan, St_miss);
-
-%% GNC: two impulsive rendezvous, single shooting scheme %%
-%Differential corrector scheme
-tol = 1e-10;                                                        %Differential corrector tolerance
-
-tic
-[St_tiss, dV, state{3}] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
-toc
-
-%Total maneuver metrics 
-effort_tiss = control_effort(tspan, dV, true);
-
-%Error in time 
-[e_tiss, merit_tiss] = figures_merit(tspan, St_tiss);
+[e_miss, merit_miss] = figures_merit(tspan, St_miss);
 
 %% Results %% 
 %Plot results 
@@ -171,19 +155,17 @@ title('Motion in the relative configuration space');
 %Configuration space error 
 figure(3)
 hold on 
-plot(tspan, log(e_tiss));
 plot(tspan, log(e_miss));
 plot(tspan, log(e_mpc)); 
 xlabel('Nondimensional epoch');
 ylabel('Absolute error $\log{e}$');
-legend('TI', 'MI', 'MPC'); 
+legend('MI', 'MPC'); 
 grid on;
 title('Absolute rendezvous error in the configuration space');
 axes('position', [.22 .47 .6 .25])
 box on
 indexOfInterest = (tspan > 0.1) & (tspan < 0.5); 
 hold on
-plot(tspan(indexOfInterest), e_tiss(indexOfInterest))  
 plot(tspan(indexOfInterest), e_miss(indexOfInterest))  
 plot(tspan(indexOfInterest), e_mpc(indexOfInterest))  
 hold off
@@ -193,11 +175,10 @@ figure(4)
 view(3) 
 hold on
 c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
-r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), ...
-          'k', 'Linewidth', 0.1); 
+r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), 'k', 'Linewidth', 0.1); 
 t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
-text(L(1,Ln), L(2,Ln), 5e-3, '$L_2$');
+text(L(1,Ln), L(2,Ln), 5e-3, '$L_1$');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
@@ -228,26 +209,26 @@ if (false)
     hold off
 end
 
-plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss);
+plotTripleEvolution(tspan, St_mpc, St_miss);
 
 %% Auxiliary functions 
 %Function to plot the three relative state evolutions in the same figure 
-function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
+function plotTripleEvolution(tspan, St_mpc, St_miss)
     %Assemble the three of them in a single array 
-    St = [St_mpc; St_tiss; St_miss]; 
+    St = [St_mpc; St_miss]; 
 
     %Line format array 
-    lines = {'-' '-.' '-'};
+    lines = {'-' '-.'};
 
     %Colors
     colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
 
     %Markers 
-    markers = {'none', 'none', '*'};
+    markers = {'none', 'none'};
     markers_size = [6, 5, 6];
     
     figure
-    for i = 1:3
+    for i = 1:2
         %Configuration space evolution
         subplot(1,2,1)
         hold on
@@ -262,7 +243,7 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
     grid on;
     title('Relative position in time');
 
-    for i = 1:3
+    for i = 1:2
         subplot(1,2,2)
         hold on
         plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
