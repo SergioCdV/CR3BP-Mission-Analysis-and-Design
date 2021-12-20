@@ -79,7 +79,7 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[t, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -139,16 +139,29 @@ toc
 %Control integrals
 effort_sdre = control_effort(tspan, u, false);
 
-%% Regression of the LQR trajectory
+%% Regression of the SDRE trajectory
+%Regression of the guidance coefficients 
+order = 50; 
+[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, St_sdre(:,7:end));
+
+%Guidance parameters 
+GNC.Guidance.CTR.Order = order;                     %Order of the approximation
+GNC.Guidance.CTR.TOF = tspan(end);                  %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntergralCoefficients = Ci;        %Coefficients of the Chebyshev approximation
 
 %% GNC: SMC control law %%
-GNC.Algorithms.Guidance = '';               	%Guidance algorithm
+GNC.Algorithms.Guidance = 'CTR';               	%Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 GNC.Algorithms.Control = 'SMC';                 %Control algorithm
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 GNC.System.mu = mu;                             %System reduced gravitational parameters
-GNC.Control.SMC.Parameters = [1 1 0.9 0.1]; %[1 SMC_optimization(mu, 'L1', s0, tf)];
+
+%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
+GNC.Control.SMC.Parameters = [1.0000 0.6368 0.0008 0.0941];
 
 %Re-integrate the trajectory
 tic 
