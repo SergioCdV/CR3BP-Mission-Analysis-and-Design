@@ -24,7 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 0.8;                             %Rendezvous time
+tf = 1;                             %Rendezvous time
 tspan = 0:dt:pi;                    %Integration time span
 
 %CR3BP constants 
@@ -54,7 +54,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 20;                                                           %Number of orbits to continuate
+num = 10;                                                           %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -100,7 +100,6 @@ hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
 plot3(St(:,1), St(:,2), St(:,3), 'k'); 
-plot3(S0(:,1), S0(:,2), S0(:,3), 'k'); 
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');

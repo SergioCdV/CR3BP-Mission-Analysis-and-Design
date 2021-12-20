@@ -29,7 +29,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
 
     %Navigation module 
     Sn = S;
-    Sn(1:6) = S(1:6)+1e-20*rand(1,6);
+    Sn(1:6) = S(1:6)+0*rand(1,6);
     
     %Guidance module 
     switch (guidance)

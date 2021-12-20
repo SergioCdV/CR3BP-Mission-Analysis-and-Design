@@ -104,10 +104,10 @@ St = [Staux1; Staux2(2:end,:)];
 [e, merit] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
 
 %Control law
-[~, ~, u] = GNCc_handler(GNC, St(:,1:n), St(:,n+1:end), tspan);
+[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.1));
 
 %Control integrals
-energy = control_effort(tspan, u, false);
+energy = control_effort(tspan(tspan < 0.1), u, false);
 
 %Final absolute trajectory
 St = St(:,1:n)+St(:,n+1:2*n);

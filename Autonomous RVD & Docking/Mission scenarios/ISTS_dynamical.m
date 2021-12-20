@@ -173,10 +173,10 @@ Stsk = [Staux1; Staux2(2:end,:)];
 [e, merit] = figures_merit(tspann, [Stsk(:,1:n) abs(Stsk(:,1:n)-Sn(1:size(Stsk,1),1:n))]);
 
 %Control law
-[~, ~, u] = GNCc_handler(GNC, Stsk(:,1:n), Stsk(:,n+1:end), tspann);
+[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspann(tspann < 0.1));
 
 %Control integrals
-energy = control_effort(tspann, u, false);
+energy = control_effort(tspann(tspann < 0.1), u, false);
 
 %Final absolute trajectory
 Stsk = Stsk(:,1:n)+Stsk(:,n+1:2*n);
@@ -213,7 +213,7 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Initial orbit', 'Target orbit', 'Rendezvous arc', 'CAM arc', 'Location', 'northeast');
+legend('Initial orbit', 'Target orbit', 'Rendezvous arc', 'CAM arc');
 title('Collision avoidance trajectory in the absolute configuration space');
 
 %Configuration space evolution

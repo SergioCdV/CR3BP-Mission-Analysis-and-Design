@@ -172,9 +172,9 @@ title('Absolute rendezvous error in the configuration space');
 figure(5)
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
-r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k', 'Linewidth', 0.1); 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
+r = plot3(St(:,7)+St(:,1), St(:,8)+St(:,2), St(:,9)+St(:,3), 'k'); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 hold off
 text(L(1,Ln)+1e-3, L(2,Ln), 5e-20, '$L_2$');
@@ -182,7 +182,7 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northeast');
+legend('Initial orbit', 'Rendezvous arc', 'Target orbit');
 title('Converged rendezvous trajectory in the absolute configuration space');
 
 %Rendezvous animation 

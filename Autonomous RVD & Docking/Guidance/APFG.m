@@ -132,7 +132,7 @@ GNC.Control.SMC.Parameters = [10 10 0.9 0.01];      %Controller parameters
 [Sg, ~, u] = GNC_handler(GNC, St(:,1:6), St(:,7:12), t);    
 
 %Control effort 
-effort = control_effort(tspan, u);
+effort = control_effort(tspan, u, false);
 
 %% Results 
 %Plot results 

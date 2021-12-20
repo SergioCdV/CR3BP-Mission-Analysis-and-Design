@@ -139,8 +139,6 @@ toc
 %Control integrals
 effort_sdre = control_effort(tspan, u, false);
 
-%% Regression of the LQR trajectory
-
 %% GNC: SMC control law %%
 GNC.Algorithms.Guidance = '';               	%Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
@@ -148,7 +146,8 @@ GNC.Algorithms.Control = 'SMC';                 %Control algorithm
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 GNC.System.mu = mu;                             %System reduced gravitational parameters
-GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
+
+GNC.Control.SMC.Parameters = [1.0000 0.9773 0.0029 0.0995]; %[1 SMC_optimization(mu, 'L1', s0, tf)];
 
 %Re-integrate the trajectory
 tic 
@@ -297,8 +296,8 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
         %Configuration space evolution
         subplot(1,2,1)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
     end
@@ -311,8 +310,8 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
     for i = 1:4
         subplot(1,2,2)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
         legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');

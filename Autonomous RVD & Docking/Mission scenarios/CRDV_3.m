@@ -55,7 +55,7 @@ Sn = target_orbit.Trajectory;
 %% Compute the tranfer trajectory
 %Parking orbit definition 
 R = [1-mu; 0; 0];                       %Primary location in the configuration space
-branch = 'R';                           %Manifold branch to globalize
+branch = 'L';                           %Manifold branch to globalize
 map = 'Secondary primary';              %Poincaré map to use
 event = @(t,s)sp_crossing(t,s,mu);      %Integration event
 
@@ -64,8 +64,8 @@ hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                  %Parkin
 %Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
 manifold = 'S';                                                          %Integrate the stable manifold
 seed = Sn;                                                               %Periodic orbit seed
-tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
-rho = 20;                                                                %Density of fibres to analyze
+tspan = 0:1e-3:5*target_orbit.Period;                                    %Original integration time
+rho = 50;                                                                %Density of fibres to analyze
 S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
 
 %Relative distance to the primary of interest
@@ -109,7 +109,8 @@ title('Reconstruction of the natural chaser motion');
 
 %% First phase: long-range rendezvous using the MPC approach
 %Time of flight 
-tf(1) = 0.6;                                  %Nondimensional maneuver end time 
+tf(1) = 0.6;                                  %Nondimensional maneuver end time
+tspan = 0:dt:tf(1);
 
 %Set up of the optimization
 method = 'NPL';                               %Method to solve the problem
@@ -125,7 +126,7 @@ Tmax = 0.1;                                   %Maximum thrust capability (in vel
 [St1, dV, ~] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
 
 %Control integrals
-energy = control_effort(tspan, dV, true);
+effort_first = control_effort(tspan, dV, true);
 
 %% GNC algorithms definition 
 %Phase definition 
@@ -171,11 +172,12 @@ slqr0 = [St1(end,1:12) int];                        %Initial conditions
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:end), tspan);
 
 %Control integrals
-energy = control_effort(tspan, u, false);
+effort_second = control_effort(tspan, u, false);
 
 %% Third phase: rendezvous with APFC
 %Phase definition 
 tf(3) = 0.8; 
+tspan = 0:dt:tf(3);
 
 %Compute some random objects  in the relative phase space 
 So = ones(3,2);
@@ -193,27 +195,34 @@ safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking
 safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corridor
 
 %Compute the guidance law
-[St3, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf, St2(end,1:12));
+[St3, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf(3), St2(end,1:12));
 
 %Performance indices
-effort = control_effort(tspan, u, false);         %Control effort made
+effort_third = control_effort(tspan(), u, false);         %Control effort made
 
-%% Third phase: escape
+%% Fourth phase: escape
 %Phase definition
-tf(4) = 1.5*pi;                           %End of the escape 
+tf(4) = 1;                             %End of the escape 
+tspan = 0:dt:tf(4);
 
 %Controller definition
-constraint.Constrained = false;         %No constraints on the maneuver
-constraint.SafeDistance = 1e-5;         %Safety distance at the collision time
+constraint.Constrained = false;          %No constraints on the maneuver
+constraint.SafeDistance = 1e-5;          %Safety distance at the collision time
+constraint.Period = target_orbit.Period; %Orbital Period
+constraint.Energy = true;                %Energy constraint
 
-[St4, dV4, tm] = FMSC_control(mu, tf(4), Sn(end,1:6), St3(end,1:12), eye(3), tol, constraint, 'Best');
+[St4, dV4, tm] = FMSC_control(mu, tf(4), St3(end,1:12), 1e-8, constraint, 'Center');
 
 %Control effort 
-effort = control_effort(tspan, dV4, true);
+effort_fourth = control_effort(tspan, dV4, true);
+
+tf(5) = 1.5*pi;
+tspan = 0:dt:tf(5);
+[~, St5] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St4(end,:), options);
 
 %% Final results 
 %Complete trajectory 
-St = [St1(:,1:12); St2(2:end,1:12); St3(2:end,1:12); St4(2:end,1:12)];
+St = [St1(:,1:12); St2(2:end,1:12); St3(2:end,1:12); St4(2:end,1:12); St5(2:end,1:12)];
 
 %Total integration time
 tspan = 0:dt:sum(tf);                                                    
