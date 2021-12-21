@@ -161,7 +161,7 @@ toc
 [~, ~, u] = GNC_handler(GNC, St_smc(:,1:6), St_smc(:,7:12), tspan);    
 
 %Control integrals
-effort_smc = control_effort(tspan, u, false);
+energy_smc = control_effort(tspan, u, false);
 
 %% GNC: HDRE control law %% 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
@@ -291,13 +291,13 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
     markers = {'none', 'none', '*', '+'};
     markers_size = [6, 6, 6, 6];
     
-    figure
+    figure;
     for i = 1:4
         %Configuration space evolution
         subplot(1,2,1)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
     end
@@ -306,12 +306,14 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
     ylabel('Relative configuration coordinates');
     grid on;
     title('Relative position in time');
+    ax = gca;
+    ax.YAxis.Exponent = 0;
 
     for i = 1:4
         subplot(1,2,2)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:500:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
         legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');

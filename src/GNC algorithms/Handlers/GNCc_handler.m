@@ -28,8 +28,9 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     control = GNC.Algorithms.Control;                %Selected the control algorithm
 
     %Navigation module 
+    noise = GNC.Navigation.NoiseVariance; 
     Sn = S;
-    Sn(1:6) = S(1:6)+0*rand(1,6);
+    Sn(1:6) = S(1:6)-2*noise*ones(1,6)+noise*rand(1,6);
     
     %Guidance module 
     switch (guidance)

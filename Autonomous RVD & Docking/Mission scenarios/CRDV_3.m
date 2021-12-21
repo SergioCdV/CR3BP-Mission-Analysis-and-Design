@@ -123,20 +123,22 @@ Tmin = -0.1;                                  %Minimum thrust capability (in vel
 Tmax = 0.1;                                   %Maximum thrust capability (in velocity impulse)
 
 %Main computation 
+tic
 [St1, dV, ~] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+toc
 
 %Control integrals
 effort_first = control_effort(tspan, dV, true);
 
 %% GNC algorithms definition 
 %Phase definition 
-tf(2) = pi; 
+tf(2) = 0.5; 
 tspan = 0:dt:tf(2); 
 
 %Guidance 
 A = dimensionalizer(Lem, 1, 1, 100, 'Position', 0)*[1 1 0];
 Sg = [A.*ones(length(tspan),3) zeros(length(tspan),3)];
-order = 5; 
+order = 50; 
 [Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, Sg);
 
 model = 'RLM';
@@ -157,8 +159,10 @@ GNC.Guidance.CTR.Order = order;                     %Order of the approximation
 GNC.Guidance.CTR.TOF = tf(2);                       %Time of flight
 GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.IntegralCoefficients = Ci;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;                 %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntegralCoefficients = zeros(3,order);         %Coefficients of the Chebyshev approximation
+
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
 
 %GNC: SDRE/LQR control law
 %Initial conditions 
@@ -166,7 +170,9 @@ int = zeros(1,3);                                   %Integral of the relative po
 slqr0 = [St1(end,1:12) int];                        %Initial conditions
 
 %Compute the trajectory
+tic
 [~, St2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
+toc
 
 %Control law
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:end), tspan);
@@ -195,7 +201,9 @@ safe_corridor.Parameters(2) = 0;                 %Safety distance to the docking
 safe_corridor.Parameters(3:4) = [1.5 1];         %Dimensions of the safety corridor
 
 %Compute the guidance law
+tic
 [St3, u, state] = APF_control(mu, safe_corridor, Penalties, So, tf(3), St2(end,1:12));
+toc
 
 %Performance indices
 effort_third = control_effort(tspan(), u, false);         %Control effort made
@@ -211,12 +219,14 @@ constraint.SafeDistance = 1e-5;          %Safety distance at the collision time
 constraint.Period = target_orbit.Period; %Orbital Period
 constraint.Energy = true;                %Energy constraint
 
+tic
 [St4, dV4, tm] = FMSC_control(mu, tf(4), St3(end,1:12), 1e-8, constraint, 'Center');
+toc 
 
 %Control effort 
 effort_fourth = control_effort(tspan, dV4, true);
 
-tf(5) = 1.5*pi;
+tf(5) = 2;
 tspan = 0:dt:tf(5);
 [~, St5] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St4(end,:), options);
 
