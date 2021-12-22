@@ -302,20 +302,36 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
         plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
+        legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');
     end
-    legend('$x$', '$y$');
     xlabel('Nondimensional epoch');
     ylabel('Relative configuration coordinates');
     grid on;
     title('Relative position in time');
     ax = gca;
     ax.YAxis.Exponent = 0;
+    axes('position', [.24 .2 .2 .3])
+    box on
+    index = (tspan > 1) & (tspan < 4); 
+    hold on 
+    for i = 1:4
+        %Configuration space evolution
+        S = St((i-1)*length(tspan)+1:i*length(tspan),:);
+        plot(tspan(index), S(index,7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:400:length(tspan)); 
+        plot(tspan(index), S(index,8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:400:length(tspan)); 
+        %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
+    end
+    hold off
+    grid on;
+    axis tight
+    ax = gca;
+    ax.YAxis.Exponent = 0;
 
     for i = 1:4
         subplot(1,2,2)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:400:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:400:length(tspan)); 
         %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
         hold off
         legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');
@@ -324,4 +340,20 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss, St_hdre)
     ylabel('Relative velocity coordinates');
     grid on;
     title('Relative velocity in time');
+    axes('position', [.68 .2 .2 .2])
+    box on
+    index = (tspan > 1) & (tspan < 4); 
+    hold on 
+    for i = 1:4
+        %Configuration space evolution
+        S = St((i-1)*length(tspan)+1:i*length(tspan),:);
+        plot(tspan(index), S(index,10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan(index), S(index,11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        %plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:200:length(tspan)); 
+    end
+    hold off
+    grid on;
+    axis tight
+    ax = gca;
+    ax.YAxis.Exponent = 0;
 end

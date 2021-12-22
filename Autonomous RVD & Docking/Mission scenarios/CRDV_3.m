@@ -109,7 +109,7 @@ title('Reconstruction of the natural chaser motion');
 
 %% First phase: long-range rendezvous using the MPC approach
 %Time of flight 
-tf(1) = 0.6;                                  %Nondimensional maneuver end time
+tf(1) = 0.55;                                  %Nondimensional maneuver end time
 tspan = 0:dt:tf(1);
 
 %Set up of the optimization
@@ -130,89 +130,41 @@ toc
 %Control integrals
 effort_first = control_effort(tspan, dV, true);
 
-%% GNC algorithms definition 
+%% Guidance (Lissajous trajectory around the target)
 %Phase definition 
-tf(2) = 0.5; 
+tf(2) = 1.5*pi; 
 tspan = 0:dt:tf(2); 
 
-%Guidance 
-A = dimensionalizer(Lem, 1, 1, 100, 'Position', 0)*[1 1 0];
-Sg = [A.*ones(length(tspan),3) zeros(length(tspan),3)];
-order = 50; 
-[Cp, Cv, Cg, ~] = CTR_guidance(order, tspan, Sg);
+%GNC algorithms definition 
+GNC.Algorithms.Guidance = '';               %Guidance algorithm
+GNC.Algorithms.Navigation = '';             %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';             %Control algorithm
+FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
+GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
+GNC.Control.Dimension = 3;                  %Dimension of the control law
+GNC.System.mu = mu;                         %System reduced gravitational parameter
 
-model = 'RLM';
-GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
-GNC.Algorithms.Navigation = '';                     %Navigation algorithm
-GNC.Algorithms.Control = 'SDRE';                    %Control algorithm
-GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
-GNC.Control.Dimension = 3;                          %Dimension of the control law
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 10, 'Position', 0);
 
-GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
-GNC.System.Libration = [Ln gamma];                  %Libration point ID
+%Controller parameters
+%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
+GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.013227007322678]; 
 
-GNC.Control.SDRE.Model = model;                     %SDRE model
-GNC.Control.SDRE.Q = 2*eye(9);                      %Penalty on the state error
-GNC.Control.SDRE.M = eye(3);                        %Penalty on the control effort
-
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf(2);                       %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;                 %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.IntegralCoefficients = zeros(3,order);         %Coefficients of the Chebyshev approximation
-
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
-
-%GNC: SDRE/LQR control law
 %Initial conditions 
-int = zeros(1,3);                                   %Integral of the relative position
-slqr0 = [St1(end,1:12) int];                        %Initial conditions
+s0 = St1(end,:); 
 
-%Compute the trajectory
+%Re-integrate trajectory
 tic
-[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
+[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);
 toc
 
-%Regression of the guidance coefficients 
-order = 50; 
-[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, St2(:,7:end));
-
-%Guidance parameters 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tspan(end);                  %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.IntergralCoefficients = Ci;        %Coefficients of the Chebyshev approximation
-
-GNC.Algorithms.Guidance = 'CTR';               	%Guidance algorithm
-GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'SMC';                 %Control algorithm
-GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
-GNC.Control.Dimension = 3;                      %Dimension of the control law
-GNC.System.mu = mu;                             %System reduced gravitational parameters
-
-%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
-GNC.Control.SMC.Parameters = [1.0000 0.6368 0.0008 0.0941];
-
-%Re-integrate the trajectory
-tic 
-[~, St_smc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
-toc
-
-%Error in time 
-[e_smc, merit_smc] = figures_merit(tspan, St_smc);
-
-%Control law
-[~, ~, u] = GNC_handler(GNC, St_smc(:,1:6), St_smc(:,7:12), tspan);    
-
-%Control integrals
-effort_smc = control_effort(tspan, u, false);
+%Control effort
+[~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), tspan); 
+effort_second = control_effort(tspan, u, false);
 
 %% Third phase: rendezvous with APFC
 %Phase definition 
-tf(3) = 0.8; 
+tf(3) = 0.2; 
 tspan = 0:dt:tf(3);
 
 %Compute some random objects  in the relative phase space 
@@ -236,11 +188,11 @@ tic
 toc
 
 %Performance indices
-effort_third = control_effort(tspan(), u, false);         %Control effort made
+effort_third = control_effort(tspan, u, true);         %Control effort made
 
 %% Fourth phase: escape
 %Phase definition
-tf(4) = 1;                             %End of the escape 
+tf(4) = 0.1;                             %End of the escape 
 tspan = 0:dt:tf(4);
 
 %Controller definition
@@ -256,7 +208,7 @@ toc
 %Control effort 
 effort_fourth = control_effort(tspan, dV4, true);
 
-tf(5) = 2;
+tf(5) = 2.5;
 tspan = 0:dt:tf(5);
 [~, St5] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St4(end,:), options);
 
@@ -271,14 +223,14 @@ tspan = 0:dt:sum(tf);
 figure(3) 
 view(3) 
 hold on 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'Linewidth', 0.1);
-plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r', 'Linewidth', 0.1);
-plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b');
+plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
+plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
-text(L(1,Ln)+1e-4, L(2,Ln), 0, '$L_2$');
-text(1-mu+1e-4, 0, 0, '$M_2$');
+text(L(1,Ln)+1e-4, L(2,Ln), 1e-6, '$L_2$');
+text(1-mu+1e-4, 0, 1e-6, '$M_2$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
@@ -299,6 +251,8 @@ ylabel('Relative configuration coordinate');
 grid on;
 legend('$x$', '$y$', '$z$');
 title('Relative position evolution');
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 subplot(1,2,2)
 hold on
@@ -311,15 +265,28 @@ ylabel('Relative velocity coordinate');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity evolution');
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 subplot(1,2,1)
-axes('position', [.2 .67 .20 .20])
+axes('position', [.21 .4 .20 .20])
 box on
-indexOfInterest = (tspan < sum(tf(1:2))) & (tspan > 0.4*sum(tf(1:2))); 
+indexOfInterest = (tspan < sum(tf(1:3))) & (tspan > 0.4*sum(tf(1:3))); 
 hold on
 plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
+hold off
+axis tight
+
+subplot(1,2,2)
+axes('position', [.65 .5 .20 .20])
+box on
+indexOfInterest = (tspan < sum(tf(1:3))) & (tspan > 0.8*sum(tf(1:3))); 
+hold on
+plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
+plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
 hold off
 axis tight
 
