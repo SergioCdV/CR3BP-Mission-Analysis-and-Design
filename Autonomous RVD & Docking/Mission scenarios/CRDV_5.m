@@ -164,6 +164,8 @@ GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
 GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
 
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
+
 %Controller parameters
 %GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St1(end,1:12), tf(2))]; 
 GNC.Control.SMC.Parameters = [1 1.000000000000000 0.985999332287318 0.006010671478548 0.013227007322678]; 
@@ -251,6 +253,8 @@ FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
 GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
 GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
+
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
 
 %Controller parameters
 %GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 

@@ -138,7 +138,8 @@ function [commands] = lopt_core(cost_function, Tmin, Tmax, trajectory)
     f = [zeros(1,3*dim) ones(1,3*dim)];
     
     %Solve the problem 
-    sol = linprog(f,A,b,Aeq,beq,lb,ub);
+    options = optimset('Display', 'off');
+    sol = linprog(f,A,b,Aeq,beq,lb,ub,options);
     
     %Output 
     if (isempty(sol))
