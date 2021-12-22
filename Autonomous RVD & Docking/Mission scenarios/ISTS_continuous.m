@@ -89,7 +89,9 @@ S_rc = S(:,1:6)+S(:,7:12);                      %Reconstructed chaser motion via
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 GNC.Algorithms.Control = 'LQR';                 %Control algorithm
-model = 'RLM';
+model = 'RLM';                                  %Dynamical system model 
+
+GNC.Navigation.NoiseVariance = 0;               %Noise variance
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
@@ -238,9 +240,9 @@ title('Absolute rendezvous error in the configuration space');
 figure(5)
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'r', 'Linewidth', 0.1); 
-r = plot3(St_smc(:,7)+St_smc(:,1), St_smc(:,8)+St_smc(:,2), St_smc(:,9)+St_smc(:,3), 'b', 'Linewidth', 0.1); 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'r'); 
+r = plot3(St_smc(:,7)+St_smc(:,1), St_smc(:,8)+St_smc(:,2), St_smc(:,9)+St_smc(:,3), 'b'); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 hold off
 text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_2$');

@@ -174,9 +174,9 @@ axis tight
 figure(4)
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
-r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), 'k', 'Linewidth', 0.1); 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
+r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), 'k'); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 text(L(1,Ln), L(2,Ln), 5e-3, '$L_1$');
 hold off

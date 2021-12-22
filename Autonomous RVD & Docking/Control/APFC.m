@@ -43,7 +43,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 %Halo characteristics 
 Az = 60e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
+Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 

@@ -139,7 +139,7 @@ tspan = 0:dt:tf(2);
 A = dimensionalizer(Lem, 1, 1, 100, 'Position', 0)*[1 1 0];
 Sg = [A.*ones(length(tspan),3) zeros(length(tspan),3)];
 order = 50; 
-[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, Sg);
+[Cp, Cv, Cg, ~] = CTR_guidance(order, tspan, Sg);
 
 model = 'RLM';
 GNC.Algorithms.Guidance = 'CTR';                    %Guidance algorithm
@@ -174,11 +174,41 @@ tic
 [~, St2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, slqr0, options);
 toc
 
+%Regression of the guidance coefficients 
+order = 50; 
+[Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, St2(:,7:end));
+
+%Guidance parameters 
+GNC.Guidance.CTR.Order = order;                     %Order of the approximation
+GNC.Guidance.CTR.TOF = tspan(end);                  %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntergralCoefficients = Ci;        %Coefficients of the Chebyshev approximation
+
+GNC.Algorithms.Guidance = 'CTR';               	%Guidance algorithm
+GNC.Algorithms.Navigation = '';                 %Navigation algorithm
+GNC.Algorithms.Control = 'SMC';                 %Control algorithm
+GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
+GNC.Control.Dimension = 3;                      %Dimension of the control law
+GNC.System.mu = mu;                             %System reduced gravitational parameters
+
+%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
+GNC.Control.SMC.Parameters = [1.0000 0.6368 0.0008 0.0941];
+
+%Re-integrate the trajectory
+tic 
+[~, St_smc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+toc
+
+%Error in time 
+[e_smc, merit_smc] = figures_merit(tspan, St_smc);
+
 %Control law
-[~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:end), tspan);
+[~, ~, u] = GNC_handler(GNC, St_smc(:,1:6), St_smc(:,7:12), tspan);    
 
 %Control integrals
-effort_second = control_effort(tspan, u, false);
+effort_smc = control_effort(tspan, u, false);
 
 %% Third phase: rendezvous with APFC
 %Phase definition 

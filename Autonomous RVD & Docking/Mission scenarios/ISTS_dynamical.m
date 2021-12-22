@@ -134,11 +134,13 @@ GNC.Algorithms.Guidance = '';                       %Guidance algorithm
 GNC.Algorithms.Navigation = '';                     %Navigation algorithm
 GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
 
+GNC.Navigation.NoiseVariance = 0; 
+
 GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
 GNC.Control.Dimension = 3;                          %Dimension of the control law
 
 GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
-GNC.Control.MLQR.Q = eye(2);                        %Penalty on the state error
+GNC.Control.MLQR.Q = 10*eye(2);                        %Penalty on the state error
 GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
 GNC.Control.MLQR.Reference = Sg;                    %Penalty on the control effort
 GNC.Control.MLQR.Period = target_orbit.Period;      %Penalty on the control effort
@@ -155,10 +157,10 @@ end
 GNC.Control.MLQR.FloquetDirections = E; 
 
 %Initial conditions 
-k = 1e-7;                                       %Noise gain
-r_t0 = St(end,1:n);                             %Initial guidance target conditions
-s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
-tspann = 0:dt:2*pi;                             %New integration time span
+k = dimensionalizer(Lem, 1, 1, 10, 'Position', 0);      %Noise gain
+r_t0 = St(end,1:n);                                     %Initial guidance target conditions
+s0 = r_t0+k*rand(1,6);                                  %Noisy initial conditions
+tspann = 0:dt:2*pi;                                     %New integration time span
 
 %Compute the trajectory
 s0 = [r_t0 s0-r_t0 reshape(eye(n), [1 n^2])];
@@ -203,7 +205,7 @@ view(3)
 hold on 
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
 plot3(S(:,1), S(:,2), S(:,3), 'r'); 
-r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1);
+r = plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r');
 plot3(ScCAM(:,1), ScCAM(:,2), ScCAM(:,3), 'k'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(so(1)+S(index(1),1), so(2)+S(index(1),2), so(3)+S(index(1),3), 'k', 'filled');
@@ -249,13 +251,13 @@ plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.T
 plot3(Stsk(:,1), Stsk(:,2), Stsk(:,3), 'k'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
-text(L(1,Ln)+1e-3, L(2,Ln), 5e-3, '$L_2$');
+text(L(1,Ln)+1e-3, L(2,Ln)-1e-3, 5e-3, '$L_2$');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Target orbit', 'Stationkeeping orbit', 'Natural orbit', 'Location', 'northeast');
+legend('Target orbit', 'Stationkeeping orbit', 'Natural orbit', 'Location', 'northwest');
 title('Stationkeeping trajectory in the absolute configuration space');
 
 %Rendezvous animation 
