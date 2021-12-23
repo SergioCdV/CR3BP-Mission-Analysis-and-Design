@@ -1,8 +1,8 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 20/05/21 % 
+% 24/12/21 % 
 
-%% Impulsive controllers comparison %% 
+%% Impulsive controllers comparison for the JGCD publication %% 
 % This script provides an interface to impulsive control schemes within the same mission scenario.
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L2 in the
@@ -37,7 +37,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 100e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 2;                                                             %Orbits around L2
 gamma = L(end,Ln);                                                  %Li distance to the second primary

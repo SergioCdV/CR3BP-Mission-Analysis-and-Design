@@ -1,8 +1,8 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 17/04/21 % 
+% 24/12/21 % 
 
-%% Continuous comparison %% 
+%% Continuous comparison for the JGCD publication %% 
 % This script provides an interface to test the differente continuous control schemes in the same mission scenario. 
 
 % The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
@@ -30,8 +30,6 @@ optimization = true;                %Optimize the controller parameters
 %Time span 
 dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
-tspan = 0:dt:tf;                    %Integration time span
-tspann = 0:dt:2*pi;                 %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -45,7 +43,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. 
+Az = 120e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
