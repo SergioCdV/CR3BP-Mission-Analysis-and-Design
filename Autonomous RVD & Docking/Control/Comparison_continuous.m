@@ -30,8 +30,6 @@ optimization = true;                %Optimize the controller parameters
 %Time span 
 dt = 1e-3;                          %Time step
 tf = 2*pi;                          %Rendezvous time
-tspan = 0:dt:tf;                    %Integration time span
-tspann = 0:dt:2*pi;                 %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -79,7 +77,8 @@ rho0 = r_c0-r_t0;                                           %Initial relative co
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
 %Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspann, s0, options);
+tspan = 0:dt:2*pi;
+[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
 %Reconstructed chaser motion 
@@ -93,6 +92,8 @@ model = 'RLM';
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
+
+GNC.Navigation.NoiseVariance = 0;               %Noise variance
 
 GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
 GNC.System.Libration = [Ln gamma];              %Libration point ID
@@ -118,7 +119,7 @@ toc
 [e_lqr, merit_lqr] = figures_merit(tspan, St_lqr);
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, St_lqr(:,1:6), St_lqr(:,7:end), tspan);
+[~, ~, u] = GNC_handler(GNC, St_lqr(:,1:n), St_lqr(:,7:end), tspan);
 
 %Control integrals
 effort_lqr = control_effort(tspan, u, false);
@@ -134,7 +135,7 @@ toc
 [e_sdre, merit_sdre] = figures_merit(tspan, St_sdre);
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, St_sdre(:,1:6), St_sdre(:,7:end), tspan);
+[~, ~, u] = GNC_handler(GNC, St_sdre(:,1:n), St_sdre(:,7:end), tspan);
 
 %Control integrals
 effort_sdre = control_effort(tspan, u, false);
@@ -145,12 +146,12 @@ order = 50;
 [Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, St_sdre(:,7:end));
 
 %Guidance parameters 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tspan(end);                  %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.IntergralCoefficients = Ci;        %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.Order = order;                             %Order of the approximation
+GNC.Guidance.CTR.TOF = tspan(end);                          %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     	        %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;                 %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;             %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntergralCoefficients = zeros(3,order);    %Coefficients of the Chebyshev approximation
 
 %% GNC: SMC control law %%
 GNC.Algorithms.Guidance = 'CTR';               	%Guidance algorithm
@@ -172,7 +173,7 @@ toc
 [e_smc, merit_smc] = figures_merit(tspan, St_smc);
 
 %Control law
-[~, ~, u] = GNC_handler(GNC, St_smc(:,1:6), St_smc(:,7:12), tspan);    
+[~, ~, u] = GNC_handler(GNC, St_smc(:,1:n), St_smc(:,7:12), tspan);    
 
 %Control integrals
 effort_smc = control_effort(tspan, u, false);
@@ -253,7 +254,7 @@ if (false)
     hold off
 end
 
-plotTripleEvolution(tspan, St_lqr, St_sdre, St_smc);
+plotTripleEvolution(tspan, St_smc, St_sdre, St_lqr);
 
 %% Auxiliary functions 
 %Function to plot the three relative state evolutions in the same figure 
@@ -262,13 +263,13 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
     St = [St_mpc(:,1:12); St_tiss(:,1:12); St_miss(:,1:12)]; 
 
     %Line format array 
-    lines = {'-' '-.' '-'};
+    lines = {'-' '-' '-.'};
 
     %Colors
     colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
 
     %Markers 
-    markers = {'none', 'none', '*'};
+    markers = {'none', '*', 'none'};
     markers_size = [6, 5, 6];
     
     figure
@@ -276,28 +277,30 @@ function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
         %Configuration space evolution
         subplot(1,2,1)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
         hold off
     end
-    legend('$x$', '$y$', '$z$');
+    legend('$\dot{x}$', '$\dot{y}$');
     xlabel('Nondimensional epoch');
     ylabel('Relative configuration coordinates');
     grid on;
     title('Relative position in time');
+    ax = gca;
+    ax.YAxis.Exponent = 0;
 
     for i = 1:3
         subplot(1,2,2)
         hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
+        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
         hold off
-        legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
     end
+    legend('$\dot{x}$', '$\dot{y}$');
     xlabel('Nondimensional epoch');
     ylabel('Relative velocity coordinates');
     grid on;
     title('Relative velocity in time');
+    ax = gca;
+    ax.YAxis.Exponent = 0;
 end

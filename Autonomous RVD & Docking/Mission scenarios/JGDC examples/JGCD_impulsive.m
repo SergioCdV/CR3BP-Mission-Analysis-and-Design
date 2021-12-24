@@ -64,7 +64,7 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
+r_t0 = target_orbit.Trajectory(500,1:6);                            %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
