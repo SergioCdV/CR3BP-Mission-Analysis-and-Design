@@ -101,8 +101,14 @@ cost_function = 'Position';                 %Cost function to target
 two_impulsive = true;                       %Two-impulsive rendezvous boolean
 
 tic
-[St, dV, state] = TITA_control(mu, tf, s0, tol, cost_function, zeros(1,3), two_impulsive, ...
-                               penalties, target_points, thruster_model);
+[St, dV, state] = TITA_control(mu, tf, s0, cost_function, zeros(1,3), two_impulsive, ...
+                               penalties, target_points, thruster_model,tol);
+toc
+
+
+penalties.M  = 0.1;                         %Penalty on the state noise
+tic
+[St2, dV2, state2] = FRTPS_control(mu, tf, s0, target_orbit.Period, cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model,tol);
 toc
 
 %Total maneuver metrics 

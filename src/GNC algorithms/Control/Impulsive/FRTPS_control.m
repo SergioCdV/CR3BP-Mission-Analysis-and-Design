@@ -1,18 +1,19 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 10/05/21
-% File: TITA_control.m 
+% File: FRTPS_control.m 
 % Issue: 0 
-% Validated: 10/05/21
+% Validated: 26/12/21
 
-%% Two impulsive, target approach control %%
-% This script contains the function to compute the control law by means of an TITA controller.
+%% Two impulsive, Floquet Rendezvous Target Mode Scheme %%
+% This script contains the function to compute the control law by means of an FRTPS controller.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
 %         - scalar TOF, the time of flight for the rendezvous condition
 %         - vector s0, initial conditions of both the target and the
 %           relative particle
+%           tolerance
 %         - string cost_function, for both position, velocity and complete
 %           rendezvous: 'Position', 'Velocity', 'State'
 %         - vector sd, the desired state of the system at end of the
@@ -24,7 +25,6 @@
 %           keeping
 %         - structure thruster_model, defining the thruster's error model
 %         - scalar tol, the differential corrector scheme absolute
-%           tolerance
 
 % Output: - array Sc, the rendezvous relative trajectory
 %         - array dV, containing  column-wise the required number of impulses
@@ -32,7 +32,7 @@
 
 % New versions: 
 
-function [Sc, dV, state] = TITA_control(mu, TOF, s0, cost_function, sd, two_impulsive, penalties, target_points, thruster_model, tol)
+function [Sc, dV, state] = FRTPS_control(mu, TOF, s0, T, cost_function, sd, two_impulsive, penalties, target_points, thruster_model, tol)
     %Constants 
     m = 6;                               %Phase space dimension
     
@@ -92,6 +92,22 @@ function [Sc, dV, state] = TITA_control(mu, TOF, s0, cost_function, sd, two_impu
     if (times(1) == 0)
         times(1) = 1; 
     end
+
+    %Floquet analysis
+    [~, Snaux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), 0:dt:T, s0, options);
+
+    [E, lambda] = eig(reshape(Snaux(end,2*m+1:end), [m m]));
+    J = diag(log(diag(lambda))/T);
+    for i = 1:size(E,2)
+        E(:,i) = E(:,i)/lambda(i,i);
+    end
+    F = inv(E);                         %Floquet change of basis
+
+    u1 = [1; zeros(5,1)];               %Unstable direction vector
+    B = u1.'*F*[zeros(m/2); Rr];        %Control input matrix
+
+    %Initial error along the unstable manifold
+    ns = u1.'*F*ns;
     
     %Implementation 
     while ((GoOn) && (iter < maxIter))
@@ -100,13 +116,12 @@ function [Sc, dV, state] = TITA_control(mu, TOF, s0, cost_function, sd, two_impu
 
         %Propagate the error 
         if (noise)
-            nSTM = zeros(m,m/2); 
+            gamma = 0;
             for i = 1:measurements 
-                 gamma = reshape(S(times(i),13:end), [m m]);                %Noise state transition matrix
-                 nSTM = nSTM + gamma.'*M*gamma*[zeros(m/2); Rr];            %Accumulated state transition matrix
+                 gamma = gamma + M*exp(J(1,1)*tspan(times(i)));   %Noise state transition matrix
             end
-            nSTM = sigma^2*[zeros(m,m/2) [zeros(m/2); Rr]]*nSTM;            %Accumulated state transition matrix
-            nState = sigma*ns.'*nSTM;                                       %Accumulated noise vector
+            nSTM = sigma^2*B.'*gamma*B;                           %Accumulated state transition matrix
+            nState = sigma*ns.'*gamma*B;                          %Accumulated noise vector
         end
 
         %Recompute initial conditions
