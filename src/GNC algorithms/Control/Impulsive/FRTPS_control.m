@@ -48,7 +48,7 @@ function [Sc, dV, state] = FRTPS_control(mu, TOF, s0, T, cost_function, sd, two_
     tspan = 0:dt:TOF;                    %Integration time span
     
     %Differential corrector set up
-    maxIter = 100;                       %Maximum number of iterations
+    maxIter = 200;                       %Maximum number of iterations
     GoOn = true;                         %Convergence boolean 
     iter = 1;                            %Initial iteration 
     
@@ -118,7 +118,7 @@ function [Sc, dV, state] = FRTPS_control(mu, TOF, s0, T, cost_function, sd, two_
         if (noise)
             gamma = 0;
             for i = 1:measurements 
-                 gamma = gamma + M*exp(J(1,1)*tspan(times(i)));   %Noise state transition matrix
+                 gamma = gamma + M*exp(2*J(1,1)*tspan(times(i)));   %Noise state transition matrix
             end
             nSTM = sigma^2*B.'*gamma*B;                           %Accumulated state transition matrix
             nState = sigma*ns.'*gamma*B;                          %Accumulated noise vector
@@ -162,7 +162,7 @@ function [Sc, dV, state] = FRTPS_control(mu, TOF, s0, T, cost_function, sd, two_
 
         %Add some noise 
         if (noise)
-            STM = STM + nSTM(4:6,1:3);                             %Noise state matrix
+            STM = STM + nSTM;                                      %Noise state matrix
             e = (xf-sd)*Q*Phi*Omega + nState;                      %Error state (deviation from the rendezvous condition)
             dV(:,iter) = pinv(STM.')*e.';                          %Needed impulse
             s0(10:12) = s0(10:12)-dV(:,iter)+sigma*Rr*dV(:,iter);  %New initial conditions

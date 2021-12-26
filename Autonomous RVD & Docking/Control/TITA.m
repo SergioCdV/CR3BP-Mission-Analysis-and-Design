@@ -80,7 +80,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                  %Reconstructed chase
 
 %% GNC: two impulsive rendezvous, generalized targetting approach %%
 %Differential corrector set up
-tol = 1e-5;                                 %Differential corrector tolerance
+tol = 1e-8;                                 %Differential corrector tolerance
 
 %Cost function matrices
 penalties.R = eye(3);                       %Penalty on the impulse
@@ -91,7 +91,7 @@ penalties.M  = 0.1*eye(6);                  %Penalty on the state noise
 target_points.Noise = true;                 %Boolean to account for state noise
 target_points.Times = tf*rand(1,3);         %Times to measure the state noise
 
-thruster_model.Sigma = 0.01;                %Velocity noise dependance on the velocity impulse
+thruster_model.Sigma = 1e-4;                %Velocity noise dependance on the velocity impulse
 
 %Rotational misalignment of the thrusters
 thruster_model.Rotation = [1 0 0; 0 cos(pi/18) sin(pi/18); 0 -sin(pi/18) cos(pi/18)];           
@@ -106,9 +106,10 @@ tic
 toc
 
 
-penalties.M  = 0.1;                         %Penalty on the state noise
+penalties.M  = 1e-10;                         %Penalty on the state noise
+Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit.Period);
 tic
-[St2, dV2, state2] = FRTPS_control(mu, tf, s0, target_orbit.Period, cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model,tol);
+[St2, dV2, state2] = FRTPS_control(mu, tf, s0, Tsyn, cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model,tol);
 toc
 
 %Total maneuver metrics 

@@ -48,7 +48,7 @@ function [Sc, dV, state] = TITA_control(mu, TOF, s0, cost_function, sd, two_impu
     tspan = 0:dt:TOF;                    %Integration time span
     
     %Differential corrector set up
-    maxIter = 100;                       %Maximum number of iterations
+    maxIter = 200;                       %Maximum number of iterations
     GoOn = true;                         %Convergence boolean 
     iter = 1;                            %Initial iteration 
     
