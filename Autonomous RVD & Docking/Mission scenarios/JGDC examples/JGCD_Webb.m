@@ -1,6 +1,6 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 10/07/21 % 
+% 28/12/21 % 
 
 %% James Webb Mission for JGCD %% 
 % This script provides an interface to test the general control scheme for a rendezvous, docking and undocking mission for a JWST mission.
