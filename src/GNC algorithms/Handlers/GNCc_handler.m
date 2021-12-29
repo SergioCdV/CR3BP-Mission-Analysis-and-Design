@@ -30,7 +30,9 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     %Navigation module 
     noise = GNC.Navigation.NoiseVariance; 
     Sn = S;
-    Sn(1:6) = S(1:6)-2*noise*ones(1,6)+noise*rand(1,6);
+    if (noise ~= 0)
+        Sn(1:6) = S(1:6)-2*noise*ones(1,6)+noise*rand(1,6);
+    end
     
     %Guidance module 
     switch (guidance)

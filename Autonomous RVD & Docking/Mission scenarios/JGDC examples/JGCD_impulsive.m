@@ -35,6 +35,9 @@ Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
+rep = 5;                            %Number of repetitions to compute the mean computational time for each algorithm
+Tc = zeros(rep,3);                  %Preallocation of the computational time
+
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
 Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
@@ -90,9 +93,11 @@ Tmax = 1e-3;                                  %Maximum thrust capability (in vel
 
 %Main computation 
 tspan = 0:dt:TOF; 
-tic
-[St_mpc, dV, state{1}] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
-toc
+for i = 1:rep
+    tic
+    [St_mpc, dV, state{1}] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+    Tc(i,1) = toc
+end
 
 %Control integrals
 effort_mpc = control_effort(tspan, dV, true);
@@ -116,9 +121,11 @@ impulses.Times = times;                       %Impulses times
 cost = 'Position';                            %Cost function to target
 
 %Controller scheme
-tic
-[St_miss, dV, state{2}] = MISS_control(mu, tf, s0, tol, cost, impulses);
-toc
+for i = 1:rep
+    tic
+    [St_miss, dV, state{2}] = MISS_control(mu, tf, s0, tol, cost, impulses);
+    Tc(i,2) = toc
+end
 
 %Control effort 
 effort_miss = control_effort(tspan, dV, true);
@@ -130,9 +137,13 @@ effort_miss = control_effort(tspan, dV, true);
 %Differential corrector scheme
 tol = 1e-10;                                                        %Differential corrector tolerance
 
-tic
-[St_tiss, dV, state{3}] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
-toc
+for i = 1:rep
+    tic
+    [St_tiss, dV, state{3}] = TISS_control(mu, tf, s0, tol, 'Position', true);  %Controller scheme
+    Tc(i,3) = toc
+end
+
+Tc = sum(Tc,1)/rep;
 
 %Total maneuver metrics 
 effort_tiss = control_effort(tspan, dV, true);
