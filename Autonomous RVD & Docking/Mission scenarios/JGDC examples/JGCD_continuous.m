@@ -41,7 +41,7 @@ nodes = 10;                         %Number of nodes for the multiple shooting c
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
-rep = 5;                            %Number of repetitions to compute the mean computational time for each algorithm
+rep = 25;                            %Number of repetitions to compute the mean computational time for each algorithm
 Tc = zeros(rep,3);                  %Preallocation of the computational time
 
 %% Initial conditions and halo orbit computation %%
@@ -91,7 +91,7 @@ S_rc = S(:,1:6)+S(:,7:12);                      %Reconstructed chaser motion via
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 GNC.Algorithms.Control = 'LQR';                 %Control algorithm
-model = 'RLM';
+model = 'SLLM';
 
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
@@ -102,7 +102,6 @@ GNC.System.mu = mu;                             %Systems's reduced gravitational
 GNC.System.Libration = [Ln gamma];              %Libration point ID
 
 GNC.Control.LQR.Model = model;                  %LQR model
-GNC.Control.SDRE.Model = model;                 %SDRE model
 GNC.Control.LQR.Q = 2*eye(9);                   %Penalty on the state error
 GNC.Control.LQR.M = eye(3);                     %Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);      %Penalty on the control effort
@@ -131,6 +130,8 @@ u_lqr = u;
 effort_lqr = control_effort(tspan, u, false);
 
 GNC.Algorithms.Control = 'SDRE';                %Control algorithm
+model = 'RLM';
+GNC.Control.SDRE.Model = model;                 %SDRE model
 
 %Compute the trajectory
 for i = 1:rep
@@ -173,7 +174,7 @@ GNC.System.mu = mu;                             %System reduced gravitational pa
 %GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L1', s0, tf)];
 GNC.Control.SMC.Parameters = [1.0000 0.6368 0.0008 0.0941];
 
-GNC.Navigation.NoiseVariance = 1e-8; 
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, NaN, NaN, 10, 'Position', true); 
 
 %Re-integrate the trajectory
 for i = 1:rep

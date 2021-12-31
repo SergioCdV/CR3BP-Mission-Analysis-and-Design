@@ -239,7 +239,7 @@ tspan = 0:dt:sum(tf);
 figure(3) 
 view(3) 
 hold on 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b');
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b*', 'MarkerIndices', 1:200:size(Sn,1));
 plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
 plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
