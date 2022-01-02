@@ -146,20 +146,27 @@ tic
 [Staux1, dVaux1, ~] = TITA_control(mu, 0.8*tf(1), s0, cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model, tol);
 toc
 
-%TITA controller second stage
-target_points.Times = 0.15*tf(1)*rand(1,3);  %Times to measure the state noise
+%Multi-impulse stage
+tol = 1e-8;                                   %Differential corrector tolerance
+
+%Select impulsive times 
+times = [0.2*tf(1)*rand(1,5)];                %Times to impulse the spacecraft
+
+%Compute the control law
+impulses.Number = length(times);              %Number of impulses
+impulses.Weights = eye(impulses.Number*3);    %Weightening matrix
+impulses.Times = times;                       %Impulses times
+
+cost = 'Position';                            %Cost function to target
+
+%Controller scheme
 tic
-[Staux2, dVaux2, ~] = TITA_control(mu, 0.15*tf(1), Staux1(end,1:2*n), cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model, tol);
+[Staux2, dVaux2, state] = MISS_control(mu, 0.2*tf(1), Staux1(end,1:2*n), tol, cost, impulses);
+toc
 toc
 
-%TITA controller third stage
-target_points.Times = 0.05*tf(1)*rand(1,3);  %Times to measure the state noise
-tic
-[Staux3, dVaux3, state] = TITA_control(mu, 0.05*tf(1), Staux2(end,1:2*n), cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model, tol);
-toc
-
-St1 = [Staux1(1:end,1:2*n); Staux2(2:end,1:2*n); Staux3(2:end,1:2*n)];
-dV = [dVaux1 dVaux2 dVaux3]; 
+St1 = [Staux1(1:end,1:2*n); Staux2(2:end,1:2*n)];
+dV = [dVaux1 dVaux2]; 
 
 %Control effort 
 tspan = 0:dt:tf(1);
@@ -167,7 +174,7 @@ effort_first = control_effort(tspan, dV, true);
 
 %% Second phase: close-range rendezvous
 %Phase definition 
-tf(2) = pi/28;                              %Timeline
+tf(2) = pi/14;                              %Timeline
 
 %GNC algorithms definition 
 GNC.Algorithms.Guidance = '';               %Guidance algorithm
@@ -181,7 +188,6 @@ GNC.System.mu = mu;                         %System reduced gravitational parame
 GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
 
 %Controller parameters
-%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St1(end,1:12), tf(2))]; 
 GNC.Control.SMC.Parameters = [1 1.000000000000000 0.985999332287318 0.006010671478548 0.013227007322678]; 
 
 %Integration time 
@@ -199,7 +205,8 @@ toc
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), tspan); 
 effort_second = control_effort(tspan, u, false);
 
-%% Guidance (Lissajous trajectory around the target)
+%% Third phase: formation-flying
+% Guidance (Lissajous trajectory around the target)
 %Phase definition 
 tf(3) = pi/2; 
 tspan = 0:dt:tf(3); 
@@ -226,9 +233,9 @@ for i = 1:size(Staux,1)
 end
 
 %Generate an 1 km helix around in the Frenet-Serret XY plane for the given
-A = dimensionalizer(Lem, 1, 1, 100, 'Position', 0);
+A = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
 omega = 4*pi/tspan(end);
-Sg_frenet(:,1:3) = [dt*tspan.' A*cos(omega*tspan).' A*sin(omega*tspan).'];
+Sg_frenet(:,1:3) = [dt*tspan.'/100 A*cos(omega*tspan).' A*sin(omega*tspan).'];
 Sg_frenet(:,4:6) = zeros(length(tspan),3);
 Sg = Sg_frenet; 
 for i = 1:size(Sg,1)
@@ -242,7 +249,7 @@ for i = 1:size(Sg,1)
 end
 
 %Compute the trajectory as a Chebyshev analytical expression
-order = 50; 
+order = 100; 
 [Cp, Cv, Cg] = CTR_guidance(order, tspan, Sg);
 
 %Reconstructed guidance trajectory
@@ -258,7 +265,6 @@ p = Cp*T;                   %Position regression
 v = Cv*T;                   %Velocity regression
 Sr = Staux+[p.' v.'];       %Regress the phase space trajectory
 
-%% Third phase: formation-flying
 %GNC algorithms definition 
 GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
 GNC.Algorithms.Navigation = '';             %Navigation algorithm
@@ -268,7 +274,7 @@ GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
 GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
 
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 1, 'Position', 0);
 
 %Controller parameters
 %GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
@@ -280,9 +286,6 @@ GNC.Guidance.CTR.TOF = tf(3);                       %Time of flight
 GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-
-%Integration time 
-tspan = 0:dt:tf(3); 
 
 %Initial conditions 
 s0 = St2(end,:); 
@@ -297,10 +300,20 @@ toc
 effort_third = control_effort(tspan, u, false);
 
 %% Fourth phase: formation-flying
+%Integration time 
+tf(4) = pi/4;
+
+%Impulsive first approach
+tic
+[St4aux, dV4, state] = TISS_control(mu, 0.1*tf(4), St3(end,1:2*n), 1e-10, 'Position', true);  %Controller scheme
+toc
+
+effort_fourth1 = control_effort(NaN, dV4, true);
+
 %GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
+GNC.Algorithms.Guidance = '';               %Guidance algorithm
 GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'LQR';             %Control algorithm
+GNC.Algorithms.Control = 'SDRE';            %Control algorithm
 FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
 GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
 GNC.Control.Dimension = 3;                  %Dimension of the control law
@@ -308,23 +321,24 @@ GNC.System.mu = mu;                         %System reduced gravitational parame
 
 GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
 
-%Controller parameters
-
-%Integration time 
-tf(4) = 3*pi/14;
-tspan = 0:dt:tf(3); 
+%Controller paramters
+GNC.System.Libration = [Ln gamma];          %Libration point ID
+GNC.Control.SDRE.Model = 'RLM';             %SDRE model
+GNC.Control.SDRE.Q = 2*eye(9);              %Penalty on the state error
+GNC.Control.SDRE.M = eye(3);                %Penalty on the control effort
 
 %Initial conditions 
-s0 = St3(end,:); 
+tspan = 0:dt:0.9*tf(4); 
+s0 = [St4aux(end,1:2*n) zeros(1,3)]; 
 
 %Re-integrate trajectory
 tic
-[~, St3] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+[~, St4] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
 toc
 
 %Compute the trajectory as a Chebyshev analytical expression
 order = 50; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, St3(:,7:9));
+[Cp, Cv, Cg] = CTR_guidance(order, tspan, St4(:,n+1:2*n));
 
 %GNC algorithms definition 
 GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
@@ -335,26 +349,29 @@ GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
 GNC.Control.Dimension = 3;                  %Dimension of the control law
 GNC.System.mu = mu;                         %System reduced gravitational parameter
 
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
+GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 10, 'Position', 0);
 
 %Controller parameters
 GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
 
 %Guidance parameters 
 GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf(3);                       %Time of flight
+GNC.Guidance.CTR.TOF = tf(4);                       %Time of flight
 GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation 
 
 %Re-integrate trajectory
 tic
-[~, St4] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+[~, St4] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0(1:2*n), options);
 toc
 
 %Control effort
 [~, ~, u] = GNC_handler(GNC, St4(:,1:6), St4(:,7:12), tspan); 
 effort_fourth = control_effort(tspan, u, false);
+
+%Final trajectory 
+St4 = [St4aux(:,1:2*n); St4];
 
 %% Final departure
 %Phase definition
@@ -362,10 +379,10 @@ tf(5) = 0.1;                             %End of the escape
 tspan = 0:dt:tf(5);
 
 %Controller definition
-constraint.Constrained = false;          %No constraints on the maneuver
-constraint.SafeDistance = 1e-5;          %Safety distance at the collision time
-constraint.Period = target_orbit.Period; %Orbital Period
-constraint.Energy = true;                %Energy constraint
+constraint.Constrained = false;                 %No constraints on the maneuver
+constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
+constraint.Period = target_orbit.Period(end);   %Orbital Period
+constraint.Energy = true;                       %Energy constraint
 
 tic
 [St5, dV5, tm] = FMSC_control(mu, tf(5), St4(end,1:12), 1e-8, constraint, 'Center');
@@ -374,13 +391,13 @@ toc
 %Control effort 
 effort_fifth = control_effort(tspan, dV5, true);
 
-tf(6) = 2*pi;
+tf(6) = 2;
 tspan = 0:dt:tf(6);
 [~, St6] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St5(end,:), options);
 
 %% Final results 
 %Complete trajectory 
-St = [St1(1:end,1:12); St2(2:end,1:12); St3(2:end,1:12); St5(2:end,1:12); St5(2:end,1:12); St6(2:end,1:12)];
+St = [St1(1:end-1,1:2*n); St2(2:end,1:2*n); St3(2:end,1:2*n); St4(2:end,1:2*n); St5(2:end,1:2*n); St6(2:end,1:2*n)];
 
 %Total integration time
 tspan = 0:dt:sum(tf);                                                    
@@ -389,9 +406,9 @@ tspan = 0:dt:sum(tf);
 figure(3) 
 view(3) 
 hold on 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'Linewidth', 0.1);
-plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r', 'Linewidth', 0.1);
-plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b*', 'MarkerIndices', 1:200:size(Sn,1));
+plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
+plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
@@ -431,26 +448,30 @@ legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity evolution');
 
 subplot(1,2,1)
-axes('position', [.17 .52 .25 .25])
+axes('position', [.22 .28 .2 .2])
 box on
-indexOfInterest = (tspan < 0.98*sum(tf(1:3))) & (tspan > sum(tf(2))); 
+indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(2))); 
 hold on
 plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
 hold off
 axis tight
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 subplot(1,2,2)
-axes('position', [0.62 .30 .25 .25])
+axes('position', [0.67 .50 .18 .2])
 box on
-indexOfInterest = (tspan < 0.98*sum(tf(1:3))) & (tspan > sum(tf(1))); 
+indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(1))); 
 hold on
 plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
 plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
 hold off
 axis tight
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 if (false)
     dh = 50; 
