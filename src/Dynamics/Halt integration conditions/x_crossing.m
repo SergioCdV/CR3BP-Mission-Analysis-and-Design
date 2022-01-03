@@ -12,5 +12,5 @@ function [Pos, isterminal, dir] = x_crossing(~, x)
     %Event definition
     Pos = x(2);         %X axis crossing
     isterminal = 1; 
-    dir = -1;           %Direction of the crossing
+    dir = 1;           %Direction of the crossing
 end

@@ -35,7 +35,7 @@ Lem = 384400e3;                     %Mean distance from the Earth to the Moon
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
-rep = 5;                            %Number of repetitions to compute the mean computational time for each algorithm
+rep = 25;                           %Number of repetitions to compute the mean computational time for each algorithm
 Tc = zeros(rep,3);                  %Preallocation of the computational time
 
 %% Initial conditions and halo orbit computation %%

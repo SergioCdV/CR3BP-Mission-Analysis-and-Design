@@ -62,19 +62,33 @@ tspan = 0:dt:target_orbit.Period(end);
 [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
 Sn = S; 
 
+%Generate the L1 halo 
+Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 1;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, ~] = object_seed(mu, halo_param, 'Halo');               %Generate a halo orbit seed
+
+%Correct the seed and obtain initial conditions for a halo orbit
+[initial_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+
 %% Compute the tranfer trajectory
 %Parking orbit definition 
 R = [-mu; 0; 0];                        %Primary location in the configuration space
-branch = 'R';                           %Manifold branch to globalize
+branch = 'L';                           %Manifold branch to globalize
 map = 'First primary';                  %Poincaré map to use
-event = @(t,s)sp_crossing(t,s,mu);      %Integration event
+event = @(t,s)fp_crossing(t,s,mu);      %Integration event
 
-hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                  %Parking orbit altitude
+hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                   %Parking orbit altitude
 
 %Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
 manifold = 'S';                                                          %Integrate the stable manifold
-seed = S;                                                                %Periodic orbit seed
-tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
+seed = initial_orbit.Trajectory;                                         %Periodic orbit seed
+tspan = 0:1e-3:initial_orbit.Period;                                     %Original integration time
 rho = 50;                                                                %Density of fibres to analyze
 S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
 
@@ -96,9 +110,36 @@ tspan = TOF:-dt:0;                                                              
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', event);             %Integration tolerances  
 [~, St0] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);    %Natural trajectory
 
+%Heteroclinic chain between the two halo orbits
+%Manifold definition
+TOF = 2*pi;                     %Time of flight
+rho = 75;                       %Manifold fibers to compute 
+
+%Computation flags
+position_fixed = false;         %Flag to determine a final target state
+graphics = false;               %Flag to plot the manifolds
+
+%Final target state
+target_orbit.TargetState = Sn(1,1:n); 
+target_orbit.Trajectory = Sn; 
+
+%Connection itenerary
+sequence = [1 2];               %Connection itenerary
+branch = ['L' 'R'];             %Manifold branches to be propagated
+
+%Trajectory design core
+[Sg, dV] = HTRC_guidance(mu, sequence, branch, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics);
+
+Stw = initial_orbit.Trajectory(:,1:n);
+Schain = Sg.Trajectory;
+
+%Transfer effort
+effort_transfer = control_effort(NaN, dV, true);
+Ln = 2;
+
 %% Modelling in the synodic frame %%
 r_t0 = Sn(mod(size(St0,1), size(Sn,1)), 1:6);               %Initial target conditions
-r_c0 = St0(1,1:6);                                          %Initial chaser conditions 
+r_c0 = Schain(end,1:6);                                     %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           %Initial relative conditions
 s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
 
@@ -107,10 +148,12 @@ figure(1)
 hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3));
 plot3(St0(:,1), St0(:,2), St0(:,3));
+plot3(Stw(:,1), Stw(:,2), Stw(:,3));
+plot3(Schain(:,1), Schain(:,2), Schain(:,3));
 scatter3(r_c0(1), r_c0(2), r_c0(3))
 scatter3(r_t0(1), r_t0(2), r_t0(3))
 hold off
-legend('Target orbit', 'Target at HOI', 'Chaser at HOI'); 
+legend('Target orbit', 'Unstable manifold transfer', 'Loitering orbit', 'Transfer chain', 'Target at HOI', 'Chaser at HOI'); 
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
@@ -162,7 +205,6 @@ cost = 'Position';                            %Cost function to target
 %Controller scheme
 tic
 [Staux2, dVaux2, state] = MISS_control(mu, 0.2*tf(1), Staux1(end,1:2*n), tol, cost, impulses);
-toc
 toc
 
 St1 = [Staux1(1:end,1:2*n); Staux2(2:end,1:2*n)];
@@ -277,8 +319,7 @@ GNC.System.mu = mu;                         %System reduced gravitational parame
 GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 1, 'Position', 0);
 
 %Controller parameters
-%GNC.Control.SMC.Parameters = [1 SMC_optimization(mu, 'L2', St2(end,1:12), tf(2))]; 
-GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
+GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
 
 %Guidance parameters 
 GNC.Guidance.CTR.Order = order;                     %Order of the approximation
@@ -299,7 +340,7 @@ toc
 [~, ~, u] = GNC_handler(GNC, St3(:,1:6), St3(:,7:12), tspan); 
 effort_third = control_effort(tspan, u, false);
 
-%% Fourth phase: formation-flying
+%% Fourth phase: close-range rendezvous
 %Integration time 
 tf(4) = pi/4;
 
@@ -352,7 +393,7 @@ GNC.System.mu = mu;                         %System reduced gravitational parame
 GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 10, 'Position', 0);
 
 %Controller parameters
-GNC.Control.SMC.Parameters = [1 1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
+GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
 
 %Guidance parameters 
 GNC.Guidance.CTR.Order = order;                     %Order of the approximation
@@ -385,13 +426,13 @@ constraint.Period = target_orbit.Period(end);   %Orbital Period
 constraint.Energy = true;                       %Energy constraint
 
 tic
-[St5, dV5, tm] = FMSC_control(mu, tf(5), St4(end,1:12), 1e-8, constraint, 'Center');
+[St5, dV5, tm] = FMSC_control(mu, tf(5), St4(end,1:12)+dimensionalizer(Lem, NaN, NaN, 1e3, 'Position', false)*[1 zeros(1,11)], 1e-8, constraint, 'Stable');
 toc 
 
 %Control effort 
 effort_fifth = control_effort(tspan, dV5, true);
 
-tf(6) = 2;
+tf(6) = 2*pi;
 tspan = 0:dt:tf(6);
 [~, St6] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St5(end,:), options);
 
@@ -407,8 +448,10 @@ figure(3)
 view(3) 
 hold on 
 t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b*', 'MarkerIndices', 1:200:size(Sn,1));
-plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
 plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
+plot3(Schain(:,1), Schain(:,2), Schain(:,3), 'r');
+plot3(Stw(:,1), Stw(:,2), Stw(:,3), 'r');
+plot3(St0(1:1500,1), St0(1:1500,2), St0(1:1500,3), 'r');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
@@ -417,10 +460,10 @@ text(1-mu+1e-3, 0, 5e-3, '$M_2$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
-legend('Target orbit', 'Chaser trajectory', 'Location', 'northeast');
+legend('Target orbit', 'Chaser trajectory', 'Location', 'southwest');
 grid on;
-title('Mission trajectory in the absolute configuration space');
 
+%%
 %Configuration space evolution
 figure(4)
 subplot(1,2,1)
@@ -448,7 +491,7 @@ legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity evolution');
 
 subplot(1,2,1)
-axes('position', [.22 .28 .2 .2])
+axes('position', [.22 .40 .2 .2])
 box on
 indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(2))); 
 hold on
@@ -461,7 +504,7 @@ ax = gca;
 ax.YAxis.Exponent = 0;
 
 subplot(1,2,2)
-axes('position', [0.67 .50 .18 .2])
+axes('position', [0.69 .25 .18 .2])
 box on
 indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(1))); 
 hold on
