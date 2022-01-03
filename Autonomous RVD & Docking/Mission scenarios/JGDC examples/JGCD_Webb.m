@@ -38,8 +38,7 @@ Bif_tol = 1e-2;                                             %Bifucartion toleran
 num = 2;                                                    %Number of orbits to continuate
 direction = -1;                                             %Direction to continuate (to the Earth)
    
-%% Functions
-%Compute the NRHO
+%% Compute the nominal orbit
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
 %Generate the orbit

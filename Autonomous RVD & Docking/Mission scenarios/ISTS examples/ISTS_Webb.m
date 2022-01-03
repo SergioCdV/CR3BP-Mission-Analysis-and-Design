@@ -2,11 +2,8 @@
 % Sergio Cuevas del Valle % 
 % 10/07/21 % 
 
-%% GNC 11: Complete rendezvous mission example 4 %% 
+%% ISTS James Webb %% 
 % This script provides an interface to test the general control scheme for a rendezvous, docking and undocking mission. 
-
-% The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L2 in the
-% Sun-Earth system is analyzed.
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
 % points reference frame as defined by Howell, 1984.
@@ -14,9 +11,6 @@
 %% Set up %%
 %Set up graphics 
 set_graphics();
-
-%Integration tolerances (ode113)
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
 %Phase space dimension 
@@ -44,19 +38,18 @@ Bif_tol = 1e-2;                                             %Bifucartion toleran
 num = 2;                                                    %Number of orbits to continuate
 direction = -1;                                             %Direction to continuate (to the Earth)
    
-%% Functions
-%Compute the NRHO
+%% Compute the nominal orbit
 [halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
 
 %Generate the orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-Sn = target_orbit.Trajectory; 
+Sn = target_orbit.Trajectory;
 
 %% Compute the tranfer trajectory
 %Parking orbit definition 
 R = [1-mu; 0; 0];                       %Primary location in the configuration space
 branch = 'L';                           %Manifold branch to globalize
-map = 'Secondary primary';              %Poincaré map to use
+map = 'Secondary primary';              %PoincarÃ© map to use
 event = @(t,s)sp_crossing(t,s,mu);      %Integration event
 
 hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                  %Parking orbit altitude
@@ -64,8 +57,8 @@ hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                  %Parkin
 %Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
 manifold = 'S';                                                          %Integrate the stable manifold
 seed = Sn;                                                               %Periodic orbit seed
-tspan = 0:1e-3:target_orbit.Period;                                      %Original integration time
-rho = 20;                                                                %Density of fibres to analyze
+tspan = 0:1e-3:5*target_orbit.Period;                                    %Original integration time
+rho = 50;                                                                %Density of fibres to analyze
 S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
 
 %Relative distance to the primary of interest
@@ -110,6 +103,7 @@ title('Reconstruction of the natural chaser motion');
 %% First phase: long-range rendezvous using the MPC approach
 %Time of flight 
 tf(1) = 0.6;                                  %Nondimensional maneuver end time 
+tspan = 0:dt:tf(1);
 
 %Set up of the optimization
 method = 'NPL';                               %Method to solve the problem
@@ -161,6 +155,8 @@ GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebysh
 GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
 GNC.Guidance.CTR.IntegralCoefficients = Ci;         %Coefficients of the Chebyshev approximation
 
+GNC.Navigation.NoiseVariance = 0; 
+
 %Initial conditions 
 int = zeros(1,3);                                   %Integral of the relative position
 slqr0 = [St1(end,1:12) int];                        %Initial conditions
@@ -174,17 +170,17 @@ toc
 [~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:end), tspan);
 
 %Control integrals
-efforr_sdre = control_effort(tspan, u, false);
+effort_sdre = control_effort(tspan, u, false);
 
 %% Third phase: rendezvous with MI
 %Phase definition 
-tf(3) = 0.8; 
+tf(3) = 0.5; 
 
 %Differential corrector set up
 tol = 1e-8;                                   %Differential corrector tolerance
 
 %Select impulsive times 
-times = [0 tf(3)*rand(1,5)];                  %Times to impulse the spacecraft
+times = 0.8*tf(3)*rand(1,5);                  %Times to impulse the spacecraft
 
 %Compute the control law
 impulses.Number = length(times);              %Number of impulses
@@ -195,15 +191,30 @@ cost = 'Position';                            %Cost function to target
 
 %Compute the guidance law
 tic
-[St3, dV3, state] = MISS_control(mu, tf(3), St2(end,1:12), tol, cost, impulses);
+[Staux1, dVaux1, state] = MISS_control(mu, 0.8*tf(3), St2(end,1:12), tol, cost, impulses);
 toc
 
+times = 0.15*tf(3)*rand(1,5);                 %Times to impulse the spacecraft
+impulses.Times = times;                       %Impulses times
+tic
+[Staux2, dVaux2, state] = MISS_control(mu, 0.15*tf(3), Staux1(end,1:12), tol, cost, impulses);
+toc
+
+times = 0.05*tf(3)*rand(1,5);                 %Times to impulse the spacecraft
+impulses.Times = times;                       %Impulses times
+tic
+[Staux3, dVaux3, state] = MISS_control(mu, 0.05*tf(3), Staux2(end,1:12), tol, cost, impulses);
+toc
+
+St3 = [Staux1(:,1:2*n); Staux2(2:end,1:2*n); Staux3(2:end,1:2*n)];
+dV3 = [dVaux1 dVaux2 dVaux3]; 
+
 %Performance indices
-effort_mi = control_effort(tspan, dV3, true); %Control effort made
+effort_mi = control_effort(tspan, dV3, true);   %Control effort made
 
 %% Third phase: escape
 %Phase definition
-tf(4) = 1.5*pi;                                 %End of the escape 
+tf(4) = 0.1;                                    %End of the escape 
 
 %Controller definition
 constraint.Constrained = false;                 %No constraints on the maneuver
@@ -216,16 +227,17 @@ tic
 toc
 
 %Re-integrate trajectory
-tspan = 0:dt:tf(4)-0.1;
+tf(5) = 2*pi;
+tspan = 0:dt:tf(5);
 [~, St4b] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St4(end,1:12), options);
-St4 = [St4(1:end-1,:); St4b];
+St4 = [St4; St4b(2:end,:)];
 
 %Control effort 
 effort_fmsc = control_effort(tspan, dV4, true);
 
 %% Final results 
 %Complete trajectory 
-St = [St1(1:end-1,1:12); St2(1:end-1,1:12); St3(1:end-1,1:12); St4(1:end,1:12)];
+St = [St1(1:end,1:12); St2(2:end,1:12); St3(2:end,1:12); St4(2:end,1:12)];
 
 %Total integration time
 tspan = 0:dt:sum(tf);                                                    
