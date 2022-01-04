@@ -106,7 +106,7 @@ ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
 legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit')
-title('Target trajectory in time');
+title('Guidance trajectory between periodic orbits');
 
 %Configuration space evolution
 figure(3)

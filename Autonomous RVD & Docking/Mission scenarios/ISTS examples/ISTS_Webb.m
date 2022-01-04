@@ -223,7 +223,7 @@ constraint.Period = target_orbit.Period(end);   %Orbital period
 constraint.Energy = false;                      %No energy constraint
 
 tic
-[St4, dV4, tm] = FMSC_control(mu, 0.1, St3(end,1:12), tol, constraint, 'Center');
+[St4, dV4, tm] = FMSC_control(mu, tf(4), St3(end,1:12), tol, constraint, 'Center');
 toc
 
 %Re-integrate trajectory
@@ -240,24 +240,24 @@ effort_fmsc = control_effort(tspan, dV4, true);
 St = [St1(1:end,1:12); St2(2:end,1:12); St3(2:end,1:12); St4(2:end,1:12)];
 
 %Total integration time
-tspan = 0:dt:sum(tf);                                                    
+tspan = 0:dt:sum(tf)+3*dt;                                                    
 
 %% Plotting
 figure(3) 
 view(3) 
 hold on 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'Linewidth', 0.1);
-plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r', 'Linewidth', 0.1);
-plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r', 'Linewidth', 0.1); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'Marker', '*', 'MarkerIndices', 1:200:size(Sn,1));
+plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
+plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
-text(L(1,Ln)+1e-4, L(2,Ln), 1e-3, '$L_2$');
-text(1-mu-5e-4, 0, 1e-3, '$M_2$');
+text(L(1,Ln)+1e-6, L(2,Ln), 1e-6, '$L_2$');
+text(1-mu-1e-6, 0, 1e-6, '$M_2$');
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
-legend('Target orbit', 'Chaser trajectory', 'Location', 'northeast');
+legend('Target orbit', 'Chaser trajectory', 'Location', 'northwest');
 grid on;
 title('Mission trajectory in the absolute configuration space');
 
@@ -274,6 +274,8 @@ ylabel('Relative configuration coordinate');
 grid on;
 legend('$x$', '$y$', '$z$');
 title('Relative position evolution');
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 subplot(1,2,2)
 hold on
@@ -286,28 +288,8 @@ ylabel('Relative velocity coordinate');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Relative velocity evolution');
-
-subplot(1,2,1)
-axes('position', [.17 .52 .25 .25])
-box on
-indexOfInterest = (tspan < 0.98*sum(tf(3))) & (tspan > 0); 
-hold on
-plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
-hold off
-axis tight
-
-subplot(1,2,2)
-axes('position', [0.62 .30 .25 .25])
-box on
-indexOfInterest = (tspan < 0.98*sum(tf(3))) & (tspan > 0); 
-hold on
-plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
-hold off
-axis tight
+ax = gca; 
+ax.YAxis.Exponent = 0;
 
 if (false)
     dh = 50; 
