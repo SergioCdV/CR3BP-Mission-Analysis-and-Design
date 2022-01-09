@@ -395,9 +395,9 @@ tic
 toc
 
 tic
-times = 0.1*tf(6)*rand(1,5);                  %Times to impulse the spacecraft
+times = 0.05*tf(6)*rand(1,5);                 %Times to impulse the spacecraft
 impulses.Times = times;                       %Impulses times
-[S2_miss2, dV2, state] = MISS_control(mu, 0.1*tf(6), S2_miss1(end,1:2*n), tol, cost, impulses);
+[S2_miss2, dV2, state] = MISS_control(mu, 0.05*tf(6), S2_miss1(end,1:2*n), tol, cost, impulses);
 toc
 
 S2_miss = [S2_miss1(1:end,1:2*n); S2_miss2(2:end,1:2*n)];
@@ -406,11 +406,16 @@ dV = [dV1 dV2];
 %Control effort 
 effort_miss = control_effort(NaN, dV, true);
 
+tic
+[St4aux, dVti, ~] = TISS_control(mu, 0.05*tf(6), S2_miss(end,1:2*n), 1e-10, 'Position', true);  %Controller scheme
+toc
+effort_ti2 = control_effort(NaN, dVti, true);
+
 %Totalc cost of the maneuver 
-total_cost(5) = 1000*1.025*(norm(effort_smc(:,3))+norm(effort_ti(:,3))+norm(effort_miss(:,3)));
+total_cost(5) = 1000*1.025*(norm(effort_smc(:,3))+norm(effort_ti(:,3))+norm(effort_ti2(:,3))+norm(effort_miss(:,3)));
 
 %Complete rendezvous trajectory 
-S2 = [S2_smc(:,1:2*n); S2_miss(2:end,1:2*n)];
+S2 = [S2_smc(:,1:2*n); S2_miss(2:end,1:2*n); St4aux(2:end,1:2*n)];
 
 %% Heteroclinic departure connection between the loitering and target orbit
 %Manifold definition
