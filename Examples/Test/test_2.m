@@ -25,7 +25,7 @@ Az = 50e6;                                                  %Orbit amplitude out
 Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
@@ -50,7 +50,7 @@ lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov
 
 %Halo orbit 
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-  
+
 %Distant Retrograde Orbit (only for L2)
 [dro_orbit, state(3)] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 

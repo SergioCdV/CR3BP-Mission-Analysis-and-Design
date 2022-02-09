@@ -35,16 +35,74 @@ function [L] = libration_potential(mu, L, s, order)
     v = s(4:6);                         %Velocity vector
 
     %Relative state variables 
+    U = 0;                              %Relative potential energy
     LID = L(1);                         %Identifier of the libration point
     switch (LID)
         case 1
             gamma = L(end);             %Characteristic distance of the libration point
             r(1) = r(1)-1+mu+gamma;     %Relative x coordinate to the libration point
             r = r/gamma;                %Scaled position vector
+
+            %Linear potential energy
+            for i = 2:order
+                c = legendre_coefficients(mu, LID, gamma, i);
+                c = c(end);
+                P = legendre_polynomials(i+1,r(1)/norm(r));
+                U = U + c*norm(r)^i*P(end);
+            end
+
         case 2
             gamma = L(end);             %Characteristic distance of the libration point
             r(1) = r(1)-1+mu-gamma;     %Relative x coordinate to the libration point
             r = r/gamma;                %Scaled position vector
+
+            %Potential energy
+            for i = 2:order
+                c = legendre_coefficients(mu, LID, gamma, i);
+                c = c(end);
+                P = legendre_polynomials(i+1,r(1)/norm(r));
+                U = U + c*norm(r)^i*P(end);
+            end
+
+        case 3
+            gamma = L(end);             %Characteristic distance of the libration point
+            r(1) = r(1)+mu+gamma;       %Relative x coordinate to the libration point
+            r = r/gamma;                %Scaled position vector
+
+            %Potential energy
+            for i = 2:order
+                c = legendre_coefficients(mu, LID, gamma, i);
+                c = c(end);
+                P = legendre_polynomials(i+1,r(1)/norm(r));
+                U = U + c*norm(r)^i*P(end);
+            end
+
+        case 4
+            l = [mu+1/2; sqrt(3)/2; 0];     %Libration point position vector
+            r = r - l;                      %Relative x coordinate to the libration point
+            R = R - repmat(l,1,2);          %Relative primaries position vectors
+
+           %Potential energy
+            for i = 1:length(mu_r)
+                for j = 1:order+1
+                    P = legendre_polynomials(j,dot(R(:,i),r)/(norm(R(:,i)*norm(r))));
+                    U = U + (norm(r)/norm(R(:,i)))^(j-1)*P(end)/norm(R(:,i));
+                end
+            end
+
+        case 5
+            l = [mu+1/2; -sqrt(3)/2; 0];    %Libration point position vector
+            r = r - l;                      %Relative x coordinate to the libration point
+            R = R - repmat(l,1,2);          %Relative primaries position vectors
+
+            %Potential energy
+            for i = 1:length(mu_r)
+                for j = 1:order+1
+                    P = legendre_polynomials(j,dot(R(:,i),r)/(norm(R(:,i)*norm(r))));
+                    U = U + (norm(r)/norm(R(:,i)))^(j-1)*P(end)/norm(R(:,i));
+                end
+            end
+
         otherwise
             error('Libration point calculation has not been implemented yet');
     end
@@ -54,10 +112,5 @@ function [L] = libration_potential(mu, L, s, order)
     T = (1/2)*dot(v,v);
 
     %Relative potential function 
-    L = T;
-    for i = 1:length(mu_r)
-        for j = 1:order
-            L = L + (norm(r)/norm(R(:,i)))^j*legendre_polynomials(j, r(1)/norm(r));
-        end
-    end
+    L = T+U;
 end
