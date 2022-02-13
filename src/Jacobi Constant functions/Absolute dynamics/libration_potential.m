@@ -42,26 +42,26 @@ function [L] = libration_potential(mu, L, s, order)
             gamma = L(end);             %Characteristic distance of the libration point
             r(1) = r(1)-1+mu+gamma;     %Relative x coordinate to the libration point
             r = r/gamma;                %Scaled position vector
+            c = legendre_coefficients(mu, LID, gamma, order);
 
             %Linear potential energy
             for i = 2:order
-                c = legendre_coefficients(mu, LID, gamma, i);
-                c = c(end);
+                ci = c(i);
                 P = legendre_polynomials(i+1,r(1)/norm(r));
-                U = U + c*norm(r)^i*P(end);
+                U = U + ci*norm(r)^i*P(end);
             end
 
         case 2
             gamma = L(end);             %Characteristic distance of the libration point
             r(1) = r(1)-1+mu-gamma;     %Relative x coordinate to the libration point
             r = r/gamma;                %Scaled position vector
+            c = legendre_coefficients(mu, LID, gamma, order);
 
             %Potential energy
-            for i = 2:order
-                c = legendre_coefficients(mu, LID, gamma, i);
-                c = c(end);
+            for i = 1:order
+                ci = c(i);
                 P = legendre_polynomials(i+1,r(1)/norm(r));
-                U = U + c*norm(r)^i*P(end);
+                U = U + ci*norm(r)^i*P(end);
             end
 
         case 3

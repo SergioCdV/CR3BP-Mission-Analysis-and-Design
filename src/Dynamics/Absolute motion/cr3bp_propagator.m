@@ -39,6 +39,12 @@ function [ds] = cr3bp_propagator(setup, mu, direction, flagVar, t, s, varargin)
         case 'Newton'    
             ds = cr3bp_equations(mu, direction, flagVar, t, s, varargin);            %Relative motion equations
         case 'Encke'
+            L = libration_points(mu);                                   %System libration points
+            for i = 1:5
+                C(i) = libration_potential(mu,[i;L(:,i)],s,6);
+            end
+           [~,index] = sort(C); 
+           index(end)
             L = setup.LagrangePointPosition;                                         %Lagrange point to which relative motion is computed
             ds = encke_dynamics(mu, L, direction, flagVar, t, s, varargin);          %Relative motion equations
         otherwise

@@ -18,8 +18,8 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 120e1;                                                 %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 120e1;                                                 %Orbit amplitude in the synodic plane. Play with it! 
+Az = 60e1;                                                 %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 60e1;                                                 %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
