@@ -102,6 +102,8 @@ tspan = 0:dt:loiter_orbit.Period;                                        %Origin
 rho = 70;                                                                %Density of fibres to analyze
 S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
 
+manifold = S;
+
 %Relative distance to the primary of interest
 distance = zeros(rho,1);    
 for i = 1:rho
@@ -426,7 +428,7 @@ tf(7) = TOF;
 
 %Computation flags
 position_fixed = false;        %Flag to determine a final target state
-graphics = false;              %Flag to plot the manifolds
+graphics = true;              %Flag to plot the manifolds
 
 %Final target state
 target_orbit.Trajectory = Sn;
@@ -530,25 +532,54 @@ zlabel('Synodic $z$ coordinate');
 grid on;
 legend('Loiter orbit', 'Gateway orbit', 'Chaser trajectory', 'Location', 'northeast');
 title('Mission trajectory in the absolute configuration space');
-
+%%
 %Rendezvous animation 
-if (false)
-    figure(6) 
-    view(3) 
-    grid on;
+if (true)
+    dh = 100;
+    W = figure(1);
+    filename = 'gateway.gif';
+    view([40 20]) 
     hold on
-    plot3(initial_orbit.Trajectory(:,1), initial_orbit.Trajectory(:,2), initial_orbit.Trajectory(:,3), 'k-.'); 
-    xlabel('Synodic x coordinate');
-    ylabel('Synodic y coordinate');
-    zlabel('Synodic z coordinate');
+    r = plot3(Sresident(:,7)+Sresident(:,1), Sresident(:,8)+Sresident(:,2), Sresident(:,9)+Sresident(:,3), 'b', 'Marker', '+', 'MarkerIndices', 1:400:size(Sresident,1)); 
+    t = plot3(Sgate(:,7)+Sgate(:,1), Sgate(:,8)+Sgate(:,2), Sgate(:,9)+Sgate(:,3), 'k', 'Marker', '*', 'MarkerIndices', 1:500:size(Sgate,1));
+    g = plot3(Sc1(:,1)+Sc1(:,7), Sc1(:,2)+Sc1(:,8), Sc1(:,3)+Sc1(:,9), 'm');
+    h = plot3(Sc2(:,1), Sc2(:,2), Sc2(:,3), 'm');
+    plot3(St_transfer(:,1), St_transfer(:,2), St_transfer(:,3), 'm');
+    plot3(St_departure(:,1), St_departure(:,2), St_departure(:,3), 'm');
+    plot3(Stf(1:5000,1), Stf(1:5000,2), Stf(1:5000,3), 'm');
+    plot3(St0(1:2000,1), St0(1:2000,2), St0(1:2000,3), 'm');
+    scatter3(L(1,1), L(2,1), 0, 'k', 'filled');
+    scatter3(L(1,2), L(2,2), 0, 'k', 'filled');
+    scatter3(1-mu, 0, 0, 'k', 'filled');
+    text(L(1,1)+1e-3, L(2,1)+1e-3, 5e-3, '$L_1$');
+    text(L(1,2)+1e-3, L(2,2), 5e-3, '$L_2$');
+    text(1-mu+1e-3, 0, 5e-3, '$M_2$');
+    xlabel('Synodic $x$ coordinate');
+    ylabel('Synodic $y$ coordinate');
+    zlabel('Synodic $z$ coordinate');
+    grid on;
+    legend('Loiter orbit', 'Gateway orbit', 'Chaser trajectory', 'Location', 'northeast', 'AutoUpdate', 'off');
     title('Rendezvous simulation');
-    for i = 1:size(St,1)
-        T = scatter3(St(i,1), St(i,2), St(i,3), 30, 'b'); 
-        V = scatter3(St(i,1)+St(i,7), St(i,2)+St(i,8), St(i,3)+St(i,9), 30, 'r');
+
+    for i = 1:dh:min([size(Sgate,1), size(Sresident,1)])
+        T = scatter3(Sgate(i,1), Sgate(i,2), Sgate(i,3), 30, 'b', 'filled'); 
+        V = scatter3(Sgate(i,1)+Sgate(i,7), Sgate(i,2)+Sgate(i,8), Sgate(i,3)+Sgate(i,9), 30, 'r', 'filled');
+        H = scatter3(Sresident(i,1)+Sresident(i,7), Sresident(i,2)+Sresident(i,8), Sresident(i,3)+Sresident(i,9), 30, 'r', 'filled');
+        J = scatter3(Sresident(i,1), Sresident(i,2), Sresident(i,3), 30, 'b', 'filled');
 
         drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
         delete(T); 
         delete(V);
+        delete(H)
+        delete(J)
     end
     hold off
 end

@@ -90,7 +90,6 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     
     %Output seed
     seed = [x.' y.' z.' vx.' vy.' vz.'];    %Seed trajectory
-    seed = seed/;
 end
 
 %Halo third order seed orbit

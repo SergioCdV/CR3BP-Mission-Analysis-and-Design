@@ -291,24 +291,30 @@ title('Relative velocity evolution');
 ax = gca; 
 ax.YAxis.Exponent = 0;
 
-if (false)
+%%
+
+if (true)
+    Sn = repmat(Sn,floor(size(St,1)/size(Sn,1))+1,1);
     dh = 50; 
     steps = fix(size(St,1)/dh);
     M = cell(1,steps);
     h = figure;
     filename = 'webb.gif';
-    view([40 20])
+    %view([40 20])
+    view(3)
     hold on
-    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.r', 'Linewidth', 0.1);
-    plot3(St(:,1), St(:,2), St(:,3), '.-b', 'Linewidth', 0.1);
-    plot3(St4(:,1)+St4(:,7), St4(:,2)+St4(:,8), St4(:,3)+St4(:,9), '.r', 'Linewidth', 0.1); 
-    xlabel('Synodic x coordinate');
-    ylabel('Synodic y coordinate');
-    zlabel('Synodic z coordinate');
+    t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'Marker', '*', 'MarkerIndices', 1:200:size(Sn,1));
+    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), 'r');
+    plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
     scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
     scatter3(1-mu, 0, 0, 'k', 'filled');
-    text(L(1,Ln)-2e-3, L(2,Ln), 0, '$L_2$');
-    text(1-mu-1e-3, 0, 1e-3, '$M_2$');
+    text(L(1,Ln)+1e-6, L(2,Ln), 1e-6, '$L_2$');
+    text(1-mu-1e-6, 0, 1e-6, '$M_2$');
+    xlabel('Synodic $x$ coordinate');
+    ylabel('Synodic $y$ coordinate');
+    zlabel('Synodic $z$ coordinate');
+    legend('Target orbit', 'Chaser trajectory', 'Location', 'northwest', 'AutoUpdate', 'off');
+
     grid on;
     title('Rendezvous simulation');
     
