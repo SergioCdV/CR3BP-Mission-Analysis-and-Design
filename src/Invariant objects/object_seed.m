@@ -52,7 +52,11 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     L = parameters(5);      %Lagrange point identifier
     gamma = parameters(6);  %Lagrange point coordinate
     n = parameters(7);      %Number of periods to generate
-        
+
+    %Dimensionalising
+%     Ax = Ax/gamma; 
+%     Az = Az/gamma; 
+%         
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
     c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
@@ -106,6 +110,9 @@ function [seed, T] = halo_seed(mu, parameters)
     
     %Independent variable     
     tau = 0:dtheta:2*pi*m;
+
+    %Dimensionalising
+%     Az = Az/gamma; 
     
     %Determine some boolean parameters for the halo determination, concerning the nondimensional reference frame used in the
     %approximation

@@ -53,7 +53,7 @@ gamma = L(end,Ln);                                          %Li distance to the 
 m = 1;                                                      %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [-1 Az Ln gamma m];                             %Northern halo parameters
+halo_param = [-1 Az Ln gamma m];                            %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');  %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
