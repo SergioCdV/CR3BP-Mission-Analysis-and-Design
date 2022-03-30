@@ -37,16 +37,20 @@ function [ds] = cr3bp_propagator(setup, mu, direction, flagVar, t, s, varargin)
     switch (method_ID)
         %Deterministic models
         case 'Newton'    
-            ds = cr3bp_equations(mu, direction, flagVar, t, s, varargin);            %Relative motion equations
+            ds = cr3bp_equations(mu, direction, flagVar, t, s, varargin);            %Absolute equations of motion
+            
         case 'Encke'
-            L = libration_points(mu);                                   %System libration points
+            L = libration_points(mu);                                                %System libration points (varargin)
             for i = 1:5
-                C(i) = libration_potential(mu,[i;L(:,i)],s,6);
+                %C(i) = libration_potential(mu,[i;L(:,i)],s,6);
+                d = norm(s(1:3)-L(1:3,i));
             end
-           [~,index] = sort(C); 
-           index(end)
-            L = setup.LagrangePointPosition;                                         %Lagrange point to which relative motion is computed
+            [~,index] = sort(d); 
+            %index(end)
+            L = L(1:3,index(1));                                                     %Lagrange point to which relative motion is computed
+            s(1:3) = s(1:3)-L;
             ds = encke_dynamics(mu, L, direction, flagVar, t, s, varargin);          %Relative motion equations
+
         otherwise
             error('No valid integration scheme was chosen.');
     end

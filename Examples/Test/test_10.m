@@ -59,23 +59,27 @@ toc
 %Encke's integration 
 setup.Method = 'Encke';
 S0 = s0; 
+tic
+[t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
+toc
 
-S_E = zeros(size(S_N));
 
-index = [1 2 4 5];
-for i = 1:length(index)
-    setup.LagrangePointID = index(i);
-    setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
-    
-    s0 = S0; 
-    s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
-    tic
-    [t, Saux] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
-    toc
-    S_E = S_E + Saux; 
-    S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
-end
-S_E = S_E/i;
+% S_E = zeros(size(S_N));
+% 
+% index = [1 2 4 5];
+% for i = 1:length(index)
+%     setup.LagrangePointID = index(i);
+%     setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
+%     
+%     s0 = S0; 
+%     s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
+%     tic
+%     [t, Saux] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
+%     toc
+%     S_E = S_E + Saux; 
+%     S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
+% end
+% S_E = S_E/i;
 
 %Compute the error with respect to the differentially corrected orbit 
 e = zeros(2,size(S_E,1));       %Preallocation 
