@@ -44,11 +44,15 @@ function [L, U, Uh] = libration_potential(mu, L, s, order)
     Rmag(2) = norm(R(:,2));             %Norm of the second primary position vector
 
     for i = 1:length(mu_r)
-        for j = 2:order
-            P = legendre_polynomials(j+1, dot(r,R(:,i))/(rmag*Rmag(i)));
-            Uh(i) = Uh(i) + (r/Rmag(i))^(j+1)*P(end);
+        if (norm(r)/Rmag(i) < 1)
+            for j = 2:order
+                P = legendre_polynomials(j+1, dot(r,R(:,i))/(rmag*Rmag(i)));
+                Uh(i) = Uh(i) + (norm(r)/Rmag(i))^(j)*P(end);
+            end
+            Uh(i) = mu_r(i)*Uh(i)/Rmag(i);
+        else
+            Uh(i) = mu_r(i)/norm(r-R(:,i));
         end
-        Uh(i) = mu_r(i)*Uh(i)/Rmag(i);
     end
     Uh = -sum(Uh);
 

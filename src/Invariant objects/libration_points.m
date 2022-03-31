@@ -24,7 +24,7 @@ function [L] = libration_points(mu)
     
     %Compute the equilateral points (forming two symmetric equilateral triangles with the primaries)
     alpha = pi/3;                               %Angle between the libration points and primaries             
-    primR = [-mu -mu; 0 0; 0 0; 0 0];           %Position of the first primary
+    primR = [-mu -mu; 0 0; 0 0; 1 1];           %Position of the first primary
     equiL = primR+[cos(alpha) cos(alpha); 
                    sin(alpha) -sin(alpha); 
                                   0 0; 0 0];    %Libration points positions

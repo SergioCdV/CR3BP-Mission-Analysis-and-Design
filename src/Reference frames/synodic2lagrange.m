@@ -35,9 +35,9 @@ function [V] = synodic2lagrange(mu, gamma, point, v, direction)
     end
     
     %Main computations 
-    if (direction == 0)
-        V = (1/gamma)*(v-X);
-    elseif (direction == 1)
+    if (direction)
+        V = (v-X)/gamma;
+    elseif (~direction)
         V = gamma*v+X;
     else
         error('No valid direction was selected');
