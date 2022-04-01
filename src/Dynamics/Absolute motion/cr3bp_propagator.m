@@ -44,7 +44,7 @@ function [ds] = cr3bp_propagator(setup, mu, direction, flagVar, t, s, varargin)
             d = repmat(s(1:3),1,size(L,2))-L(1:3,:);                                 %Relative distance to the points
             D = sqrt(dot(d,d,1));                                                    %Relative distance to the libration point
             L = L(1:3, D == min(D));                                                 %Lagrange point to which relative motion is computed (minimum distance)
-            s(1:3) = d(D == min(D));                                                 %Relative distance to the libration point
+            s(1:3) = d(:,D == min(D));                                               %Relative distance to the libration point
             ds = encke_dynamics(mu, L, direction, flagVar, t, s, varargin);          %Relative motion equations
 
         otherwise
