@@ -10,7 +10,9 @@
 
 % Inputs: - structure setup, selecting the type of integration to be
 %           performed.
-%         - scalar mu, the reduced gravitational parameter of the system. 
+%         - scalar mu, the reduced gravitational parameter of the system
+%         - array L, the libration point definition for the system of
+%           interest
 %         - scalar direction (in binary format, 1 or -1), indicating the
 %           time integration direction: 1 for forward integration, -1 for
 %           backward integration.
@@ -30,7 +32,7 @@
 
 % New versions: 
 
-function [ds] = cr3bp_propagator(setup, mu, direction, flagVar, t, s, varargin)    
+function [ds] = cr3bp_propagator(setup, mu, L, direction, flagVar, t, s, varargin)    
     %Equations of motion of the CR3BP
     method_ID = setup.Method;
 
@@ -40,7 +42,6 @@ function [ds] = cr3bp_propagator(setup, mu, direction, flagVar, t, s, varargin)
             ds = cr3bp_equations(mu, direction, flagVar, t, s, varargin);            %Absolute equations of motion
             
         case 'Encke'
-            L = libration_points(mu);                                                %System libration points (varargin)
             d = repmat(s(1:3),1,size(L,2))-L(1:3,:);                                 %Relative distance to the points
             D = sqrt(dot(d,d,1));                                                    %Relative distance to the libration point
             L = L(1:3, D == min(D));                                                 %Lagrange point to which relative motion is computed (minimum distance)

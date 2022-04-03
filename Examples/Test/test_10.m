@@ -55,14 +55,14 @@ setup.Method = 'Newton';
 
 %Newton integration
 tic
-[~, S_N] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
+[~, S_N] = ode113(@(t,s)cr3bp_propagator(setup, mu, L, true, false, t, s), tspan, s0, options);
 toc
 
 %Encke's integration 
 setup.Method = 'Encke';
 S0 = s0; 
 tic
-[t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
+[t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, L, true, false, t, s), tspan, s0, options);
 toc
 
 % S_E = zeros(size(S_N));
