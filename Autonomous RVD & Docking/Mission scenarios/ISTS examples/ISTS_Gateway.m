@@ -532,7 +532,7 @@ zlabel('Synodic $z$ coordinate');
 grid on;
 legend('Loiter orbit', 'Gateway orbit', 'Chaser trajectory', 'Location', 'northeast');
 title('Mission trajectory in the absolute configuration space');
-%%
+
 %Rendezvous animation 
 if (true)
     dh = 100;

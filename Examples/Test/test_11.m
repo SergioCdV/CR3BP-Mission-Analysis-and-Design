@@ -1,15 +1,15 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 26/10/21
-% File: test_10.m 
+% Date: 09/04/22
+% File: test_11.m 
 % Issue: 0 
 % Validated: 
 
-%% Test 10 %%
+%% Test 11 %%
 % This scripts provides a test interface for the rest of the library
 % functions. 
 
-% Test 10 is concerned with the Encke's method integration of periodic orbits.
+% Test 11 is concerned with the Encke's method integration for collisions in the CR3BP.
 
 %% Test values and constants
 %Set graphical environment 
@@ -36,19 +36,12 @@ format long;
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration tolerances
 
 %% Functions
-%Compute seeds
-[halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Generate a halo orbit seed
-
-%Halo orbit 
-[halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-
 %Initial conditions and time span 
 K = 1;                                   %Number of periods to integrate
-s0 = halo_orbit.Trajectory(1,1:6).';     %Initial conditions
 dt = 1e-3;                               %Time step
-tspan = 0:dt:K*halo_orbit.Period;        %Integration time span
+tspan = 0:dt:2*pi;                       %Integration time span
 
-s0 = [1-mu+1e-4; 0; 0; 5e-2; 0; 0];
+s0 = [1-mu+3e-2; 0; 0; 5e-2; 0; 0];
 
 %Propagation setup 
 setup.Method = 'Newton';
@@ -65,44 +58,11 @@ tic
 [t, S_E] = ode113(@(t,s)cr3bp_propagator(setup, mu, L, true, false, t, s), tspan, s0, options);
 toc
 
-% S_E = zeros(size(S_N));
-% 
-% index = [1 2 4 5];
-% for i = 1:length(index)
-%     setup.LagrangePointID = index(i);
-%     setup.LagrangePointPosition = L(1:3,setup.LagrangePointID);
-%     
-%     s0 = S0; 
-%     s0(1:3) = s0(1:3)-L(1:3,setup.LagrangePointID);
-%     tic
-%     [t, Saux] = ode113(@(t,s)cr3bp_propagator(setup, mu, true, false, t, s), tspan, s0, options);
-%     toc
-%     S_E = S_E + Saux; 
-%     S_E(:,1:3) = S_E(:,1:3)+L(1:3,setup.LagrangePointID).'; 
-% end
-% S_E = S_E/i;
-
-%Compute the error with respect to the differentially corrected orbit 
-e = zeros(2,size(S_E,1));       %Preallocation 
-
-k = 1; 
-for i = 1:size(S_E,1)
-    if (mod(t(i),halo_orbit.Period) == 0)
-        k = 1;
-    else
-        k = k+1;
-    end
-
-    e(1,i) = norm(halo_orbit.Trajectory(k,1:3)-S_N(i,1:3))/norm(halo_orbit.Trajectory(k,1:3));
-    e(2,i) = norm(halo_orbit.Trajectory(k,1:3)-S_E(i,1:3))/norm(halo_orbit.Trajectory(k,1:3));
-end
-
 %% Plotting
 %Plot the three orbits
 figure(1) 
 view(3)
 hold on
-%plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3), 'g');
 plot3(S_N(:,1), S_N(:,2), S_N(:,3), 'b')
 plot3(S_E(:,1), S_E(:,2), S_E(:,3), 'r')
 hold off
@@ -112,14 +72,3 @@ zlabel('Synodic normalized $z$ coordinate');
 title('Numerically integrated halo orbits');
 legend('Newton', 'Encke');
 grid on;
-
-%Plot the error 
-figure(2) 
-hold on 
-plot(tspan, log(e(1,:)), 'b'); 
-plot(tspan, log(e(2,:)), 'r')
-hold off
-grid on; 
-title('Relative error to the exact solution');
-legend('Newtonian error', 'Encke error');
-
