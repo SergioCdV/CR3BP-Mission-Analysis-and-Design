@@ -39,7 +39,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -54,7 +54,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 10;                                                           %Number of orbits to continuate
+num = 5;                                                            %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -81,7 +81,7 @@ Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed
 %% Generate the guidance trajectory
 %Guidance trajectory
 Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit.Period);
-constraint.Flag = true; 
+constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
 [Str, V, state(1), S0] = CMC_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
