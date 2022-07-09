@@ -21,11 +21,11 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 20e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
+Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          %Li distance to the second primary
 m = 1;                                                      %Number of periods to compute
 param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
@@ -45,8 +45,9 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];             %State vector of a b
 
 %Lyapunov orbit
 [lyapunov_orbit, state(1)] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
+
 param_lyap = [Ax Az 0 0 Ln gamma 20];                        %Lyapunov orbit parameters
-lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
+lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');     %Generate a Lyapunov orbit seed
 
 %Halo orbit 
 [halo_orbit, state(2)] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
@@ -63,79 +64,55 @@ lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov
 %Butterfly Orbit
 [butterfly_orbit, state(6)] = differential_correction('Plane Symmetric', mu, butterfly_seed, maxIter, tol);
 
-%Computation of the relative orbit
-St = vertical_orbit.trajectory; 
-Sc = butterfly_orbit.trajectory; 
+%% Computation of the relative orbit
+% Continuation and chaser trajectory 
+%Correction parameters 
+Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
+num = 5;                                                    %Number of orbits to continuate
+direction = 1;                                              %Direction to continuate (to the Earth)
+method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, halo_orbit.Period};           %Object and characteristics to continuate
+corrector = 'Plane Symmetric';                              %Differential corrector method
+setup = [mu maxIter tol direction];                         %General setup
+
+[Results_energy, ~] = continuation(num, method, algorithm, object, corrector, setup);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, Results_energy.Seeds(end,:), maxIter, tol);
+
+Sc = chaser_orbit.Trajectory;                               % Chaser trajectory initial conditions
+St = halo_orbit.Trajectory;                                 % Target trajectory initial conditions
 
 % Relative initial conditions 
-s0 = [St(1,1:m) Sc(1,1:m)-St(1,1:m)];
+maxIter = 50;                                               % Maximum number of iterations
+s0 = [St(1,1:6) Sc(1,1:6)-St(1,1:6)];                       % Relative initial conditions
 
+% Correction
+[rel_orbit, state(7)] = differential_correction('Plane Symmetric', mu, s0(7:12), maxIter, tol);
+
+% New chaser orbit 
+Sc = St(:,1:6) + rel_orbit.Trajectory(:,7:12);
 
 %% Plotting
 figure(1) 
 view(3)
+hold on 
+plot3(rel_orbit.Trajectory(:,7), rel_orbit.Trajectory(:,8), rel_orbit.Trajectory(:,9), 'b');
+hold off
+xlabel('Relative synodic normalized $x$ coordinate');
+ylabel('Relative synodic normalized $y$ coordinate');
+zlabel('Relative synodic normalized $z$ coordinate');
+title('Relative periodic orbit');
+grid on;
+
+figure(2) 
+view(3)
 hold on
-H = plot3(lyapunov_seed(:,1), lyapunov_seed(:,2), lyapunov_seed(:,3), 'b');
-H.Color(4) = 0.15;
-plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3), 'r', 'Linewidth', 0.1);
+J = plot3(St(:,1), St(:,2), St(:,3), 'b');
+H = plot3(Sc(:,1), Sc(:,2), Sc(:,3), 'r');
 hold off
 xlabel('Synodic normalized $x$ coordinate');
 ylabel('Synodic normalized $y$ coordinate');
 zlabel('Synodic normalized $z$ coordinate');
 title('Earth-Moon $L_1$ planar Lyapunov orbit');
-legend({'Lissajous seed', 'Converged orbit'}, 'Location', 'northeast');
-grid on;
-
-figure(2) 
-plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Halo orbit');
-grid on;
-
-figure(3)
-plot3(dro_orbit.Trajectory(:,1), dro_orbit.Trajectory(:,2), dro_orbit.Trajectory(:,3));
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Converged DRO');
-grid on;
-
-figure(4) 
-plot3(axial_orbit.Trajectory(:,1), axial_orbit.Trajectory(:,2), axial_orbit.Trajectory(:,3));
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Converged axial orbit');
-grid on;
-
-figure(5) 
-plot3(vertical_orbit.Trajectory(:,1), vertical_orbit.Trajectory(:,2), vertical_orbit.Trajectory(:,3));
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Earth-Moon $L_1$ vertical orbit');
-grid on;
-
-figure(6) 
-plot3(butterfly_orbit.Trajectory(:,1), butterfly_orbit.Trajectory(:,2), butterfly_orbit.Trajectory(:,3));
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Converged butterfly orbit');
-grid on;
-
-figure(7) 
-view(3)
-hold on 
-H = plot3(lyapunov_seed(:,1), lyapunov_seed(:,2), lyapunov_seed(:,3), 'b');
-H.Color(4) = 0.3;
-plot(L(1,1), L(2,1), '+k');
-text(L(1,1)-5e-3, L(2,1), '$L_1$');
-hold off
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
-title('Quasi-periodic motion at Earth-Moon $L_1$');
+legend({'Target orbit', 'Chaser orbit'}, 'Location', 'northeast');
 grid on;

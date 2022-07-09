@@ -83,7 +83,7 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
 
             [E, L] = eig(Monodromy);                                     %Eigenspectrum of the STM 
             for j = 1:size(E,2)
-                E(:,j) = exp(-log(L(j,j))*tspan(i)/T)*E(:,j);            %Compute the Floquet Modes
+                E(:,j) = E(:,j)/L(j,j);                                  %Compute the Floquet Modes
             end
             
             %Compute the maneuver

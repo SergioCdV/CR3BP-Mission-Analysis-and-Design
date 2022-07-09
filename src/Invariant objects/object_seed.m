@@ -54,8 +54,8 @@ function [seed, T] = lyapunov_seed(mu, parameters)
     n = parameters(7);      %Number of periods to generate
 
     %Dimensionalising
-    Ax = Ax/gamma; 
-    Az = Az/gamma; 
+%     Ax = Ax/gamma; 
+%     Az = Az/gamma; 
        
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
@@ -112,7 +112,7 @@ function [seed, T] = halo_seed(mu, parameters)
     tau = 0:dtheta:2*pi*m;
 
     %Dimensionalising
-    Az = Az/gamma; 
+    %Az = Az/gamma; 
     
     %Determine some boolean parameters for the halo determination, concerning the nondimensional reference frame used in the
     %approximation

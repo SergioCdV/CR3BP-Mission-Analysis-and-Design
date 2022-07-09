@@ -84,12 +84,13 @@ Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
-[Str, V, state(1), S0] = CMC_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
+[Str, V1, state(1), S0] = CMLG_guidance(mu, Ln, gamma, 2*tf, constraint, [r_t0 r_c0], tol);
+% [Str, V2, state(1), S0] = CML_guidance(mu, Ln, gamma, tf, [r_t0 r_c0], tol);
 St = Str(:,1:6)+Str(:,7:12);
 
 %Integration of the natural quasi-periodic model
 tspan = 0:dt:2*tf;
-[~, S0] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, S0(1,1:2*6), options);
+%[~, S0] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, S0(1,1:2*6), options);
 S0 = S0(:,1:6)+S0(:,7:12);      
 
 %% Results 
@@ -100,6 +101,7 @@ hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
 plot3(St(:,1), St(:,2), St(:,3), 'k'); 
+plot3(S0(:,1), S0(:,2), S0(:,3), 'g'); 
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');

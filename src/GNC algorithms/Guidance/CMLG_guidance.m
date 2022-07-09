@@ -1,11 +1,11 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 06/12/21
-% File: CMC_guidance.m 
+% File: CMLG_guidance.m 
 % Issue: 0 
 % Validated: 06/12/21
 
-%% Center Manifold Curve Guidance %%
+%% Constrained Center Manifold Lissajous Guidance %%
 % This script contains the function to compute the control law by means of the CMC guidance core.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system
@@ -24,7 +24,7 @@
 
 % New versions: 
 
-function [S, dV, state, Sref] = CMC_guidance(mu, L, gamma, tf, constraint, s0, tol)
+function [S, dV, state, Sref] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, tol)
     %Constants 
     m = 6;              %Relative phase space dimension
     dt = 1e-3;          %Time step
@@ -43,7 +43,7 @@ function [S, dV, state, Sref] = CMC_guidance(mu, L, gamma, tf, constraint, s0, t
     %Integration of the relative chaser trajectory 
     s0c = [s0(1:m) s0(m+1:end)-s0(1:m)];                        %Initial relative chaser conditions
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0c, options);
-    sf = Sn(end,m+1:end).';
+    sf = Sn(1,m+1:end).';
 
     %Compute the initial center manifold state
     Phi = reshape(eye(m), [1 m^2]);                             %Initial monodromy matrix
@@ -56,14 +56,14 @@ function [S, dV, state, Sref] = CMC_guidance(mu, L, gamma, tf, constraint, s0, t
     
         Monodromy = reshape(Sref(end,2*m+1:end), [m m]);            %Monodromy matrix
         [E, Lambda] = eig(Monodromy);                               %Eigenspectrum of the center manifold
-        Ec = E(:,1)/Lambda(1,1);                                    %Center manifold Floquet vector
+        Ec = E(:,1)/Lambda(1,1);                                    %Unstable Floquet vector
     end
                       
     %Compute the initial Lissajous 
-    Ax = norm(sf(1:2))/sqrt(1+kap^2);                           %In-plane amplitude 
-    Az = sf(3)/sin(wv*tf);                                      %Out-of-plane amplitude
-    psi = 0;                                                    %Out-of-plane phase 
-    phi = atan2(sf(2),-sf(1)*kap)-wp*tf;                        %In-plane phase 
+    Ax = norm(sf(1:2))/sqrt(1+kap^2);   %In-plane amplitude 
+    psi = -wp*tf;                       %Out-of-plane phase 
+    Az = sf(3)/sin(psi);                %Out-of-plane amplitude
+    phi = pi/2-wp*tf;                   %In-plane phase 
 
     %Seed trajectory
     s0(m+1:2*m) = zeros(1,m);           %Rendezvous conditions
@@ -74,8 +74,17 @@ function [S, dV, state, Sref] = CMC_guidance(mu, L, gamma, tf, constraint, s0, t
     s0(11) = kap*wp*Ax*cos(phi);        %Vy relative velocity
     s0(12) = wv*Az*cos(psi);            %Vz relative velocity
 
+    r(1,:) = -Ax*cos(wp*tspan+phi);         %X relative coordinate
+    r(2,:) = kap*Ax*sin(wp*tspan+phi);      %Y relative coordinate
+    r(3,:) = Az*sin(wv*tspan+psi);          %Z relative coordinate
+    v(1,:) = wp*Ax*sin(wp*tspan+phi);       %Vx relative velocity
+    v(2,:) = kap*wp*Ax*cos(wp*tspan+phi);   %Vy relative velocity
+    v(3,:) = wv*Az*cos(wv*tspan+psi);       %Vz relative velocity 
+
+    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0c(1:6), options);
+    Sref = [Saux [r; v].'];
+
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
-    Sref = Saux;
 
     %Differential corrector setup 
     iter = 1;                      %Initial iteration
@@ -84,14 +93,14 @@ function [S, dV, state, Sref] = CMC_guidance(mu, L, gamma, tf, constraint, s0, t
 
     while ((GoOn) && (iter < maxIter))
         %Error analysis 
-        dS = Saux(end,7:9).'-sf(1:3);                   %Final relative state difference
+        dS = Saux(end,7:9).';                   %Final relative state difference
 
         if (constraint.Flag)
-            V = [zeros(3,1); Saux(1,10:12).'];          %Initial velocity impulse
+            V = [zeros(3,1); Saux(1,10:12).'-sf(4:6)];  %Initial velocity impulse
             dv = dot(V,Ec)-norm(Ec)*norm(V);            %Initial impulse constraint along the center manifold
             error = [dS; Saux(1,7:9).'; dv];            %Error vector
         else
-            error = [dS; Saux(1,7:9).'];                %Error vector
+            error = [dS; Saux(1,7:9).'-sf(1:3)];        %Error vector
         end
 
         %Sensitivity analysis 

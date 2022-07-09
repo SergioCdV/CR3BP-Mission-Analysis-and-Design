@@ -10,31 +10,48 @@
 % relative equilibrium curves.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system.
-%         - array rt, the time evolution of the target motion. 
-%         - scalar point, to select the libration curve to solve for
+%         - array rt, the time evolution of the target motion.
 
-% Outputs: - array L, containing in one matrix the position of the five libration 
-%            points of the system (with each column being a position vector) in L1, L2, 
-%            L3, L4 and L5 order, as well as the collinear gamma distance for the first three.
+% Outputs: - array L, the evolution of the relative equilibrium curve.
 
 % New versions: 
 
-function [L] = libration_curves(mu, rt, point)
+function [L] = libration_curves(mu, rt)
     %Preallocation 
     L = zeros(size(rt,1), 3);               %Equilibrium curves preallocation
     
-    %Initial guess 
-    absL = libration_points(mu);             %Absolute libration points
-    
     %Compute the curves for each initial guess
     for i = 1:size(rt,1)
-        L(i,:) = curve_solver(mu, rt(i,1:3).', absL(1:3, point));
+        L(i,:) = curve_fsolver(mu, rt(i,1:3).');
     end
 end
 
 %% Auxiliary functions 
-%Solve the equilibriuum gradient
-function [Lc] = curve_solver(mu, rt, L)
+%Solve the equilibrium equations usign a Matlab's built-in fsolve method
+function [Lc] = curve_fsolver(mu, rt)
+    %Constants 
+    R(1:3,1) = [-mu; 0; 0];        %Location of the absolute first primary
+    R(1:3,2) = [1-mu; 0; 0];       %Location of the absolute second primary
+    Rr(1:3,1) = R(1:3,1)-rt;       %Location of the unsteady first primary
+    Rr(1:3,2) = R(1:3,2)-rt;       %Location of the unsteady second primary
+    
+    mu_r(1) = 1-mu;                %Gravitational parameter of the first primary
+    mu_r(2) = mu;                  %Gravitational parameter of the second primary
+
+    %Initial guess 
+    x0 = [rt(1:2); 0];        % Assume it is close to the target 
+
+    %Equations to be solved 
+    fun = @(x)[x(1)+mu_r(1)*(-Rr(1,1)/norm(Rr(:,1))^3-(x(1)-Rr(1,1))/norm(x-Rr(:,1))^3)+mu_r(2)*(-Rr(1,2)/norm(Rr(:,2))^3-(x(1)-Rr(1,2))/norm(x-Rr(:,2))^3); ...
+               x(2)+mu_r(1)*(-Rr(2,1)/norm(Rr(:,1))^3-(x(2)-Rr(2,1))/norm(x-Rr(:,1))^3)+mu_r(2)*(-Rr(2,2)/norm(Rr(:,2))^3-(x(2)-Rr(2,2))/norm(x-Rr(:,2))^3); ...
+               mu_r(1)*(-Rr(3,1)/norm(Rr(:,1))^3-(x(3)-Rr(3,1))/norm(x-Rr(:,1))^3)+mu_r(2)*(-Rr(3,2)/norm(Rr(:,2))^3-(x(3)-Rr(3,2))/norm(x-Rr(:,2))^3)];
+
+    %Solve the equations 
+    Lc = fsolve(fun, x0);
+end
+
+%Solve the equilibrium equations usign a Newton-Rhapson method
+function [Lc] = curve_solver(mu, rt)
     %Constants 
     R(1:3,1) = [-mu; 0; 0];        %Location of the absolute first primary
     R(1:3,2) = [1-mu; 0; 0];       %Location of the absolute second primary
@@ -53,7 +70,7 @@ function [Lc] = curve_solver(mu, rt, L)
     %Preallocation 
     gradient = zeros(3,1);         %Equilibrium condition
     Lc = zeros(3,maxIter);         %Preallocation of the solution
-    Lc(:,iter) = L-rt;        %Initial guess        
+    Lc(:,iter) = [0;0;rt(3)];      %Initial guess        
     
     %Newton's solver
     while (GoOn) && (iter < maxIter)
