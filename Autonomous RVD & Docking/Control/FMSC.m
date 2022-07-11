@@ -108,11 +108,11 @@ toc
                            
 %% GNC: FMSC %% 
 %Obstacle definition in space and time
-index(1) = fix(0.5/dt);                         %Time location of the collision 
-index(2) = fix(0.2/dt);                         %Detection time
-so = [St(index(1),7:9) 0 0 0];                  %Phase space state of the object
-R = 2e-3;                                       %Radius of the CA sphere
-[xo, yo, zo] = sphere;                          %Collision avoidance sphere
+index(1) = fix(0.5/dt);                                 %Time location of the collision 
+index(2) = fix(0.2/dt);                                 %Detection time
+so = [St(index(1),7:9) 0 0 0];                          %Phase space state of the object
+R = dimensionalizer(Lem, 1, 1, 1e3, 'Position', 0);     %Radius of the CA sphere
+[xo, yo, zo] = sphere;                                  %Collision avoidance sphere
 xo = R*xo;
 yo = R*yo;
 zo = R*zo;

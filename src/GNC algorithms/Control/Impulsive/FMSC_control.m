@@ -36,7 +36,6 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
     %Select the restriction level of the CAM 
     constrained = constraint.Constrained;                       %Select the type of maneuver
     lambda = constraint.SafeDistance;                           %Safety distance
-    T = constraint.Period;                                      %Reference orbit period
     
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
@@ -85,6 +84,8 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
             for j = 1:size(E,2)
                 E(:,j) = E(:,j)/L(j,j);                                  %Compute the Floquet Modes
             end
+
+            Phi = reshape(Sn(end,13:end), [m m]);                        %State transition matrix at the collision time
             
             %Compute the maneuver
             if (constrained)
@@ -110,7 +111,7 @@ function [Sc, dV, tm] = FMSC_control(mu, TOC, s0, tol, constraint, restriction)
             if (constraint.Energy)
                 J = jacobi_constant(mu, s0(1:6).'+s0(7:12).');
                 dJ = jacobi_gradient(mu, s0(1:6).'+s0(7:12).');
-                JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Monodromy(4:6,4:6)];
+                JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];
 
                 %Sensibility analysis
                 A = [STM; JSTM];

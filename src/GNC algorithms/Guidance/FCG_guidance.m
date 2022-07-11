@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date:  09/07/22
-% File: FCG_control.m 
+% File: FCG_guidance.m 
 % Issue: 0 
 % Validated: 09/07/22
 
@@ -14,7 +14,7 @@
 %         - scalar tf, the final time of flight
 %         - vector s0, initial conditions of both the target and the chaser
 %         - scalar tol, the differential corrector scheme tolerance for the
-%           constrained maneuverç
+%           constrained maneuver
 %         - string restriction, specifying the type of required maneuver 
 
 % Output: - array S, the rendezvous relative trajectory
@@ -25,7 +25,7 @@
 
 % New versions: 
 
-function [S, dV, state] = FCG_control(mu, tf, s0, tol, constraint, restriction)
+function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
     %Constants 
     m = 6;       % Phase space dimension
     
@@ -34,48 +34,47 @@ function [S, dV, state] = FCG_control(mu, tf, s0, tol, constraint, restriction)
         s0 = s0.';
     end
     
-    %Select the restriction level of the CAM 
-    T = constraint.Period;                                      %Reference orbit period
-    dt = 1e-3;                                                  %Integration time step  
-    tspan = 0:dt:T;                                             %Integration time span
+    %Integration time span
+    dt = 1e-3;                                                  %Time step  
+    tspan = 0:dt:tf;                                            %Integration time span
     
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
         
     %Computation of the monodromy matrix
-    s0 = [s0(1:m) s0(m+1:end)-s0(1:m)];                         %Initial relative chaser conditions
+    s0 = [s0(1:m); s0(m+1:end)-s0(1:m)];                        %Initial relative chaser conditions
     Phi = eye(m);                                               %Initial STM 
     Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
 
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
 
-    Monodromy = reshape(Saux(end,2*m+1:end), [m m]);            %Monodromy matrix
-    [E, J] = eig(Monodromy);                                    %Eigenspectrum of the STM 
-
+    Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
+    [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
     for i = 1:size(J,2)
         E(:,i) = E(:,i)/J(i,i);
     end
-    
-    %Reference Jacobi constant
-    Jref = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).'); 
-        
-    %Differential corrector setup
-    tspan = 0:dt:tf;                        %Integration time span
-    maxIter = 100;                          %Maximum number of iterations
 
-    %Initial integration 
+    %Initial integration
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+    Sn = Saux; 
+    
+    %Reference Jacobi constant of the target orbit
+    Jref = jacobi_constant(mu, Saux(1,1:6).'); 
         
     %Differential corrector setup
     GoOn = true;                            %Convergence boolean
+    maxIter = 200;                          %Maximum number of iterations
     iter = 1;                               %Initial iteration
         
     while ((GoOn) && (iter < maxIter))
         %Error vector
         error = [Saux(1,7:12).'; Saux(end,7:9).']; 
 
-        Phi = reshape(Saux(end,2*m+1:end), [m m]);                      %State transition matrix at the final instant
+        %Basic sensibility matrices
+        Phi = reshape(Saux(end,2*m+1:end), [m m]);                                       %State transition matrix at the final instant   
+        F = nlr_model(mu, true, false, false, 'Encke', tspan(end), Saux(end,1:2*m).');   %Derivative vector field
+        F = F(m+1:2*m);
 
         % Sensibility matrix for the center manifold restriction
         switch (restriction)
@@ -92,28 +91,29 @@ function [S, dV, state] = FCG_control(mu, tf, s0, tol, constraint, restriction)
         end
 
         % Sensibility matrix for the rendezvous restriction
-        C = Phi(1:3,:)*[E(:,3:end) [zeros(3,3); eye(3)]];
-        STM = [STM; C];
+        C = Phi(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3,3); eye(3)]];
         
-        %Energy constraint 
-        J = jacobi_constant(mu, s0(1:6).'+s0(7:12).');
-        dJ = jacobi_gradient(mu, s0(1:6).'+s0(7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*STM(4:6,4:6)];
+        %Energy constraint sensibility vector fields
+        J = jacobi_constant(mu, Saux(end,1:6).'+Saux(end,7:12).');
+        dJ = jacobi_gradient(mu, Saux(end,1:6).'+Saux(end,7:12).');
+        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];
+        Jt = dot(dJ, F);
 
         %Complete sensibility analysis
-        A = [STM; JSTM];                         %Sensibility matrix
+        T = [zeros(6,1); F(1:3); Jt];            %Time sensibility matrix
+        A = [STM; C; JSTM];                      %Sensibility matrix
         b = [error; J-Jref];                     %Final error analysis
 
         %Update the initial conditions
         ds = -pinv(A)*b;                         %Needed maneuver
-        ds = ds(end-2:end);                      %Velocity change
-        s0(10:12) = s0(10:12)+ds;                %Update initial conditions with the velocity impulse
+        dV = real(ds(end-2:end));                %Velocity change
+        s0(10:12) = s0(10:12)+dV;                %Update initial conditions with the velocity impulse
      
         %Re-integrate the trajectory
         [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
         
         %Convergence analysis for the constrained case 
-        if (norm(error) < tol)
+        if (norm(error(end-3:end-1)) < tol)
             GoOn = false;
         else
             iter = iter+1;

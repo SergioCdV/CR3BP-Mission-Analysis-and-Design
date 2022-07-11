@@ -70,8 +70,8 @@ function [S, dV, state, S0] = CML_guidance(mu, L, gamma, tf, s0, tol)
 
     while ((GoOn) && (iter < maxIter))
         %Error analysis 
-        dS = Saux(end,7:9).';                   %Final relative state difference
-        error = [dS; Saux(1,7:9).'-sf(1:3)];    %Error vector
+        dS = Saux(end,7:9).';                           %Final relative state difference
+        error = [dS; Saux(1,7:9).'-sf(1:3)];            %Error vector
 
         %Sensitivity analysis 
         STM = reshape(Saux(end,2*m+1:end), [m m]);      %State Transition Matrix
