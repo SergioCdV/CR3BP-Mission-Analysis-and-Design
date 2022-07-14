@@ -54,7 +54,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 2;                                                            %Number of orbits to continuate
+num = 4;                                                            %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -66,7 +66,7 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(50,1:6);                            %Initial target conditions
+r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
@@ -80,7 +80,7 @@ Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed
 
 %% Generate the guidance trajectory
 %Guidance trajectory
-restriction = 'Mixed';
+restriction = 'Center';
 [Str, V, state(1)] = FCG_guidance(mu, 2*tf, [r_t0 r_c0], tol, restriction);
 St = Str(:,1:6)+Str(:,7:12);
 
