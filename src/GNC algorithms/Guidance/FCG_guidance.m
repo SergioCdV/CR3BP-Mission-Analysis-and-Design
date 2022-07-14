@@ -73,13 +73,11 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
 
         %Basic sensibility matrices
         Phi = reshape(Saux(end,2*m+1:end), [m m]);                                       %State transition matrix at the final instant   
-        F = nlr_model(mu, true, false, false, 'Encke', tspan(end), Saux(end,1:2*m).');   %Derivative vector field
-        F = F(m+1:2*m);
 
         % Sensibility matrix for the center manifold restriction
         switch (restriction)
             case 'Mixed'
-                STM = [E(:,1) E(:,3:end) -[zeros(3,3); eye(3)]];        %Linear application
+                STM = [E(:,2) E(:,3:end) -[zeros(3); eye(3)]];        %Linear application
             case 'Stable' 
                 STM = [E(:,2) -[zeros(3,3); eye(3)]];                   %Linear application
             case 'Unstable'
@@ -91,29 +89,27 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
         end
 
         % Sensibility matrix for the rendezvous restriction
-        C = Phi(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3,3); eye(3)]];
+        C = Phi(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3); eye(3)]];
         
         %Energy constraint sensibility vector fields
-        J = jacobi_constant(mu, Saux(end,1:6).'+Saux(end,7:12).');
-        dJ = jacobi_gradient(mu, Saux(end,1:6).'+Saux(end,7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];
-        Jt = dot(dJ, F);
+        J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
+        dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
+        JSTM = [zeros(1,size(STM,2)-3) 0 0 dJ(6)];
 
         %Complete sensibility analysis
-        T = [zeros(6,1); F(1:3); Jt];            %Time sensibility matrix
         A = [STM; C; JSTM];                      %Sensibility matrix
         b = [error; J-Jref];                     %Final error analysis
 
         %Update the initial conditions
         ds = -pinv(A)*b;                         %Needed maneuver
-        dV = real(ds(end-2:end));                %Velocity change
+        dV = real(ds(end-2:end));              %Velocity change
         s0(10:12) = s0(10:12)+dV;                %Update initial conditions with the velocity impulse
-     
+
         %Re-integrate the trajectory
         [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
-        
+
         %Convergence analysis for the constrained case 
-        if (norm(error(end-3:end-1)) < tol)
+        if (norm(error) < tol)
             GoOn = false;
         else
             iter = iter+1;
