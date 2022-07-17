@@ -60,28 +60,29 @@ function [S, dV, state, Sref] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, 
     end
                       
     %Compute the initial Lissajous 
-    Ax = norm(sf(1:2))/sqrt(1+kap^2);   %In-plane amplitude 
-    psi = -wp*tf;                       %Out-of-plane phase 
-    Az = sf(3)/sin(psi);                %Out-of-plane amplitude
-    phi = pi/2-wp*tf;                   %In-plane phase 
+    phi = atan2(sf(2)/kap, -sf(1));         %In-plane phase 
+    Ax = -sf(1)/cos(phi);                   %In-plane amplitude 
+    psi = -wp*tf;                           %Out-of-plane phase 
+    Az = sf(3)/sin(psi);                    %Out-of-plane amplitude
 
     %Seed trajectory
-    s0(m+1:2*m) = zeros(1,m);           %Rendezvous conditions
-    s0(7) = -Ax*cos(phi);               %X relative coordinate
-    s0(8) = kap*Ax*sin(phi);            %Y relative coordinate
-    s0(9) = Az*sin(psi);                %Z relative coordinate
-    s0(10) = wp*Ax*sin(phi);            %Vx relative velocity
-    s0(11) = kap*wp*Ax*cos(phi);        %Vy relative velocity
-    s0(12) = wv*Az*cos(psi);            %Vz relative velocity
+    s0(m+1:2*m) = zeros(1,m);               %Rendezvous conditions
+    s0(7) = -Ax*cos(phi);                   %X relative coordinate
+    s0(8) = kap*Ax*sin(phi);                %Y relative coordinate
+    s0(9) = Az*sin(psi);                    %Z relative coordinate
+    s0(10) = wp*Ax*sin(phi);                %Vx relative velocity
+    s0(11) = kap*wp*Ax*cos(phi);            %Vy relative velocity
+    s0(12) = wv*Az*cos(psi);                %Vz relative velocity
 
-    r(1,:) = -Ax*cos(wp*tspan+phi);         %X relative coordinate
-    r(2,:) = kap*Ax*sin(wp*tspan+phi);      %Y relative coordinate
-    r(3,:) = Az*sin(wv*tspan+psi);          %Z relative coordinate
-    v(1,:) = wp*Ax*sin(wp*tspan+phi);       %Vx relative velocity
-    v(2,:) = kap*wp*Ax*cos(wp*tspan+phi);   %Vy relative velocity
-    v(3,:) = wv*Az*cos(wv*tspan+psi);       %Vz relative velocity 
+    tspan2 = 0:dt:2*tspan(end);
+    r(1,:) = -Ax*cos(wp*tspan2+phi);         %X relative coordinate
+    r(2,:) = kap*Ax*sin(wp*tspan2+phi);      %Y relative coordinate
+    r(3,:) = Az*sin(wv*tspan2+psi);          %Z relative coordinate
+    v(1,:) = wp*Ax*sin(wp*tspan2+phi);       %Vx relative velocity
+    v(2,:) = kap*wp*Ax*cos(wp*tspan2+phi);   %Vy relative velocity
+    v(3,:) = wv*Az*cos(wv*tspan2+psi);       %Vz relative velocity 
 
-    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, s0c(1:6), options);
+    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, s0c(1:6), options);
     Sref = [Saux [r; v].'];
 
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
