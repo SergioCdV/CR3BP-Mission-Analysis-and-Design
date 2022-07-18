@@ -26,7 +26,7 @@ function [P] = boundary_conditions(tfapp, n, x0, xf, N, P0, B, basis)
     end
 
     % Add the revolutions to the final angle
-    % xf(2) = xf(2)+2*pi*N;
+    xf(2) = xf(2)+2*pi*N;
 
     % Dimensionalizing of the velocity 
     x0(4:6) = tfapp*x0(4:6);

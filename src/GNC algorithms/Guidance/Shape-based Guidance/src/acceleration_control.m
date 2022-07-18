@@ -44,7 +44,7 @@ function [u] = acceleration_control(mu, C, tf, method)
 
         otherwise
             % Normalizing factor
-            c = 1;
+            c = tf;
 
             % Compute the control vector as a dynamics residual
             Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary

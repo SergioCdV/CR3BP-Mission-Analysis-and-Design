@@ -29,7 +29,7 @@
 %          - structure output, containing information on the final state of
 %            the optimization process
 
-function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, final_state, K, T, m, sampling_distribution, basis, n, setup)
+function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, final_state, K, T, m, sampling_distribution, basis, n, setup)
     % Characteristics of the system 
     mu = system.mu;             % Characteristic gravitational parameter of the CR3BP
     t0 = system.Time;           % Fundamental time unit of the system 

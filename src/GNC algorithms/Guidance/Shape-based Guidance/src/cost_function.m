@@ -24,7 +24,6 @@ function [r] = cost_function(mu, initial, final, n, tau, x, B, basis, method)
     P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
     tf = x(end-1);                                      % The final time of flight
     N = floor(x(end));                                  % The optimal number of revolutions
-    N = 0;
 
     % Boundary conditions
     P = boundary_conditions(tf, n, initial, final, N, P, B, basis);

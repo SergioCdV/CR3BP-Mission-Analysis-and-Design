@@ -62,8 +62,8 @@ setup = [mu maxIter tol direction];                                 %General set
 %% Setup of the solution method
 time_distribution = 'Linear';           % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
-n = [50 50 50];                         % Polynomial order in the state vector expansion
-m = 500;                                % Number of sampling points
+n = [10 10 10];                         % Polynomial order in the state vector expansion
+m = 100;                                % Number of sampling points
 
 mu = 0.0121505;                         % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);               % System libration points
@@ -74,14 +74,14 @@ system.mu = mu;
 system.Time = T0; 
 system.Distance = Lem; 
 
-% Earth's orbital elements
+% Chaser's initial Cartesian state vector
 initial_state = chaser_orbit.Trajectory(1,1:6); 
 
-% Mars' orbital elements 
+% Target's final Cartesian state vector
 final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 0.05e-2;     % Maximum acceleration 
+T = 0.05e-3;     % Maximum acceleration 
 
 % Initial input revolutions 
 K = 0;
@@ -135,7 +135,7 @@ figure;
 hold on
 plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
 plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
-yline(T*Lem/T0^2, '--k')
+yline(T, '--k')
 xlabel('Flight time')
 ylabel('$\mathbf{a}$')
 legend('$a$','$a_x$','$a_y$','$a_z$')

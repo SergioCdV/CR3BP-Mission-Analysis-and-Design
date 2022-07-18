@@ -27,12 +27,10 @@ function [Papp, Capp, Napp, tfapp] = initial_approximation(sampling_distribution
     end
     
     Napp = ceil( (dtheta+tfapp*0.5*(initial(4)+final(4)) ) / (2*pi) );
-    if (Napp <= 0)
-        Napp = 1;
+    if (Napp > 0)
+        % New initial TOF
+        tfapp = tfapp*Napp;
     end 
-    
-    % New initial TOF
-    tfapp = tfapp*Napp;
 
     % Generate the polynomial basis
     n_init = repmat(3, [1 3]);
