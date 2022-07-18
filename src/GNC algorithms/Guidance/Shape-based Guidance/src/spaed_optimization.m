@@ -49,7 +49,8 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     
     % Initial TOF
     tfapp = initial_tof(mu, T, initial_state.', final_state.');
-
+    tfapp = 2; 
+    
     % Add additional revolutions 
     final(2) = final(2)+2*pi*K;
 

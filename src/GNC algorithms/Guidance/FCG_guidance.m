@@ -58,13 +58,10 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
     %Initial integration
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
     Sn = Saux; 
-    
-    %Reference Jacobi constant of the target orbit
-    Jref = jacobi_constant(mu, Saux(1,1:6).'); 
         
     %Differential corrector setup
     GoOn = true;                            %Convergence boolean
-    maxIter = 200;                          %Maximum number of iterations
+    maxIter = 50;                          %Maximum number of iterations
     iter = 1;                               %Initial iteration
         
     while ((GoOn) && (iter < maxIter))
@@ -79,11 +76,11 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
             case 'Mixed'
                 STM = [E(:,2) E(:,3:end) -[zeros(3); eye(3)]];        %Linear application
             case 'Stable' 
-                STM = [E(:,2) -[zeros(3,3); eye(3)]];                   %Linear application
+                STM = [E(:,2) -[zeros(3); eye(3)]];                   %Linear application
             case 'Unstable'
-                STM = [E(:,1) -[zeros(3,3); eye(3)]];                   %Linear application
+                STM = [E(:,1) -[zeros(3); eye(3)]];                   %Linear application
             case 'Center'
-                STM = [E(:,3:end) -[zeros(3,3); eye(3)]];               %Linear application
+                STM = [E(:,3:end) -[zeros(3); eye(3)]];               %Linear application
             otherwise
                 error('No valid case was selected');
         end
@@ -92,13 +89,13 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
         C = Phi(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3); eye(3)]];
         
         %Energy constraint sensibility vector fields
-        J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
-        dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) 0 0 dJ(6)];
+%         J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
+%         dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
+%         JSTM = [zeros(1,size(STM,2)-3) dJ(4:5).' 0];
 
         %Complete sensibility analysis
-        A = [STM; C; JSTM];                      %Sensibility matrix
-        b = [error; J-Jref];                     %Final error analysis
+        A = [STM; C];                      %Sensibility matrix
+        b = [error];                     %Final error analysis
 
         %Update the initial conditions
         ds = -pinv(A)*b;                         %Needed maneuver
