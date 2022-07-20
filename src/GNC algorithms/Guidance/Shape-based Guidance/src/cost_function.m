@@ -19,7 +19,7 @@
 
 % Outputs: - scalar r, the cost index to be optimized
 
-function [r] = cost_function(mu, initial, final, n, tau, x, B, basis, method)
+function [r] = cost_function(mu, Ln, initial, final, n, tau, x, B, basis, method)
     % Minimize the control input
     P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
     tf = x(end-1);                                      % The final time of flight
@@ -32,7 +32,7 @@ function [r] = cost_function(mu, initial, final, n, tau, x, B, basis, method)
     C = evaluate_state(P,B,n);
 
     % Control input
-    u = acceleration_control(mu,C,tf,method);        
+    u = acceleration_control(mu,Ln,C,tf,method);        
 
     % Control cost
     switch (method)
@@ -45,5 +45,5 @@ function [r] = cost_function(mu, initial, final, n, tau, x, B, basis, method)
     end
     
     % Cost function
-    r = trapz(tau,a)/tf;                               
+    r = trapz(tau,a)/tf;
 end

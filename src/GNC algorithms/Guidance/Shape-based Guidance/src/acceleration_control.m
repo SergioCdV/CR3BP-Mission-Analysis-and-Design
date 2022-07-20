@@ -12,19 +12,21 @@
 
 % Outputs: - vector u, the nondimensional 3xm control vector
 
-function [u] = acceleration_control(mu, C, tf, method)
+function [u] = acceleration_control(mu, Ln, C, tf, method)
     % Constants of the problem 
     mu_r(1) = 1-mu;                 % Gravitational parameter of the first primary 
     mu_r(2) = mu;                   % Gravitational parameter of the second primary 
     R(1:3,:) = [-mu; 0; 0];         % Location of the first primary in Cartesian coordinates
     R(4:6,:) = [1-mu; 0; 0];        % Location of the second primary in Cartesian coordinates
+
+    R = R-[Ln;Ln];
     R = repmat(R, 1, size(C,2));    % Appropriate sizing for the complete state evolution
 
-    % Compute the radius vector
-    r = sqrt(C(1,:).^2+C(3,:).^2);
-
     % Transformation to Cartesian coordinates
-    s = cylindrical2cartesian(C, true);       % Cylindrical-Cartesian transformation
+    s = cylindrical2cartesian(C, true);    
+
+    % Compute the radius vector
+    r = sqrt(s(1,:).^2+s(2,:).^2+s(3,:).^2);
 
     % Compute the control vector as a residual of the dynamics
     switch (method)

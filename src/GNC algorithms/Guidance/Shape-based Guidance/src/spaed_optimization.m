@@ -29,7 +29,7 @@
 %          - structure output, containing information on the final state of
 %            the optimization process
 
-function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, final_state, K, T, m, sampling_distribution, basis, n, setup)
+function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, final_state, Ln, K, T, m, sampling_distribution, basis, n, setup)
     % Characteristics of the system 
     mu = system.mu;             % Characteristic gravitational parameter of the CR3BP
     t0 = system.Time;           % Fundamental time unit of the system 
@@ -40,17 +40,25 @@ function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(sy
         n = repmat(n, [1 3]);
     end
 
-    % Boundary conditions 
-    initial = cylindrical2cartesian(initial_state.', false).';      % Initial state vector in cylindrical coordinates                  
-    final = cylindrical2cartesian(final_state.', false).';          % Final state vector in cylindrical coordinates 
-
-    % Normalization
-    T = T*(t0^2/r0);                                                % Spacecraft propulsion parameters 
-    
     % Initial TOF
-    tfapp = initial_tof(mu, T, initial_state.', final_state.');
-    tfapp = 2; 
-    
+    % tfapp = initial_tof(mu, T, initial_state.', final_state.');
+    tfapp = 2*pi; 
+
+    % State vector of the Lagrange points
+    L = [libration_points(mu) [-mu 1-mu; 0 0; 0 0; 1 0]];
+
+    % Translation of the origin of the phase space 
+    Ln = [L(1:3,Ln); zeros(3,1)];
+    initial = initial_state.'-Ln;
+    final = final_state.'-Ln;
+
+    % Boundary conditions 
+    initial = cylindrical2cartesian(initial, false).';      % Initial state vector in cylindrical coordinates                  
+    final = cylindrical2cartesian(final, false).';          % Final state vector in cylindrical coordinates 
+
+    % Normlized spacecraft propulsion parameters 
+    T = T*(t0^2/r0);                                        
+        
     % Add additional revolutions 
     final(2) = final(2)+2*pi*K;
 
@@ -76,7 +84,7 @@ function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(sy
     P_ub = [Inf*ones(L,1); Inf; Inf];
     
     % Objective function
-    objective = @(x)cost_function(mu, initial, final, n, tau, x, B, basis, sampling_distribution);
+    objective = @(x)cost_function(mu, Ln(1:3), initial, final, n, tau, x, B, basis, sampling_distribution);
     
     % Linear constraints and inequalities
     A = [];
@@ -85,7 +93,7 @@ function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(sy
     beq = [];
     
     % Non-linear constraints
-    nonlcon = @(x)constraints(mu, T, initial, final, n, x, B, basis, sampling_distribution);
+    nonlcon = @(x)constraints(mu, Ln(1:3), T, initial, final, n, x, B, basis, sampling_distribution);
     
     % Modification of fmincon optimisation options and parameters (according to the details in the paper)
     options = optimoptions('fmincon', 'TolCon', 1e-6, 'Display', 'off', 'Algorithm', 'sqp');
@@ -106,7 +114,7 @@ function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(sy
     C = evaluate_state(P,B,n);
 
     % Control input
-    u = acceleration_control(mu, C, tf, sampling_distribution);
+    u = acceleration_control(mu, Ln(1:3), C, tf, sampling_distribution);
     u = u/tf^2;
     
     % Solution normalization
@@ -142,6 +150,12 @@ function [Capp, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(sy
                     tf = tf*2;
             end
     end
+
+    % Back transaltion of the origin of the synodic frame 
+    C = cylindrical2cartesian(C, true);
+    C(1:3,:) = C(1:3,:)+Ln(1:3);
+    Capp = cylindrical2cartesian(Capp, true);
+    Capp(1:3,:) = Capp(1:3,:)+Ln(1:3);
 
     % Results 
     if (setup.resultsFlag)
