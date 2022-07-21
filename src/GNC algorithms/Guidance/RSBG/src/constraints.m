@@ -15,12 +15,13 @@
 %         - vector x, the degree of freedom to be optimized 
 %         - cell array B, the polynomial basis to be used
 %         - string basis, the polynomial basis to be used
+%         - vector tau, the vector of collocation points
 %         - string method, the parameter distribution to be used
 
 % Outputs: - inequality constraint residual vector c
 %          - equality constraint residual vector ceq
 
-function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, method)
+function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, tau, method)
     % Extract the optimization variables
     P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
     tf = x(end-1);                                      % Final time of flight 
@@ -28,6 +29,13 @@ function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, metho
 
     % Boundary conditions points
     P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
+
+    % Evaluate the target periodic trajectory 
+    switch (St.Field)
+        case 'Relative'
+            tspan = tf*tau;
+            St.Trajectory = target_trajectory(tspan, St.Period, St.Cp);
+    end
 
     % Trajectory evolution
     C = evaluate_state(P,B,n);

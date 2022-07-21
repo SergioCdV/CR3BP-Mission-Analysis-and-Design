@@ -31,6 +31,13 @@ function [r] = cost_function(mu, St, initial, final, n, tau, x, B, basis, method
     % State evolution
     C = evaluate_state(P,B,n);
 
+    % Evaluate the target periodic trajectory 
+    switch (St.Field)
+        case 'Relative'
+            tspan = tf*tau;
+            St.Trajectory = target_trajectory(tspan, St.Period, St.Cp);
+    end
+
     % Control input
     u = acceleration_control(mu, St, C, tf, method);        
 

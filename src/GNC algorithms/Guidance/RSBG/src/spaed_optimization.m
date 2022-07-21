@@ -48,11 +48,37 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     [B, tau] = state_basis(n, tau, basis);
 
     % Target's orbit high-order approximation
+    switch (St.Field)
+        case 'Absolute'
+            % Target state evolution
+            L = [libration_points(mu) [-mu 1-mu; 0 0; 0 0; 1 0]];   % Location of the libration / primaries points
+            St.Trajectory = [L(1:3,St.Center); zeros(3,1)];
+            St.Trajectory = repmat(St.Trajectory,1,m);
 
-    % Boundary conditions   
-    initial = cylindrical2cartesian(initial_state, false).';    % Initial chaser state vector in cylindrical coordinates   
-    initial = initial-St(1,:);                                  % Relative initial conditions
-    final = zeros(6,1);                                         % Rendezvous Condition
+            % Boundary conditions 
+            initial = initial_state.'-St.Trajectory(:,1);           % Initial conditions
+            final = St.Final.'-St.Trajectory(:,1);                  % Final conditions
+            initial = cylindrical2cartesian(initial, false).';      % Initial state vector in cylindrical coordinates                  
+            final = cylindrical2cartesian(final, false).';          % Final state vector in cylindrical coordinates 
+
+        case 'Relative'
+            % Target state evolution
+            order = 50;                                             % Order of the polynomial
+
+            [Cp, Cv, ~] = CTR_guidance(order, St.Trajectory(:,1).', St.Trajectory(:,2:7));
+
+            St.Cp = Cp;                                             % Target's orbit position coordinates
+            St.Cv = Cv;                                             % Target's orbit velocity coordinates
+            St.Period = St.Trajectory(end,1);                       % Final target's period
+
+            % Boundary conditions   
+            initial = initial_state.'-St.Trajectory(1,2:7).';       % Relative initial conditions
+            initial = cylindrical2cartesian(initial, false).';      % Initial chaser state vector in cylindrical coordinates   
+            final = zeros(1,6);                                     % Rendezvous Condition
+
+        otherwise 
+            error('No valid vectorfield was chosen')
+    end
 
     % Normlized spacecraft propulsion parameters 
     T = T*(t0^2/r0);                                        
@@ -87,7 +113,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     beq = [];
     
     % Non-linear constraints
-    nonlcon = @(x)constraints(mu, St, T, initial, final, n, x, B, basis, sampling_distribution);
+    nonlcon = @(x)constraints(mu, St, T, initial, final, n, x, B, basis, tau, sampling_distribution);
     
     % Modification of fmincon optimisation options and parameters (according to the details in the paper)
     options = optimoptions('fmincon', 'TolCon', 1e-6, 'Display', 'off', 'Algorithm', 'sqp');
@@ -107,8 +133,15 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Final state evolution
     C = evaluate_state(P,B,n);
 
+    % Final target trajectory 
+    switch (St.Field)
+        case 'Relative'
+            tspan = tf*tau;
+            St.Trajectory = [target_trajectory(tspan, St.Period, St.Cp); target_trajectory(tspan, St.Period, St.Cv)];
+    end
+
     % Control input
-    u = acceleration_control(mu, Ln(1:3), C, tf, sampling_distribution);
+    u = acceleration_control(mu, St, C, tf, sampling_distribution);
     u = u/tf^2;
     
     % Solution normalization
@@ -147,7 +180,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
 
     % Back transaltion of the origin of the synodic frame 
     C = cylindrical2cartesian(C, true);
-    C(1:6,:) = C(1:6,:)+St(:,1:6).';
+    C(1:6,:) = C(1:6,:)+St.Trajectory(1:6,:);
 
     % Results 
     if (setup.resultsFlag)
