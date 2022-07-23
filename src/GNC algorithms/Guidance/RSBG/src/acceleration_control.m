@@ -19,12 +19,6 @@ function [u] = acceleration_control(mu, St, C, tf, method)
     R(1:3,:) = [-mu; 0; 0];                               % Location of the first primary in Cartesian coordinates
     R(4:6,:) = [1-mu; 0; 0];                              % Location of the second primary in Cartesian coordinates
     R = repmat(R, 1, size(C,2));                          % Appropriate sizing for the complete state evolution
-
-%     if (tf > St.Period)
-%         index = floor(mod(tf,St.period)*; 
-%         St.Trajectory = St.Trajectory(:,1:index);
-%     end
-
     R = R-repmat(St.Trajectory(1:3,:),2,1);               % Non-autonomous primaries definition
     
     % Transformation to Cartesian coordinates
@@ -64,12 +58,12 @@ function [u] = acceleration_control(mu, St, C, tf, method)
                     
                 case 'Relative'
                     % First primary gravitational acceleration
-                    q = -dot(2*Rr(1:3,:),s(1:3,:),1)./sqrt(dot(Rr(1:3,:),Rr(1:3,:),1)).^2;
+                    q = -dot(s(1:3,:)-2*R(1:3,:),s(1:3,:),1)./sqrt(dot(Rr(1:3,:),Rr(1:3,:),1)).^2;
                     f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
                     gamma(1:3,:) = -mu_r(1)./sqrt(dot(R(1:3,:),R(1:3,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(1:3,:));
     
                     % Second primary gravitational acceleration
-                    q = -dot(2*Rr(4:6,:),s(1:3,:),1)./sqrt(dot(Rr(4:6,:),Rr(4:6,:),1)).^2;
+                    q = -dot(s(1:3,:)-2*R(4:6,:),s(1:3,:),1)./sqrt(dot(Rr(4:6,:),Rr(4:6,:),1)).^2;
                     f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
                     gamma(4:6,:) = -mu_r(2)./sqrt(dot(R(4:6,:),R(4:6,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(4:6,:));
             end

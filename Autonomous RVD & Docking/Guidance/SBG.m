@@ -53,17 +53,17 @@ setup = [mu maxIter tol direction];                                 %General set
 % m = 1;                                                              %Number of periods to compute
 % 
 % %Compute a halo seed 
-% halo_param = [1 Az 2 L(end,2) m];                                     %Northern halo parameters
+% halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
 % [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 % 
 % %Correct the seed and obtain initial conditions for a halo orbit
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-time_distribution = 'Linear';           % Distribution of time intervals
+time_distribution = 'Chebyshev';           % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 600;                                % Number of sampling points
+m = 500;                                % Number of sampling points
 
 mu = 0.0121505;                         % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);               % System libration points
@@ -81,10 +81,10 @@ initial_state = chaser_orbit.Trajectory(1,1:6);
 final_state = target_orbit.Trajectory(1500,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 0.05;     % Maximum acceleration 
+T = 0.5e-1;     % Maximum acceleration 
 
 % Initial input revolutions 
-K = 2;
+K = 0;
 
 % Setup 
 options.resultsFlag = true; 
@@ -98,6 +98,7 @@ target.Final = final_state;                             % Final state vector
 
 dt = 1e-3;                                              % Time step
 tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
+
 target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
 
 % Simple solution    
@@ -130,14 +131,18 @@ manifold_branch = 'R';       % Left branch of the manifold (L or R)
 UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chaser_orbit.Trajectory, rho, tspan);
 
 %% Plots
+index = floor(mod(tf,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
+
 % Orbit representation
 figure_orbits = figure;
 view(3)
+axis equal;
 hold on
 xlabel('Synodic $x$ coordinate')
 ylabel('Synodic $y$ coordinate')
 zlabel('Synodic $z$ coordinate')
 plot3(C(1,1),C(2,1),C(3,1),'*k');                                                                                                                % Initial conditions
+plot3(target_orbit.Trajectory(index,1),target_orbit.Trajectory(index,2),target_orbit.Trajectory(index,3),'*k');  
 N = plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth',0.4);                                                                                             % Trasfer orbit
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'LineStyle','--','Color','r','LineWidth', 0.9);  % Target's orbit
 plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3),'LineStyle','-.','Color','b','LineWidth', 0.9);   % Charser's initial orbit
@@ -158,7 +163,7 @@ text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
 hold off
 grid on; 
 legend('off')
-%%
+
 % Propulsive acceleration plot
 figure;
 %title('Spacecraft acceleration in time')

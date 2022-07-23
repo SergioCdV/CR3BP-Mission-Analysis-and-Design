@@ -1,5 +1,9 @@
-%% Project: 
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
 % Date: 30/04/22
+% File: CH_derivative.m 
+% Issue: 0 
+% Validated: 
 
 %% Chebysev basis %%
 % This function allows to compute all Chebyshev polynomials of order n of both kinds,

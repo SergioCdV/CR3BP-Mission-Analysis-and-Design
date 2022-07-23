@@ -96,11 +96,8 @@ Tmax = 0.1;                                   %Maximum thrust capability (in vel
 
 %Regression
 order = 10;                                                         %Order of the regression 
-T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
 u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
-for i = 1:length(tspan)
-    T(:,i) = chebyshev('first', order, u(i));
-end
+T = CH_basis('first', order, u);                                    %Polynomial basis
 
 [Cp, Cv, Cg] = CTR_guidance(order, tspan, St(:,7:12));              %Obtain the Chebyshev coefficients
 p = Cp*T;                                                           %Position regression
@@ -108,8 +105,7 @@ v = Cv*T;                                                           %Velocity re
 Sr = [p.' v.'];                                                     %Regress the phase space trajectory
 
 %Control integrals
-%Control effort 
-effort = control_effort(tspan, u, false);
+effort = control_effort(tspan, u, false);                           %Control effort 
 
 %Error in time 
 [e, merit] = figures_merit(tspan, Sr);

@@ -57,11 +57,8 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             Cp = GNC.Guidance.CTR.PositionCoefficients;     %Coefficients of the Chebyshev approximation
             Cv = GNC.Guidance.CTR.VelocityCoefficients;     %Coefficients of the Chebyshev approximation
             
-            T = zeros(order, length(t));                    %Preallocation of the polynomial basis
             u = (2*t-TOF)/TOF;                              %Normalized domain
-            for i = 1:length(u)
-                T(:,i) = chebyshev('first', order, u(i));   %Polynomial basis 
-            end
+            T = CH_basis('first', order, u);                %Polynomial basis 
             p = Cp*T;                                       %Position trajectory
             v = Cv*T;                                       %Velocity trajectory
 

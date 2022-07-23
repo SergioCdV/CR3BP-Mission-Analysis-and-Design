@@ -30,8 +30,8 @@ function [Cp, Cv, Cg, Ci] = CTR_guidance(order, tspan, S)
     v = S(:,4:6).';                     %Velocity evolution
     
     %Preallocation of the coefficients 
-    Cp = zeros(m/2, order);             %Position regression coefficients
-    Cv = zeros(m/2, order);             %Velocity regression coefficients
+    Cp = zeros(m/2, order+1);           %Position regression coefficients
+    Cv = zeros(m/2, order+1);           %Velocity regression coefficients
     
     %Regress the position 
     for i = 1:size(p,1)

@@ -84,12 +84,8 @@ S_rc = S(:,1:6)+S(:,7:12);                                          %Reconstruct
 order = 10;                                                         %Order of the polynomials
 
 %Polynomial basis all along the time span
-T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
 u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
-
-for i = 1:length(tspan)
-    T(:,i) = chebyshev('first', order, u(i));
-end
+T = CH_basis('first', order, u);                                    %Polynomial basis
 
 %Regression of the position, velocity and acceleration fields
 [Cp, Cv, Cg] = CTR_guidance(order, tspan, Sn(:,7:12));
@@ -97,10 +93,11 @@ end
 %Error in the regression
 p = Cp*T;                   %Position regression
 v = Cv*T;                   %Velocity regression
-Sr = [p.' v.'];             %Regress the phase space trajectory
+
+Sn(:,7:12) = Sn(:,7:12)-[p.' v.'];            
 
 %Error in time
-[e, merit] = figures_merit(tspan, Sr);
+[e, merit] = figures_merit(tspan, Sn);
 
 %% Results 
 %Plot the approximation error 

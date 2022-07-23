@@ -19,13 +19,8 @@ order = 5;                                          %Number of polynomials to pl
 u = -1:1e-2:1;                                      %Normalized domain
 
 %Polynomials evaluation
-L = zeros(order, length(u));                        %Preallocation of the polynomial basis
-T = zeros(order, length(u));                        %Preallocation of the polynomial basis
-
-for i = 1:length(u)
-    L(:,i) = legendre_polynomials(order, u(i));     %Computation of the polynomials
-    T(:,i) = chebyshev('first', order, u(i));       %Computation of the polynomials
-end
+L = LG_basis(order, u);                             %Preallocation of the polynomial basis
+T = CH_basis('first', order, u);                    %Computation of the polynomials
 
 %Regression of the a curve 
 t = 0:1e-3:5; 
@@ -33,17 +28,13 @@ y = [ones(1,length(t)); zeros(2,length(t))];
 y(1,:) = t;
 dy = [ones(1,length(t)); zeros(2,length(t))];
 
-u = (2*t-(t(end)+t(1)))/(t(end)-t(1));          %Normalized time domain
+u = (2*t-(t(end)+t(1)))/(t(end)-t(1));              %Normalized time domain
 
 %Polynomials evaluation
-L = zeros(order, length(u));                        %Preallocation of the polynomial basis
-T = zeros(order, length(u));                        %Preallocation of the polynomial basis
+L = LG_basis(order, u);                             %Computation of the polynomials
+T = CH_basis('first', order, u);                    %Computation of the polynomials
 
-for i = 1:length(u)
-    L(:,i) = legendre_polynomials(order, u(i));     %Computation of the polynomials
-    T(:,i) = chebyshev('first', order, u(i));       %Computation of the polynomials
-end
-[Cp, Cv, Cg, Ci] =  CTR_guidance(order, t.', [y; dy].');
+[Cp, Cv, Cg, Ci] =  CTR_guidance(order, t, [y; dy].');
 
 figure(4)
 yp = Cp*T; 

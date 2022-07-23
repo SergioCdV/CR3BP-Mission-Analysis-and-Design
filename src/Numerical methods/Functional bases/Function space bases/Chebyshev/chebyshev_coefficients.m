@@ -30,10 +30,7 @@ function [cn, W] = chebyshev_coefficients(x, y, order)
     u = (2*x-(b+a))/(b-a);                           %New argument
     
     %Main computation 
-    Tn = zeros(length(u), order);                    %Preallocation of the Chebyshev polynomial
-    for i = 1:length(u) 
-        Tn(i,:) = chebyshev('first', order, u(i));   %Compute the Chebyshev polynomials
-    end
+    Tn = CH_basis('first', order, u).';              %Compute the Chebyshev polynomials
     
     %Sampling distribution characteristics
     W = diag(ones(1,length(y)));

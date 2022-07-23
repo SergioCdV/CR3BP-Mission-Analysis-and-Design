@@ -44,7 +44,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     tfapp = 2*pi;
 
     % Final collocation grid and basis 
-    tau = sampling_grid(m, sampling_distribution, 'Intersection');
+    tau = sampling_grid(m, sampling_distribution, '');
     [B, tau] = state_basis(n, tau, basis);
 
     % Target's orbit high-order approximation
@@ -63,7 +63,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
 
         case 'Relative'
             % Target state evolution
-            order = 50;                                             % Order of the polynomial
+            order = 100;                                            % Order of the polynomial
 
             [Cp, Cv, ~] = CTR_guidance(order, St.Trajectory(:,1).', St.Trajectory(:,2:7));
 

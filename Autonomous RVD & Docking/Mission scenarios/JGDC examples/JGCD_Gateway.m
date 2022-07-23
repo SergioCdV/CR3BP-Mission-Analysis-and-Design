@@ -295,12 +295,8 @@ order = 100;
 [Cp, Cv, Cg] = CTR_guidance(order, tspan, Sg);
 
 %Reconstructed guidance trajectory
-T = zeros(order, length(tspan));                                    %Preallocation of the polynomial basis
 u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
-
-for i = 1:length(tspan)
-    T(:,i) = chebyshev('first', order, u(i));
-end
+T = CH_basis('first', order, u);                                    %Polynomial basis
 
 %Error in the regression
 p = Cp*T;                   %Position regression
