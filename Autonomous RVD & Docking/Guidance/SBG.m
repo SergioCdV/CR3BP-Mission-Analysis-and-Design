@@ -45,25 +45,25 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-% %Halo characteristics 
-% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 1;                                                             %Orbits around L1
-% gamma = L(end,Ln);                                                  %Li distance to the second primary
-% m = 1;                                                              %Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-% 
-% %Correct the seed and obtain initial conditions for a halo orbit
-% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+%Halo characteristics 
+Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 1;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+
+%Correct the seed and obtain initial conditions for a halo orbit
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-time_distribution = 'Chebyshev';           % Distribution of time intervals
-basis = 'Chebyshev';                    % Polynomial basis to be use
-n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 500;                                % Number of sampling points
+time_distribution = 'Linear';           % Distribution of time intervals
+basis = 'Bernstein';                    % Polynomial basis to be use
+n = [6 6 6];                         % Polynomial order in the state vector expansion
+m = 200;                                % Number of sampling points
 
 mu = 0.0121505;                         % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);               % System libration points
@@ -81,10 +81,10 @@ initial_state = chaser_orbit.Trajectory(1,1:6);
 final_state = target_orbit.Trajectory(1500,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 0.5e-1;     % Maximum acceleration 
+T = 5e-3;     % Maximum acceleration 
 
 % Initial input revolutions 
-K = 0;
+K = 1;
 
 % Setup 
 options.resultsFlag = true; 
@@ -136,7 +136,6 @@ index = floor(mod(tf,target_orbit.Period)/target_orbit.Period*size(target_orbit.
 % Orbit representation
 figure_orbits = figure;
 view(3)
-axis equal;
 hold on
 xlabel('Synodic $x$ coordinate')
 ylabel('Synodic $y$ coordinate')

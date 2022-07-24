@@ -33,8 +33,7 @@ function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, tau, 
     % Evaluate the target periodic trajectory 
     switch (St.Field)
         case 'Relative'
-            tspan = tf*tau;
-            St.Trajectory = target_trajectory(tspan, St.Period, St.Cp);
+            St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
     end
 
     % Trajectory evolution

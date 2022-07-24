@@ -101,7 +101,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     
     % Upper and lower bounds 
     P_lb = [-Inf*ones(L,1); 0; 0];
-    P_ub = [Inf*ones(L,1); Inf; Inf];
+    P_ub = [Inf*ones(L,1); 10*12*2*pi; Inf];
     
     % Objective function
     objective = @(x)cost_function(mu, St, initial, final, n, tau, x, B, basis, sampling_distribution);
@@ -136,8 +136,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Final target trajectory 
     switch (St.Field)
         case 'Relative'
-            tspan = tf*tau;
-            St.Trajectory = [target_trajectory(tspan, St.Period, St.Cp); target_trajectory(tspan, St.Period, St.Cv)];
+            St.Trajectory = [target_trajectory(tf, tau, St.Period, St.Cp); target_trajectory(tf, tau, St.Period, St.Cv)];
     end
 
     % Control input
