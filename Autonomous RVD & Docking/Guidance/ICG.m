@@ -80,7 +80,7 @@ Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed
 
 %% Generate the guidance trajectory
 %Guidance trajectory
-restriction = 'Mixed';
+restriction = 'Unstable';
 [Str, V, state(1)] = ICG_guidance(mu, Ln, gamma, 2, [r_t0 r_c0], tol, restriction);
 St = Str(:,1:6)+Str(:,7:12);
 

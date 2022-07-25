@@ -52,12 +52,7 @@ function [S, dV, state] = ICG_guidance(mu, L, gamma, tf, s0, tol, restriction)
 
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
     sf = Saux(1,m+1:2*m);
-
-    Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
-    [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
-    for i = 1:size(J,2)
-        E(:,i) = E(:,i)/J(i,i);
-    end
+    Jref = jacobi_constant(mu, Saux(1,1:6).');                  %Reference Jacobi constant
 
     %Orbit parameters (frequencies)
     cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
@@ -91,8 +86,15 @@ function [S, dV, state] = ICG_guidance(mu, L, gamma, tf, s0, tol, restriction)
     iter = 1;                               %Initial iteration
         
     while ((GoOn) && (iter < maxIter))
+        %Manifold analysis
+        Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
+        [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
+        for i = 1:size(J,2)
+            E(:,i) = E(:,i)/J(i,i);
+        end
+
         %Error vector
-        error = [Saux(1,7:12).'; Saux(end,7:9).']; 
+        error = [-Saux(1,7:12).'; Saux(end,7:9).']; 
 
         %Basic sensibility matrices
         Phi = reshape(Saux(end,2*m+1:end), [m m]);                                       %State transition matrix at the final instant   
@@ -112,15 +114,15 @@ function [S, dV, state] = ICG_guidance(mu, L, gamma, tf, s0, tol, restriction)
         end
 
         % Sensibility matrix for the rendezvous restriction
-        C = Phi(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3); eye(3)]];
+        C = [zeros(3,size(STM,2)-3) Phi(1:3,4:6)];
         
         %Energy constraint sensibility vector fields
-%         J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
-%         dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
-%         JSTM = [zeros(1,size(STM,2)-3) dJ(4:5).' 0];
+        J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
+        dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
+        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'];
 
         %Complete sensibility analysis
-        A = [STM; C];                    %Sensibility matrix
+        A = [STM; C];                      %Sensibility matrix
         b = [error];                     %Final error analysis
 
         %Update the initial conditions

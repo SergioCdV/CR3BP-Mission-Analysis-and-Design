@@ -52,7 +52,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
-index = 600;                                                        %Phasing point
+index = 100;                                                        %Phasing point
 r_t0 = target_orbit.Trajectory(index,1:6);                          %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
@@ -63,9 +63,9 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 
 %% Generate the guidance trajectory
 %Guidance trajectory
-k = 3;                          % Number of phasing revolutions
+k = 1;                          % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);
-restriction = 'Center';
+restriction = 'Mixed';
 [Str, V, state(1)] = ICP_guidance(mu, Ln, gamma, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol, restriction);
 St = Str(:,1:6)+Str(:,7:12);
 tspan = (0:size(St,1))*dt;

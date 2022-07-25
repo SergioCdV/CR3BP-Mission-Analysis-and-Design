@@ -37,8 +37,8 @@ function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, rest
     %Integration time span
     T = T*(1+dtheta/(2*pi*k));                                  %Needed relative period
     dt = 1e-3;                                                  %Time step  
-    tspan = 0:dt:T;                                             %Integration time span
-    
+    tspan = 0:dt:k*T;                                           %Integration time span
+
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
 
@@ -87,16 +87,16 @@ function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, rest
         
     while ((GoOn) && (iter < maxIter))
         %K-th application of the stroboscopic map 
-        Monodromy = reshape(Saux(end,2*m+1:end), [m m]);            %Monodromy matrix
+        Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
         [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
         for i = 1:size(J,2)
             E(:,i) = E(:,i)/J(i,i);
         end
     
-        % Monodromy = Monodromy^k;
+        Phi = reshape(Saux(end,2*m+1:end), [m m]);                  %Monodromy matrix
 
         %Error vector
-        error = [s0(7:12); Monodromy(1:3,:)*s0(7:12)-s0(7:9)]; 
+        error = [s0(7:12)]; 
 
         % Sensibility matrix for the center manifold restriction
         switch (restriction)
@@ -113,7 +113,7 @@ function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, rest
         end
 
         % Sensibility matrix for the rendezvous restriction
-        C = Monodromy(1:3,:)*[zeros(6,size(STM,2)-3) [zeros(3); eye(3)]];
+        C = [zeros(3,size(STM,2)-3) Phi(1:3,4:6)];
         
         %Energy constraint sensibility vector fields
         J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
@@ -121,11 +121,11 @@ function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, rest
         JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'];
 
         %Complete sensibility analysis
-        A = [STM; C; JSTM];                      %Sensibility matrix
-        b = [error; J-Jref];                     %Final error analysis
+        A = [STM; JSTM];                         %Sensibility matrix
+        b = [error; Jref-J];                     %Final error analysis
 
         %Update the initial conditions
-        ds = -pinv(A)*b;                         %Needed maneuver
+        ds = pinv(A)*b;                          %Needed maneuver
         dV = real(ds(end-2:end));                %Velocity change
         s0(10:12) = s0(10:12)+dV;                %Update initial conditions with the velocity impulse
 
