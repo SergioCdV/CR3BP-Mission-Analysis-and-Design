@@ -1,16 +1,19 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date:  09/07/22
-% File: FCG_guidance.m 
+% File: ICG_guidance.m 
 % Issue: 0 
 % Validated: 09/07/22
 
-%% Floquet Center Manifold Guidance Control %%
+%% Impulsive Center Manifold Guidance %%
 % This script contains the function to compute a guidance trajectory using
 % the center manifold expansion of the relative dynamics
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
+%         - scalar L, the Lagrange point around which the spacecraft orbits
+%         - scalar gamma, the characteristic distance of the Lagrangian
+%           point
 %         - scalar tf, the final time of flight
 %         - vector s0, initial conditions of both the target and the chaser
 %         - scalar tol, the differential corrector scheme tolerance for the
@@ -25,7 +28,7 @@
 
 % New versions: 
 
-function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
+function [S, dV, state] = ICG_guidance(mu, L, gamma, tf, s0, tol, restriction)
     %Constants 
     m = 6;       % Phase space dimension
     
@@ -48,6 +51,7 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
 
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+    sf = Saux(1,m+1:2*m);
 
     Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
     [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
@@ -55,13 +59,35 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
         E(:,i) = E(:,i)/J(i,i);
     end
 
+    %Orbit parameters (frequencies)
+    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
+    wv  = sqrt(c2);                                             %Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
+
+    %Compute the initial Lissajous 
+    phi = atan2(sf(2)/kap, -sf(1));         %In-plane phase 
+    Ax = -sf(1)/cos(phi);                   %In-plane amplitude 
+    psi = -wp*tf;                           %Out-of-plane phase 
+    Az = sf(3)/sin(psi);                    %Out-of-plane amplitude
+
+    %Seed trajectory
+    s0(m+1:2*m) = zeros(1,m);               %Rendezvous conditions
+    s0(7) = -Ax*cos(phi);                   %X relative coordinate
+    s0(8) = kap*Ax*sin(phi);                %Y relative coordinate
+    s0(9) = Az*sin(psi);                    %Z relative coordinate
+    s0(10) = wp*Ax*sin(phi);                %Vx relative velocity
+    s0(11) = kap*wp*Ax*cos(phi);            %Vy relative velocity
+    s0(12) = wv*Az*cos(psi);                %Vz relative velocity
+
     %Initial integration
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
     Sn = Saux; 
         
     %Differential corrector setup
     GoOn = true;                            %Convergence boolean
-    maxIter = 50;                          %Maximum number of iterations
+    maxIter = 100;                          %Maximum number of iterations
     iter = 1;                               %Initial iteration
         
     while ((GoOn) && (iter < maxIter))
@@ -94,12 +120,12 @@ function [S, dV, state] = FCG_guidance(mu, tf, s0, tol, restriction)
 %         JSTM = [zeros(1,size(STM,2)-3) dJ(4:5).' 0];
 
         %Complete sensibility analysis
-        A = [STM; C];                      %Sensibility matrix
+        A = [STM; C];                    %Sensibility matrix
         b = [error];                     %Final error analysis
 
         %Update the initial conditions
         ds = -pinv(A)*b;                         %Needed maneuver
-        dV = real(ds(end-2:end));              %Velocity change
+        dV = real(ds(end-2:end));                %Velocity change
         s0(10:12) = s0(10:12)+dV;                %Update initial conditions with the velocity impulse
 
         %Re-integrate the trajectory

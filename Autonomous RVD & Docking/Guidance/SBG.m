@@ -21,7 +21,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 %Halo characteristics 
 Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -43,26 +43,28 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
+
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-%Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
-
-%Compute a halo seed 
-halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-
-%Correct the seed and obtain initial conditions for a halo orbit
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+% %Halo characteristics 
+% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+% Ln = 1;                                                             %Orbits around L1
+% gamma = L(end,Ln);                                                  %Li distance to the second primary
+% m = 1;                                                              %Number of periods to compute
+% 
+% %Compute a halo seed 
+% halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
+% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% 
+% %Correct the seed and obtain initial conditions for a halo orbit
+% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-time_distribution = 'Linear';           % Distribution of time intervals
-basis = 'Bernstein';                    % Polynomial basis to be use
-n = [6 6 6];                         % Polynomial order in the state vector expansion
+time_distribution = 'Chebyshev';        % Distribution of time intervals
+basis = 'Chebyshev';                    % Polynomial basis to be use
+n = [10 10 10];                         % Polynomial order in the state vector expansion
 m = 200;                                % Number of sampling points
 
 mu = 0.0121505;                         % Earth-Moon reduced gravitational parameter
@@ -78,13 +80,13 @@ system.Distance = Lem;
 initial_state = chaser_orbit.Trajectory(1,1:6); 
 
 % Target's final Cartesian state vector
-final_state = target_orbit.Trajectory(1500,1:6); 
+final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-3;     % Maximum acceleration 
+T = 5e-4;     % Maximum acceleration 
 
 % Initial input revolutions 
-K = 1;
+K = 3;
 
 % Setup 
 options.resultsFlag = true; 
@@ -120,7 +122,7 @@ time = mean(time);
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
-tspan = 0:dt:1.1*tf;         % Integration timespan
+tspan = 0:dt:0.1*tf;         % Integration timespan
 
 manifold_ID = 'S';           % Stable manifold (U or S)
 manifold_branch = 'L';       % Left branch of the manifold (L or R)
@@ -149,16 +151,16 @@ plot3(C(1,end),C(2,end),C(3,end),'*k');                                         
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
-% for i = 1:size(StableManifold.Trajectory,1)
-%     ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
-%     S = plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
-%     S.Color(4) = 0.1;
-% end
-% for i = 1:size(UnstableManifold.Trajectory,1)
-%     ManifoldAux = shiftdim(UnstableManifold.Trajectory(i,:,:));
-%     U = plot3(ManifoldAux(1:UnstableManifold.ArcLength(i),1), ManifoldAux(1:UnstableManifold.ArcLength(i),2), ManifoldAux(1:UnstableManifold.ArcLength(i),3), 'r');
-%     U.Color(4) = 0.1;
-% end
+for i = 1:size(StableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
+    S = plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
+    S.Color(4) = 0.1;
+end
+for i = 1:size(UnstableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(UnstableManifold.Trajectory(i,:,:));
+    U = plot3(ManifoldAux(1:UnstableManifold.ArcLength(i),1), ManifoldAux(1:UnstableManifold.ArcLength(i),2), ManifoldAux(1:UnstableManifold.ArcLength(i),3), 'r');
+    U.Color(4) = 0.1;
+end
 hold off
 grid on; 
 legend('off')

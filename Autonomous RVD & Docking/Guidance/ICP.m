@@ -1,9 +1,9 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 11/07/22 % 
+% 25/07/22 % 
 
-%% GNC 14: Floquet Center Manifold Guidance Control %% 
-% This script provides an interface to test the FCG guidance core.
+%% GNC 15: Impulsive Center Manifold Phasing %% 
+% This script provides an interface to test the ICP guidance core.
 
 % The relative motion of two spacecraft in the two different halo orbit is analysed 
 % and a guidance rendezvous trajectory is designed.
@@ -24,8 +24,6 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 1;                             %Rendezvous time
-tspan = 0:dt:pi;                    %Integration time span
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -51,53 +49,48 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-
-%Continuate the first halo orbit to locate the chaser spacecraft
-Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 4;                                                            %Number of orbits to continuate
-method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                                      %Differential corrector method
-direction = 1;                                                      %Direction to continuate (to the Earth)
-setup = [mu maxIter tol direction];                                 %General setup
-
-[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
+index = 600;                                                        %Phasing point
+r_t0 = target_orbit.Trajectory(index,1:6);                          %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
-%Integration of the model
-[~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
-Sn = S;                
-
-%Reconstructed chaser motion 
-Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
+% Phasing 
+target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Trajectory(1:index,:)];
 
 %% Generate the guidance trajectory
 %Guidance trajectory
+k = 3;                          % Number of phasing revolutions
+dtheta = 2*pi/target_orbit.Period*(index*dt);
 restriction = 'Center';
-[Str, V, state(1)] = FCG_guidance(mu, 2, [r_t0 r_c0], tol, restriction);
+[Str, V, state(1)] = ICP_guidance(mu, Ln, gamma, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol, restriction);
 St = Str(:,1:6)+Str(:,7:12);
+tspan = (0:size(St,1))*dt;
+
+% Periodicity check 
+target_orbit.Trajectory = repmat(target_orbit.Trajectory(1:end-1,:),k,1);
+chaser_orbit.Trajectory = repmat(chaser_orbit.Trajectory(1:end-1,:),k,1);
 
 %% Results 
 %Plot results 
 figure(1) 
 view(3) 
 hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
-plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
-plot3(St(:,1), St(:,2), St(:,3), 'k'); 
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b'); 
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), 'r'); 
+plot3(St(:,1), St(:,2), St(:,3), 'g'); 
+legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
+plot3(St(1,1), St(1,2), St(1,3), '*r'); 
+plot3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), '*b'); 
+plot3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), '*b'); 
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit')
 title('Guidance trajectory between periodic orbits');
 
 %Configuration space evolution
