@@ -19,7 +19,7 @@
 %          - scalar Napp, the estimated number of revolutions needed
 %          - scalar tfapp, the initial initial time of flight
 
-function [Papp, Capp, Napp, tfapp] = initial_approximation(sampling_distribution, tau, tfapp, initial, final, basis)
+function [Papp, Capp, Napp, tfapp] = initial_approximation(mu, St, sampling_distribution, tau, tfapp, initial, final, basis)
     % Preliminary number of revolutions
     dtheta = final(2)-initial(2);
     if (dtheta < 0)
@@ -46,8 +46,8 @@ function [Papp, Capp, Napp, tfapp] = initial_approximation(sampling_distribution
     % Time-regularized solution 
     switch (sampling_distribution)
         case 'Regularized'
-            % Arc-length regularization
-            r = sqrt(Capp(1,:).^2+Capp(3,:).^2);
+            % Arc-length regularization or generalized Sundman transformation
+            r = sundman_radius(mu, tfapp, St, tau, Capp);
             tfapp = tfapp*trapz(tau, r.^(-1));  
             Papp = boundary_conditions(tfapp, n_init, initial, final, Napp, Papp, Bapp, basis);
         

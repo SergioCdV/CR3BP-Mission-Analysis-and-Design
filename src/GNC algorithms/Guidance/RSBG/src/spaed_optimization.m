@@ -8,7 +8,9 @@
 % Inputs: - structure system, containing the physical information of the
 %           CR3BP of interest
 %         - vector initial_state, the initial Cartesian state 
-%         - vector final_state, the final Cartesian state
+%         - structure St, defining the target evolution in time and the
+%           vectorfield to be used in the optimization (absolute or relative
+%           dynamics)
 %         - scalar K, an initial desired revolutions value 
 %         - scalar T, the maximum allowed acceleration
 %         - scalar m, the number of sampling nodes to use 
@@ -89,7 +91,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Initial guess for the boundary control points
     mapp = 300;   
     tapp = sampling_grid(mapp, sampling_distribution, '');
-    [~, Capp, Napp, tfapp] = initial_approximation(sampling_distribution, tapp, tfapp, initial, final, basis); 
+    [~, Capp, Napp, tfapp] = initial_approximation(mu, St, sampling_distribution, tapp, tfapp, initial, final, basis); 
     
     % Initial fitting for n+1 control points
     [P0, ~] = initial_fitting(n, tapp, Capp, basis);
@@ -147,15 +149,15 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     switch (sampling_distribution)
         case 'Regularized'
             % Initial TOF 
-            rapp = sqrt(Capp(1,:).^2+Capp(3,:).^2);
-            tfapp = tfapp*trapz(tapp, rapp);
+            r = sundman_radius(mu, tf, St, Capp);
+            tfapp = tfapp*trapz(tau, r.^(-1));
 
             % Normalised time grid
             options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
-            [~, tau] = ode45(@(t,s)Sundman_transformation(basis, n, P, t, s), tau, 0, options);
+            [~, tau] = ode45(@(t,s)Sundman_transformation(basis, n, tf, St, P, t, s), tau, 0, options);
     
             % Control input
-            r = sqrt(C(1,:).^2+C(3,:).^2);
+            r = sundman_radius(mu, tf, St, C);
             u = u./(r.^2);
     
             % Final TOF 
@@ -190,8 +192,8 @@ end
 
 %% Auxiliary functions 
 % Compute the derivative of time with respect to the generalized anomaly 
-function [dt] = Sundman_transformation(basis, n, P, t, s)
+function [dt] = Sundman_transformation(basis, n, tf, St, P, t, s)
     B = state_basis(n,s,basis);
     C = evaluate_state(P,B,n);
-    dt = sqrt(C(1,:).^2+C(3,:).^2);
+    dt = sundman_radius(mu, tf, St, t, C);
 end

@@ -62,7 +62,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-time_distribution = 'Chebyshev';        % Distribution of time intervals
+time_distribution = 'Linear';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 n = [10 10 10];                         % Polynomial order in the state vector expansion
 m = 200;                                % Number of sampling points

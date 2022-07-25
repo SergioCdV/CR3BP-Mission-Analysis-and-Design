@@ -29,7 +29,7 @@ function [u] = acceleration_control(mu, St, C, tf, method)
     
     % Compute the control vector as a residual of the dynamics
     switch (method)
-        case 'Sundman'
+        case 'Regularized'
             % Normalizing factor
             c = tf;
     
