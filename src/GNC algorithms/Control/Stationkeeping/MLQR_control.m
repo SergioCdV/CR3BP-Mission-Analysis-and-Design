@@ -56,8 +56,6 @@ function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
         C = ctrb(A,V);                          %Controlabillity matrix
         [K,~,~] = lqr(A,V,Q,M);  
 
-       % norm(e)
-
         %Control law
         if (rank(C) ~= max(size(A)))
             u(:,i) = zeros(3,1);           

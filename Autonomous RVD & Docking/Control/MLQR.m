@@ -70,11 +70,13 @@ GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
 GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
 GNC.Control.Dimension = 3;                          %Dimension of the control law
 
+GNC.Navigation.NoiseVariance = 0;                   %Noise variance
+
 GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
 GNC.Control.MLQR.Q = eye(2);                        %Penalty on the state error
 GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
-GNC.Control.MLQR.Reference = Sg;                    %Penalty on the control effort
-GNC.Control.MLQR.Period = target_orbit.Period;      %Penalty on the control effort
+GNC.Control.MLQR.Reference = Sg;                    %Reference state
+GNC.Control.MLQR.Period = target_orbit.Period;      %Target orbital period
 
 %Floquet mode matrix
 [E, lambda] = eig(reshape(Sn(end,n+1:end), [n n]));
