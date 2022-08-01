@@ -37,7 +37,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -48,7 +48,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
@@ -65,10 +65,7 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 %Guidance trajectory
 k = 1;                          % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);
-restriction = 'Mixed';
-[Str, V, state(1)] = ICP_guidance(mu, Ln, gamma, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol, restriction);
-St = Str(:,1:6)+Str(:,7:12);
-tspan = (0:size(St,1))*dt;
+[Str, state(1)] = ICP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol);
 
 % Periodicity check 
 target_orbit.Trajectory = repmat(target_orbit.Trajectory(1:end-1,:),k,1);
@@ -81,9 +78,15 @@ view(3)
 hold on
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b'); 
 plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), 'r'); 
-plot3(St(:,1), St(:,2), St(:,3), 'g'); 
-legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
-plot3(St(1,1), St(1,2), St(1,3), '*r'); 
+for i = 1:size(Str.Trajectory,1)
+    % Integration of the quasi-periodic trajectory
+    tspan = 0:dt:Str.Period;
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
+    S = St(:,1:6)+St(:,7:12);
+    plot3(S(:,1), S(:,2), S(:,3), 'g'); 
+    legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
+    plot3(S(1,1), S(1,2), S(1,3), '*r');
+end 
 plot3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), '*b'); 
 plot3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), '*b'); 
 hold off
@@ -97,9 +100,9 @@ title('Guidance trajectory between periodic orbits');
 figure(3)
 subplot(1,2,1)
 hold on
-plot(tspan(1:size(Str,1)), Str(:,7)); 
-plot(tspan(1:size(Str,1)), Str(:,8)); 
-plot(tspan(1:size(Str,1)), Str(:,9)); 
+plot(tspan(1:size(St,1)), St(:,7)); 
+plot(tspan(1:size(St,1)), St(:,8)); 
+plot(tspan(1:size(St,1)), St(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Configuration coordinates');
@@ -108,9 +111,9 @@ legend('$x$', '$y$', '$z$');
 title('Position in time');
 subplot(1,2,2)
 hold on
-plot(tspan(1:size(Str,1)), Str(:,10)); 
-plot(tspan(1:size(Str,1)), Str(:,11)); 
-plot(tspan(1:size(Str,1)), Str(:,12)); 
+plot(tspan(1:size(St,1)), St(:,10)); 
+plot(tspan(1:size(St,1)), St(:,11)); 
+plot(tspan(1:size(St,1)), St(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Velocity coordinates');

@@ -25,7 +25,7 @@
 
 % New versions: 
 
-function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, restriction)
+function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     %Constants 
     m = 6;       % Phase space dimension
     
@@ -35,117 +35,118 @@ function [S, dV, state] = ICP_guidance(mu, L, gamma, T, dtheta, k, s0, tol, rest
     end
     
     %Integration time span
-    T = T*(1+dtheta/(2*pi*k));                                  %Needed relative period
+    % T = T*(1+dtheta/(2*pi*k));                                  %Needed relative period
     dt = 1e-3;                                                  %Time step  
-    tspan = 0:dt:k*T;                                           %Integration time span
+    tspan = 0:dt:T;                                             %Integration time span
 
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
 
-    %Reference Jacobi Constant
-    Jref = jacobi_constant(mu, s0);
-
     %Computation of the monodromy matrix
-    s0 = [s0(1:m); s0(m+1:end)-s0(1:m)];                        %Initial relative chaser conditions
-    Phi = eye(m);                                               %Initial STM 
-    Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
-    s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
+    s0 = [s0(1:m); s0(m+1:end)-s0(1:m)];                   %Initial relative chaser conditions
+    Phi = eye(m);                                          %Initial STM 
+    Phi = reshape(Phi, [m^2 1]);                           %Reshape the initial STM
+    s0 = [s0; Phi];                                        %Complete phase space + linear variational initial conditions
 
-    [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
-    sf = Saux(1,m+1:2*m);
-
-    %Orbit parameters (frequencies)
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
-
-    %Compute the initial Lissajous 
-    phi = atan2(sf(2)/kap, -sf(1));         %In-plane phase 
-    Ax = -sf(1)/cos(phi);                   %In-plane amplitude 
-    psi = -wp*k*T;                           %Out-of-plane phase 
-    Az = sf(3)/sin(psi);                    %Out-of-plane amplitude
-
-    %Seed trajectory
-    s0(m+1:2*m) = zeros(1,m);               %Rendezvous conditions
-    s0(7) = -Ax*cos(phi);                   %X relative coordinate
-    s0(8) = kap*Ax*sin(phi);                %Y relative coordinate
-    s0(9) = Az*sin(psi);                    %Z relative coordinate
-    s0(10) = wp*Ax*sin(phi);                %Vx relative velocity
-    s0(11) = kap*wp*Ax*cos(phi);            %Vy relative velocity
-    s0(12) = wv*Az*cos(psi);                %Vz relative velocity
-
-    %Initial integration
-    [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
-    Sn = Saux; 
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
         
     %Differential corrector setup
-    GoOn = true;                            %Convergence boolean
-    maxIter = 50;                          %Maximum number of iterations
-    iter = 1;                               %Initial iteration
+    GoOn = true;                                           %Convergence boolean
+    maxIter = 50;                                          %Maximum number of iterations
+    iter = 1;                                              %Initial iteration
+
+    %Initial constants and parameters
+    nodes = 5;                                             %Number of points on the invariant curve
+    theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
+    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);         %Initial monodromy matrix
+    [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
+    lambda = diag(lambda);                                 %Consider only the pure eigenalues
+    index = imag(lambda) ~= 0;                             %Search for the center eigenvector
+    lambda_c = lambda(index);                              %Center eigenvalue
+    v_c = W(:,index);                                      %Center eigenvector
+    X = zeros(m*nodes+2,maxIter);                          %Preallocation of the free variables state vector
+
+    %Definition of the phasing period and rotation number
+    X(end-1,1) = T;                                             %Initial orbital period or stroboscopic time
+    X(end,1) = atan2(imag(lambda_c(1)), real(lambda_c(1)));     %Initial rotation angle
+
+    %Initial quasi-periodic orbit conditions
+    epsilon = 1e-4;                                             % Center manifold displacement
+    for i = 1:nodes
+        X(1+m*(i-1):m*i,1) = epsilon*(real(v_c(:,1))*cos(theta(i))-imag(v_c(:,1))*sin(theta(i)));
+    end
+
+    %Define the wavenumber on the domain 
+    if (mod(nodes,2) == 0)
+        k = -nodes/2:nodes/2;
+    else
+        k = -(nodes-1)/2:(nodes-1)/2;
+    end
+    
+    %Define the Fourier transform operator and its inverse kernel
+    D = exp(-1i*k.'*theta)/nodes;
+    invD = D^(-1);
+
+    %Preallocation of the error and the sensibility matrices 
+    urot = zeros(nodes,m);                              %First return of the nodes without the rotation
+    bSTM = zeros(m*nodes,m*nodes);                      %Augmented state transition matrix
+    dF = zeros(m*nodes, 1);                             %Time derivative of the nodes
         
     while ((GoOn) && (iter < maxIter))
-        %K-th application of the stroboscopic map 
-        Monodromy = reshape(Saux(2,2*m+1:end), [m m]);              %Monodromy matrix
-        [E, J] = eig(Monodromy);                                    %Eigenspectrum of the initial monodromy matrix 
-        for i = 1:size(J,2)
-            E(:,i) = E(:,i)/J(i,i);
+        %Torus variables
+        T = X(end-1,iter);                              %Strobocopic time
+        rho = X(end,iter);                              %Rotation operator
+        tspan = 0:dt:T;                                 %Integration time
+
+        Q = diag(exp(-1i*k*rho));                       %Rotation eigenvalues
+        dQ = diag(k)*diag(-1i*exp(-1i*k*rho));          %Derivative of the application with respect to the rotation angle  
+        R = invD*Q*D;                                   %Rotation operation
+
+        %Perform the stroboscopic mapping
+        for i = 1:nodes
+            %Complete relative initial conditions
+            S0 = [s0(1:m); X(1+m*(i-1):m*i,iter); s0(2*m+1:end)];            
+            
+            %Integration
+            [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, S0, options);  
+                        
+            %First return to the invariant curve states
+            urot(i,1:m) = Saux(end,m+1:2*m);
+            
+            %Time vector field and associated STM
+            f = nlr_model(mu, true, false, false, 'Encke', T, Saux(end,1:2*m).');
+            dF(1+m*(i-1):m*i,:) = f(m+1:2*m);
+            bSTM(1+m*(i-1):m*i,1+m*(i-1):m*i) = reshape(Saux(end,2*m+1:end), [m m]);
         end
-    
-        Phi = reshape(Saux(end,2*m+1:end), [m m]);                  %Monodromy matrix
 
-        %Error vector
-        error = [s0(7:12)]; 
+        %Compute the error vector 
+        u = R*urot;
+        error = reshape(u.', [nodes*m,1])-X(1:nodes*m,iter);
 
-        % Sensibility matrix for the center manifold restriction
-        switch (restriction)
-            case 'Mixed'
-                STM = [E(:,2) E(:,3:end) -[zeros(3); eye(3)]];        %Linear application
-            case 'Stable' 
-                STM = [E(:,2) -[zeros(3); eye(3)]];                   %Linear application
-            case 'Unstable'
-                STM = [E(:,1) -[zeros(3); eye(3)]];                   %Linear application
-            case 'Center'
-                STM = [E(:,3:end) -[zeros(3); eye(3)]];               %Linear application
-            otherwise
-                error('No valid case was selected');
-        end
+        %Compute the sensibility matrix
+        DG = kron(R,eye(m))*bSTM-eye(m*nodes);  %STM-like sensibility matrix
+        dRho = invD*dQ*D*urot;                  %Derivative with respect to the rotation angle
+        dRho = reshape(dRho, [m*nodes 1]);      %Derivative with respect to the rotation angle
 
-        % Sensibility matrix for the rendezvous restriction
-        C = [zeros(3,size(STM,2)-3) Phi(1:3,4:6)];
-        
-        %Energy constraint sensibility vector fields
-        J = jacobi_constant(mu, Saux(1,1:6).'+Saux(1,7:12).');
-        dJ = jacobi_gradient(mu, Saux(1,1:6).'+Saux(1,7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'];
+        %Compute the Newton-Rhapson update
+        A = [DG dF dRho];                       %Complete sensibility matrix
+        ds = real(-pinv(A)*error);              %Newton-Rhapson innovation
+        X(:,iter+1) = X(:,iter)+ds;             %Update the variables vector 
 
-        %Complete sensibility analysis
-        A = [STM; JSTM];                         %Sensibility matrix
-        b = [error; Jref-J];                     %Final error analysis
-
-        %Update the initial conditions
-        ds = pinv(A)*b;                          %Needed maneuver
-        dV = real(ds(end-2:end));                %Velocity change
-        s0(10:12) = s0(10:12)+dV;                %Update initial conditions with the velocity impulse
-
-        %Re-integrate the trajectory
-        [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
-
-        %Convergence analysis for the constrained case 
-        if (norm(error) < tol)
-            GoOn = false;
+        %Convergence analysis 
+        if (norm(ds) < tol)
+            GoOn = false;                       %Finish the correction process
         else
-            iter = iter+1;
+            iter = iter+1;                      %Update the iterations
         end
     end
      
-    %Final output 
-    dV(:,1) = Saux(1,10:12)-Sn(1,10:12);         %Initial impulse
-    dV(:,2) = Saux(end,10:12)-Sn(end,10:12);     %Final impulse
+    %Final invariant curve initial conditions
+    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];     
 
-    S = Saux;                                    %Final trajectory
-    state.State = ~GoOn;                         %Final convergence flag 
-    state.Iter = iter;                           %Final iteration 
-    state.Error = norm(error);                   %Final error
+    S.Period = X(end-1,iter);                               %Final stroboscopic time
+    S.Rotation = X(end,iter);                               %Final rotation number
+    state.State = ~GoOn;                                    %Final convergence flag 
+    state.Iter = iter;                                      %Final iteration 
+    state.Error = norm(error);                              %Final error
 end

@@ -16,7 +16,7 @@
 %         - int maxIter, number of maximum allowed corrections.
 %         - double tol, tolerance to stop the correction. 
 
-% Outputs: - vector xf, converged/last corrected trajectory as well as other related parameter such as the TOF.
+% Outputs: - structure S, converged/last corrected initial conditions as well as other related parameter such as the TOF.
 %          - boolean state, outputing the convergence of the algorithm.
 
 % Methods: 
@@ -24,11 +24,11 @@
 % New versions: select how many passes are allowed before stopping the
 %               integration (the p-the Poincare image)
 
-function [xf, state] = differential_torus(algorithm, mu, seed, maxIter, tol, nodes, constraint)
+function [S, state] = differential_torus(algorithm, mu, seed, maxIter, tol, nodes)
     %Implement the selected scheme 
     switch (algorithm)
         case 'Single shooting energy'
-            [xf, state] = ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint);
+            [S, state] = ssenergy_scheme(mu, seed, maxIter, tol, nodes);
         otherwise
             error('No valid option was selected');
     end
@@ -36,32 +36,35 @@ end
 
 %% Auxiliary functions 
 %Single shooting algorithm for constrained Jacobi constant 
-function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
+function [S, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes)
     %Constants 
     m = 6;                      %Phase space dimension 
-    epsilon = mu/10;            %Initial perturbation
     period = seed.Period;       %Periodic orbit period
     seed = seed.Trajectory;     %Periodic orbit
-    
-    %Preallocation 
-    X = zeros(m*nodes+2,maxIter);                               %Preallocation of the free variables vector
-    
-    %Initialization of the free variables vector
-    theta = (0:2*pi:2*pi*(nodes-1))/nodes;                      %Parametrization of the invariant curve
-    refState = seed(end,:);                                     %Fixed point in the stroboscopic map
-    Monodromy = reshape(refState(m+1:end), [m m]);              %Initial monodromy matrix
-    [W, lambda] = eig(Monodromy);                               %Eigenspectrum of the monodromy matrix
-    index = imag(lambda) ~= 0;                                  %Search for the center eigenvector
-    lambda_c = lambda(index);                                   %Center eigenvalue
-    v_c = W(:,any(index) == 1);                                 %Center eigenvectors
-    X(end-1,1) = period;                                        %Initial orbital period
+
+    %Integration tolerance and setup 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+        
+    %Initial constants and parameters
+    theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
+    Monodromy = reshape(seed(end,m+1:end), [m m]);         %Initial monodromy matrix
+    [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
+    lambda = diag(lambda);                                 %Consider only the pure eigenalues
+    index = imag(lambda) ~= 0;                             %Search for the center eigenvector
+    lambda_c = lambda(index);                              %Center eigenvalue
+    v_c = W(:,index);                                      %Center eigenvector
+    X = zeros(m*nodes+2,maxIter);                          %Preallocation of the free variables state vector
+
+    %Definition of the phasing period and rotation number
+    X(end-1,1) = period;                                        %Initial orbital period or stroboscopic time
     X(end,1) = atan2(imag(lambda_c(1)), real(lambda_c(1)));     %Initial rotation angle
     
-    %Compute the initial nodes 
+    %Initial quasi-periodic orbit conditions
+    epsilon = 1e-3;                                             % Center manifold displacement
     for i = 1:nodes
-        X(1+m*(i-1):m*i,1) = refState(1:6).' + epsilon*(real(v_c(:,1))*cos(theta(i))-imag(v_c(:,1))*sin(theta(i)));
+        X(1+m*(i-1):m*i,1) = epsilon*(real(v_c(:,1))*cos(theta(i))-imag(v_c(:,1))*sin(theta(i)));
     end
-    
+
     %Define the wavenumber on the domain 
     if (mod(nodes,2) == 0)
         k = -nodes/2:nodes/2;
@@ -69,117 +72,82 @@ function [xf, state]= ssenergy_scheme(mu, seed, maxIter, tol, nodes, constraint)
         k = -(nodes-1)/2:(nodes-1)/2;
     end
     
-    %Define the Fourier transform operator 
+    %Define the Fourier transform operator and its inverse kernel
     D = exp(-1i*k.'*theta)/nodes;
+    invD = D^(-1);
     
-    %Integration set up
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      %Integration conditions and tolerances                     
+    %Integration set up                  
     dt = 1e-3;                                                  %Time step
-    direction = 1;                                              %Forward integration
-    flagVar = true;                                             %Integrate variational equations
-    
-    %Preallocation of the error and the sensibility matrices 
-    urot = zeros(nodes,m);                                      %First return of the nodes without the rotation
-    e = zeros(m*nodes+1, 1);                                    %Error vector
-    bSTM = zeros(m*nodes,m*nodes);                              %Augmented state transition matrix
-    dJ = zeros(1,nodes*m);                                      %Jacobian matrix of the Jacobi constant
-    dF = zeros(m*nodes, 1);                                     %Time derivative of the nodes
-    
+       
     %Set up differential correction scheme
     GoOn = true;                %Convergence flag
     iter = 1;                   %Initial iteration
     
-    %Differential corrector
-    while (GoOn) && (iter < maxIter)
-        %Set up the integration 
-        T = X(end-1,iter);              %Strobocopic time
-        rho = X(end,iter);              %Rotation operator
-        tspan = 0:dt:T;                 %Integration time
+    %Preallocation of the error and the sensibility matrices 
+    urot = zeros(nodes,m);                              %First return of the nodes without the rotation
+    bSTM = zeros(m*nodes,m*nodes);                      %Augmented state transition matrix
+    dF = zeros(m*nodes, 1);                             %Time derivative of the nodes
+    dJ = zeros(1,nodes*m);                              %Jacobian matrix of the Jacobi constant
         
-        %Reinitiate the Jacobi constant 
-        J = 0; 
-        
-        %Compute the rotation operator associated matrices
-        Q = diag(exp(-1i*k*rho));               %Rotation eigenvalues
-        dQ = diag(k)*diag(-1i*exp(-1i*k*rho));  %Derivative of the application with respect to the rotation angle  
-        R = D^(-1)*Q*D;                         %Rotation operation
-        
-        %Perform the integration 
+    while ((GoOn) && (iter < maxIter))
+        %Torus variables
+        T = X(end-1,iter);                              %Strobocopic time
+        rho = X(end,iter);                              %Rotation operator
+        tspan = 0:dt:T;                                 %Integration time
+
+        Q = diag(exp(-1i*k*rho));                       %Rotation eigenvalues
+        dQ = diag(k)*diag(-1i*exp(-1i*k*rho));          %Derivative of the application with respect to the rotation angle  
+        R = invD*Q*D;                                   %Rotation operation
+
+        %Perform the stroboscopic mapping
         for i = 1:nodes
-            S0 = X(1+m*(i-1):m*i,iter);         %State vector 
-            STM = reshape(eye(m), [m^2 1]);     %Initial state transition matrix
-            s0 = [S0; STM];                     %Complete initial conditions
+            %Complete relative initial conditions
+            S0 = [X(1+m*(i-1):m*i,iter); reshape(eye(m), [m^2 1])];            
             
             %Integration
-            [~, S] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, s0, options);  
-            
-            %Compute the associated Jacobi Constant 
-            J = J + jacobi_constant(mu, S(end,1:6).');
-            
-            %Desrotate the state 
-            urot(i,1:m) = S(end,1:6);
+            [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, S0, options);  
+                        
+            %First return to the invariant curve states
+            urot(i,1:m) = Saux(end,m+1:2*m);
             
             %Time vector field and associated STM
-            dF(1+m*(i-1):m*i,:) = cr3bp_equations(mu, direction, false, 0, S(end,1:6).');
-            bSTM(1+m*(i-1):m*i,1+m*(i-1):m*i) = reshape(S(end,m+1:end), [m m]);
+            bSTM(1+m*(i-1):m*i,1+m*(i-1):m*i) = reshape(Saux(end,2*m+1:end), [m m]);
         end
-        
-        %Desrotate the states 
-        u = R*urot;
-        
+
         %Compute the error vector 
-        for i = 1:nodes
-            e(1+m*(i-1):m*i,1) = u(i,:).'-X(1+m*(i-1):m*i,iter);       %Rotation constraint
-        end
-        e(end,1) = J/nodes-constraint;                                 %Energy constraint
-        
+        u = R*urot;
+        error = reshape(u.', [nodes*m,1])-X(1:nodes*m,iter);
+
         %Compute the sensibility matrix
         DG = kron(R,eye(m))*bSTM-eye(m*nodes);  %STM-like sensibility matrix
-        dRho = D^(-1)*dQ*D*u;                   %Derivative with respect to the rotation angle
+        dRho = invD*dQ*D*urot;                  %Derivative with respect to the rotation angle
         dRho = reshape(dRho, [m*nodes 1]);      %Derivative with respect to the rotation angle
-        
-        for i = 1:nodes
-            dJ(1,1+m*(i-1):m*i) = jacobi_gradient(mu, urot(i,:).')/nodes;
+
+        for i = 1:nodes 
+            f = cr3bp_equations(mu, true, false, period, (seed(1,1:m)+u(i,:)).');
+            dF(1+m*(i-1):m*i,:) = f(m+1:2*m);
         end
-        
-        A = [DG dF dRho; dJ zeros(1,2)];
-        
-        %Compute the variation 
-        ds = real(-pinv(A)*e); 
-                        
+
+        %Compute the Newton-Rhapson update
+        A = [DG dF dRho];                       %Complete sensibility matrix
+        ds = real(-pinv(A)*error);              %Newton-Rhapson innovation
+        X(:,iter+1) = X(:,iter)+ds;             %Update the variables vector 
+
         %Convergence analysis 
         if (norm(ds) < tol)
             GoOn = false;                       %Finish the correction process
         else
-            X(:,iter+1) = X(:,iter)+ds;         %Update the variables vector 
             iter = iter+1;                      %Update the iterations
         end
     end
     
-    %Generate the invariant curve over the domain
-    tspan = 0:dt:X(end-1,iter);                 %Stroboscopic time 
-    S = zeros(nodes, length(tspan), m+m^2);     %Quasiperiodic trajectories preallocation
-    figure(1)
-    hold on
-    for i = 1:nodes
-        S0 = X(1+m*(i-1):m*i,iter);             %State vector 
-        STM = reshape(eye(m), [m^2 1]);         %Initial state transition matrix
-        s0 = [S0; STM];                         %Complete initial conditions
-        
-        %Integration
-        [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, direction, flagVar, t, s), tspan, s0, options); 
-        
-        %Save trajectory
-        S(i,:,:) = Saux;
-    end
+    %Final invariant curve initial conditions
+    S.Trajectory = repmat(seed(1:m), nodes, 1)+reshape(X(1:end-2,iter), [nodes m]);     
 
-    %Output
-    xf.Trajectory = S;                  %Save trajectories 
-    xf.Period = tspan(end);             %Stroboscopic time 
-    xf.Rotation = X(end,iter);          %Rotation number 
-    xf.Constraint = (J/nodes);          %Final energy constraint
-    state.State = ~GoOn;                %Convergence flag
-    state.Error = 1;                    %Finall correction error
-    state.Iter = iter;                  %Number of needed iterations   
+    S.Period = X(end-1,iter);                               %Final stroboscopic time
+    S.Rotation = X(end,iter);                               %Final rotation number
+    state.State = ~GoOn;                                    %Final convergence flag 
+    state.Iter = iter;                                      %Final iteration 
+    state.Error = norm(error);                              %Final error
 end
 

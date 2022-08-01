@@ -45,7 +45,7 @@ vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             %State vector of a v
 
 %Compute the halo tori 
 J = jacobi_constant(mu, halo_orbit.Trajectory(end,1:6).');
-[xf, state] = differential_torus('Single shooting energy', mu, halo_orbit, maxIter, tol, 17, J);
+[xf, state] = differential_torus('Single shooting energy', mu, vertical_orbit, maxIter, tol, 5);
 
 %% Surface interpolation 
 [theta, phi] = meshgrid(0:1e-2:2*pi,0:1e-2:2*pi);
