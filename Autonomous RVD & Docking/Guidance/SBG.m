@@ -5,13 +5,12 @@
 set_graphics(); 
 close all
 
-animations = 0;                     % Set to 1 to generate the gif
-
 %% Trajectory generation 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           %System libration points
 Lem = 384400e3;                     %Mean distance from the Earth to the Moon
+T0 = 28*86400/(2*pi);               %Mean period for the Earth-Moon system
 
 %Differential corrector set up
 nodes = 10;                         %Number of nodes for the multiple shooting corrector
@@ -21,7 +20,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 %Halo characteristics 
 Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
+Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -46,7 +45,7 @@ setup = [mu maxIter tol direction];                                 %General set
 butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
-
+% 
 % %Halo characteristics 
 % Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 % Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
@@ -55,57 +54,59 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 % m = 1;                                                              %Number of periods to compute
 % 
 % %Compute a halo seed 
-% halo_param = [1 Az 2 L(end,2) m];                                   %Northern halo parameters
+% halo_param = [1 Az 1 L(end,1) m];                                   %Northern halo parameters
 % [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 % 
 % %Correct the seed and obtain initial conditions for a halo orbit
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-time_distribution = 'Linear';        % Distribution of time intervals
+animations = 0;                         % Set to 1 to generate the gif
+time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
-n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 200;                                % Number of sampling points
+dynamics = 'Euler';                     % Dynamics parametrization to be used
+n = [7 7 7];                         % Polynomial order in the state vector expansion
+m = 100;                                % Number of sampling points
+cost_function = 'Minimum energy';       % Cost function to be minimized
 
-mu = 0.0121505;                         % Earth-Moon reduced gravitational parameter
-L = libration_points(mu);               % System libration points
-Lem = 384400e3;                         % Mean distance from the Earth to the Moon
-T0 = 28*86400/(2*pi);                   % Mean period for the Earth-Moon system
-
+% System data 
 system.mu = mu;     
 system.Time = T0; 
 system.Distance = Lem; 
 
 % Chaser's initial Cartesian state vector
-initial_state = chaser_orbit.Trajectory(1,1:6); 
+initial_state = chaser_orbit.Trajectory(50,1:6); 
 
-% Target's final Cartesian state vector
+% Target's initial Cartesian state vector
 final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-4;     % Maximum acceleration 
-
-% Initial input revolutions 
-K = 3;
+T = 1e-9;     % Maximum acceleration 
+K = 1;        % Initial input revolutions 
 
 % Setup 
+options.order = n; 
+options.basis = basis;
+options.grid = time_distribution; 
+options.nodes = m; 
+options.formulation = dynamics; 
+options.cost_function = cost_function;
 options.resultsFlag = true; 
-options.animations = false; 
+options.animations = false;  
 
 %% Results
-% Setup of the method 
-target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
-target.Center = 7;                                      % Multi-revolitions center for the absolute vectorfield
-target.Final = final_state;                             % Final state vector
-
+% Target state evolution setup
 dt = 1e-3;                                              % Time step
 tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
 
+target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
+target.Center = 2;                                      % Multi-revolitions center for the absolute vectorfield
+target.Final = final_state;                             % Final state vector
 target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
 
 % Simple solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, m, time_distribution, basis, n, options);
+[C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
 toc 
 
 % Average results 

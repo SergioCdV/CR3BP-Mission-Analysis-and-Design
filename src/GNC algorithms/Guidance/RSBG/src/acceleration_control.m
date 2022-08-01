@@ -8,11 +8,14 @@
 % Inputs: - scalar mu, the gravitational parameter of the system
 %         - array C, the 9xm state vector
 %         - scalar tf, the final time of flight
-%         - string method, the collocation distribution to be used
+%         - string dynamics, the dynamics vectorfield formulation to be
+%           used
 
 % Outputs: - vector u, the nondimensional 3xm control vector
+%          - vector dv, the inertial velocity field 
+%          - vector f, the dynamics vector field
 
-function [u] = acceleration_control(mu, St, C, tf, method)
+function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
     % Constants of the problem
     mu_r(1) = 1-mu;                                       % Gravitational parameter of the first primary
     mu_r(2) = mu;                                         % Gravitational parameter of the second primary
@@ -28,8 +31,8 @@ function [u] = acceleration_control(mu, St, C, tf, method)
     r = sqrt(s(1,:).^2+s(2,:).^2+s(3,:).^2);
     
     % Compute the control vector as a residual of the dynamics
-    switch (method)
-        case 'Regularized'
+    switch (dynamics)
+        case 'Sundman'
             % Normalizing factor
             c = tf;
     
@@ -43,7 +46,7 @@ function [u] = acceleration_control(mu, St, C, tf, method)
     
             u(2,:) = u(2,:)./r.^2;
     
-        otherwise
+        case 'Euler'
             % Normalizing factor
             c = tf;
     
@@ -72,6 +75,14 @@ function [u] = acceleration_control(mu, St, C, tf, method)
             omega = [-2*s(5,:)-s(1,:); 2*s(4,:)-s(2,:); zeros(1,size(C,2))];
     
             % Final vectorfield
-            u = s(7:9,:)+omega+c^2*(gamma(1:3,:) + gamma(4:6,:));
+            dv = s(4:6,:)+[-s(2,:); s(1,:); zeros(1,size(C,2))];        % Inertial velocity field
+            f = c^2*(gamma(1:3,:)+gamma(4:6,:));                        % Forces field
+            a = s(7:9,:)+omega;                                         % Inertial acceleration field
+
+        otherwise
+            error('No valid dynamics formulation was selected');
     end
+
+    % Compute the control vector as a residual 
+    u = a-f;
 end

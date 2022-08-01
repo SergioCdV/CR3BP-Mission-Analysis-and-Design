@@ -6,13 +6,14 @@
 
 % Inputs: - scalar exitflag, the optimisation exitflag
 %         - structure output, containing information about the optimisation process 
+%         - string cost, indicating the cost function to be minimized
 %         - scalar r0, the fundamental length unit
 %         - scalar t0, the fundamental time unit
 %         - scalar tfapp, the initial estimated time of flight
 %         - scalar tf, the final computed time of flight 
 %         - scalar dV, the final optimal cost
 
-function display_results(exitflag, output, r0, t0, tfapp, tf, dV)
+function display_results(exitflag, cost, output, r0, t0, tfapp, tf, dV)
     % Constants
     days2sec = t0/86400;
 
@@ -31,5 +32,12 @@ function display_results(exitflag, output, r0, t0, tfapp, tf, dV)
     fprintf("Final calculation of flight time: %0.2f days\n", tf*days2sec);
 
     % Cost results
-    fprintf("Final cost %0.2f m/s\n\n", dV*r0/t0);
+    switch (cost)
+        case 'Minimum energy'
+            fprintf("Final cost: %0.2f m/s\n\n", dV*r0/t0);
+        case 'Minimum time'
+            fprintf("Final cost: %0.2f days\n\n", tf*days2sec);
+        otherwise
+            error('No valid cost function was selected');
+    end
 end

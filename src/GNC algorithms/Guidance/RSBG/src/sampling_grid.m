@@ -21,8 +21,6 @@ function [tau] = sampling_grid(m, method, mode)
             mode = '';
         case 'Random'
             mode = '';
-        case 'Regularized'
-            mode = '';
         otherwise
     end
 
@@ -64,10 +62,8 @@ function [tau] = grid(m, method)
             % Depricated
             tau = HT_nodes(m);
         case 'Orthogonal Bernstein'
-            % Depricated
+            % Deprecated
             tau = OB_nodes(m);
-        case 'Regularized'
-            tau = linspace(0,1,m);
         otherwise
             error('An appropriate time array distribution must be specified')
     end

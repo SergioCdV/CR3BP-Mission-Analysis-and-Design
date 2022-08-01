@@ -4,7 +4,8 @@
 %% Cost function %%
 % Function to compute the cost function to be minimized
 
-% Inputs: - scalar mu, the gravitational parameter of the central body 
+% Inputs: - string cost, indicating the cost function to be minimized
+%         - scalar mu, the gravitational parameter of the central body 
 %         - vector initial, the initial boundary conditions of the
 %           trajectory 
 %         - vector final, the initial boundary conditions of the
@@ -15,41 +16,56 @@
 %         - vector x, the degree of freedom to be optimized 
 %         - cell array B, the polynomial basis to be used 
 %         - string basis, the polynomial basis to be used
-%         - string method, the parameter distribution to be used
+%         - string dynamics, the dynamic parametrization to be used
 
 % Outputs: - scalar r, the cost index to be optimized
 
-function [r] = cost_function(mu, St, initial, final, n, tau, x, B, basis, method)
-    % Minimize the control input
-    P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
+function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, dynamics)
+    % Optimization variables 
     tf = x(end-1);                                      % The final time of flight
-    N = floor(x(end));                                  % The optimal number of revolutions
 
-    % Boundary conditions
-    P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
+    switch (cost)
+        case 'Minimum time'
+            r = tf;
+            
+        case 'Minimum energy'
+            % Minimize the control input
+            P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
+            N = floor(x(end));                                  % The optimal number of revolutions
+        
+            % Boundary conditions
+            P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
+        
+            % State evolution
+            C = evaluate_state(P,B,n);
+        
+            % Evaluate the target periodic trajectory 
+            switch (St.Field)
+                case 'Relative'
+                    St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
+            end
+        
+            % Control input
+            u = acceleration_control(mu, St, C, tf, dynamics);        
+        
+            % Control cost
+            switch (dynamics)
+                case 'Sundman'
+                    r = sqrt(C(1,:).^2+C(3,:).^2);                   % Radial evolution
+                    a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Non-dimensional acceleration
+                    a = a./r;                                        % Dimensional acceleration
 
-    % State evolution
-    C = evaluate_state(P,B,n);
+                case 'Euler'
+                    a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Dimensional acceleration
 
-    % Evaluate the target periodic trajectory 
-    switch (St.Field)
-        case 'Relative'
-            St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
+                otherwise
+                    error('No valid dynamic formulation was selected');
+            end
+            
+            % Cost function
+            r = trapz(tau,a)/tf;
+
+        otherwise 
+            error('No valid cost function was selected');
     end
-
-    % Control input
-    u = acceleration_control(mu, St, C, tf, method);        
-
-    % Control cost
-    switch (method)
-        case 'Regularized'
-            r = sqrt(C(1,:).^2+C(3,:).^2);                   % Radial evolution
-            a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Non-dimensional acceleration
-            a = a./r;                                        % Dimensional acceleration
-        otherwise
-            a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Dimensional acceleration
-    end
-    
-    % Cost function
-    r = trapz(tau,a)/tf;
 end
