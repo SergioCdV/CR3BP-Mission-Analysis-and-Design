@@ -75,7 +75,7 @@ function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
             omega = [-2*s(5,:)-s(1,:); 2*s(4,:)-s(2,:); zeros(1,size(C,2))];
     
             % Final vectorfield
-            dv = s(4:6,:)+[-s(2,:); s(1,:); zeros(1,size(C,2))];        % Inertial velocity field
+            dv = s(4:6,:);                                              % Inertial velocity field
             f = c^2*(gamma(1:3,:)+gamma(4:6,:));                        % Forces field
             a = s(7:9,:)+omega;                                         % Inertial acceleration field
 

@@ -45,16 +45,16 @@ setup = [mu maxIter tol direction];                                 %General set
 butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
-% 
-% %Halo characteristics 
+
+%Halo characteristics 
 % Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 % Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 1;                                                             %Orbits around L1
+% Ln = 2;                                                             %Orbits around L1
 % gamma = L(end,Ln);                                                  %Li distance to the second primary
 % m = 1;                                                              %Number of periods to compute
 % 
 % %Compute a halo seed 
-% halo_param = [1 Az 1 L(end,1) m];                                   %Northern halo parameters
+% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
 % [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 % 
 % %Correct the seed and obtain initial conditions for a halo orbit
@@ -65,9 +65,9 @@ animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [7 7 7];                         % Polynomial order in the state vector expansion
-m = 100;                                % Number of sampling points
-cost_function = 'Minimum energy';       % Cost function to be minimized
+n = [10 10 10];                         % Polynomial order in the state vector expansion
+m = 500;                                % Number of sampling points
+cost_function = 'Minimum power';       % Cost function to be minimized
 
 % System data 
 system.mu = mu;     
@@ -81,7 +81,7 @@ initial_state = chaser_orbit.Trajectory(50,1:6);
 final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 1e-9;     % Maximum acceleration 
+T = 5e-3;     % Maximum acceleration 
 K = 1;        % Initial input revolutions 
 
 % Setup 

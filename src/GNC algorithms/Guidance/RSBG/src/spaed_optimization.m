@@ -187,12 +187,3 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
         display_results(exitflag, cost, output, r0, t0, tfapp, tf, dV);
     end
 end
- 
-
-%% Auxiliary functions 
-% Compute the derivative of time with respect to the generalized anomaly 
-function [dt] = Sundman_transformation(basis, n, tf, St, P, t, s)
-    B = state_basis(n,s,basis);
-    C = evaluate_state(P,B,n);
-    dt = sundman_radius(mu, tf, St, t, C);
-end

@@ -64,6 +64,28 @@ function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, 
             
             % Cost function
             r = trapz(tau,a)/tf;
+            
+        case 'Minimum power'
+            % Minimize the control input
+            P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
+            N = floor(x(end));                                  % The optimal number of revolutions
+        
+            % Boundary conditions
+            P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
+        
+            % State evolution
+            C = evaluate_state(P,B,n);
+        
+            % Evaluate the target periodic trajectory 
+            switch (St.Field)
+                case 'Relative'
+                    St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
+            end
+        
+            % Control input
+            [u, dv] = acceleration_control(mu, St, C, tf, dynamics);
+
+            r = abs(trapz(tau,dot(dv,u,1))/tf);
 
         otherwise 
             error('No valid cost function was selected');

@@ -97,7 +97,7 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
         M = reshape(Saux(1,2*m+1:end), [m m]);                      %Instantenous Monodromy matrix
         P = F*expm(-J*mod(tspan(i),T));                             %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
-        alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinatesW
+        alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
         GNC.Control.PFSK.InitialPrimer = lambda(:,1);               %Initial primer vector
     
         switch (solver)

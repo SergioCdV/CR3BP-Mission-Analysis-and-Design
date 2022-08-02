@@ -44,13 +44,15 @@ function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
         Sr = St(i,1:n)+Sn(i,1:n);               %Absolute trajectory
         e(2) = jacobi_constant(mu, Sr.');       %Absolute Jacobi Constant 
         e(2) = e(2)-Sg;                         %Jacobi Constant error
-        e = e.'; 
+        e = e.'
 
         %Compute the gradient of the integrals 
         V = invE*B;                             %Control input matrix
         V = V(1,:);                             %Control input matrix
         dJ = jacobi_gradient(mu,Sr.').';        %Gradient of the Jacobi Constant 
-        V(2,:) = dJ*invE*B;                     %Gradient of the Jacobi Constant with respect to the Floquet variables
+        V(2,:) = dJ*B;                          %Gradient of the Jacobi Constant with respect to the Floquet variables
+        C = dJ*F*L;                             %Gradient of the Jacobi Constant with respect to the relative Floquet variables 
+        A(2,1) = C(1,1);                        %Gradient of the Jacobi Constant with respect to the unstable relative Floquet variable
 
         %SDRE design
         C = ctrb(A,V);                          %Controlabillity matrix

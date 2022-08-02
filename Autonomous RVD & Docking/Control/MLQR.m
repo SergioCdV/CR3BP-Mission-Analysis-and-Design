@@ -88,7 +88,7 @@ GNC.Control.MLQR.FloquetDirections = E;
 
 %% GNC: MLQR control law
 %Initial conditions 
-k = 1e-5;                                       %Noise gain
+k = 1e-3;                                       %Noise gain
 r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
 s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
 tspan = 0:dt:tf;                                %New integration time span
@@ -97,7 +97,7 @@ tspan = 0:dt:tf;                                %New integration time span
 s0 = [r_t0 s0-r_t0 reshape(eye(n), [1 n^2])];
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 tic
-[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.1), s0, options);
+[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.6), s0, options);
 [~, Staux2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(size(Staux1,1):end), Staux1(end,:), options);
 toc
 St = [Staux1; Staux2(2:end,:)];
@@ -106,10 +106,10 @@ St = [Staux1; Staux2(2:end,:)];
 [e, merit] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
 
 %Control law
-[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.1));
+[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.6));
 
 %Control integrals
-energy = control_effort(tspan(tspan < 0.1), u, false);
+energy = control_effort(tspan(tspan < 0.6), u, false);
 
 %Final absolute trajectory
 St = St(:,1:n)+St(:,n+1:2*n);
