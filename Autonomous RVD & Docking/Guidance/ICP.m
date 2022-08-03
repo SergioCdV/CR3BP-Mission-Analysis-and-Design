@@ -65,7 +65,11 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 %Guidance trajectory
 k = 1;                          % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);
-[Str, state(1)] = ICP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol);
+% [Str, state(1)] = ICP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol);
+
+%Absolute tori
+L0 = [L(1:3,1).' zeros(1,3)];
+[Str, state(1)] = differential_rtorus(mu, target_orbit.Period, [L0 r_c0], tol);
 
 % Periodicity check 
 target_orbit.Trajectory = repmat(target_orbit.Trajectory(1:end-1,:),k,1);
@@ -80,13 +84,14 @@ plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.T
 plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), 'r'); 
 for i = 1:size(Str.Trajectory,1)
     % Integration of the quasi-periodic trajectory
-    tspan = 0:dt:Str.Period;
+    tspan = 0:dt:2*Str.Period;
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
     S = St(:,1:6)+St(:,7:12);
     plot3(S(:,1), S(:,2), S(:,3), 'g'); 
     legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
     plot3(S(1,1), S(1,2), S(1,3), '*r');
 end 
+S0 = [target_orbit.Trajectory(1,1:6) zeros(1,6) reshape(eye(6), [1 36])]; 
 plot3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), '*b'); 
 plot3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), '*b'); 
 hold off

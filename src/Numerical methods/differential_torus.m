@@ -24,11 +24,13 @@
 % New versions: select how many passes are allowed before stopping the
 %               integration (the p-the Poincare image)
 
-function [S, state] = differential_torus(algorithm, mu, seed, maxIter, tol, nodes)
+function [S, state] = differential_torus(algorithm, mu, seed, tol)
     %Implement the selected scheme 
     switch (algorithm)
         case 'Single shooting energy'
-            [S, state] = ssenergy_scheme(mu, seed, maxIter, tol, nodes);
+            L = libration_points(mu);
+            L0 = [L(1:3,1).' zeros(1,3)];
+            [S, state] = differential_rtorus(mu, seed.Period, [L0 seed.Trajectory(1,1:6)-L0], tol);
         otherwise
             error('No valid option was selected');
     end

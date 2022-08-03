@@ -18,8 +18,8 @@ set_graphics();
 %Initial conditions
 mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
 L = libration_points(mu);                                   %System libration points
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 20e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
@@ -44,26 +44,25 @@ vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             %State vector of a v
 [vertical_orbit, ~] = differential_correction('Double Plane Symmetric', mu, vertical_seed, maxIter, tol);
 
 %Compute the halo tori 
-J = jacobi_constant(mu, halo_orbit.Trajectory(end,1:6).');
-[xf, state] = differential_torus('Single shooting energy', mu, vertical_orbit, maxIter, tol, 5);
-
-%% Surface interpolation 
-[theta, phi] = meshgrid(0:1e-2:2*pi,0:1e-2:2*pi);
-x = shiftdim(xf.Trajectory(:,:,1));
-y = shiftdim(xf.Trajectory(:,:,2));
-z = shiftdim(xf.Trajectory(:,:,3));
+[S, state] = differential_torus('Single shooting energy', mu, lyapunov_orbit, tol);
 
 %% Plot results 
 figure(1) 
-view(3)
-hold on 
-for i = 1:size(xf.Trajectory,1)
-    S = shiftdim(xf.Trajectory(i,:,:));
-    plot3(S(:,1), S(:,2), S(:,3));
-end
+view(3) 
+hold on
+plot3(vertical_orbit.Trajectory(:,1), vertical_orbit.Trajectory(:,2), vertical_orbit.Trajectory(:,3), 'b'); 
+for i = 1:size(Str.Trajectory,1)
+    % Integration of the quasi-periodic trajectory
+    tspan = 0:dt:2*Str.Period;
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
+    S = St(:,1:6)+St(:,7:12);
+    plot3(S(:,1), S(:,2), S(:,3), 'g'); 
+    legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
+    plot3(S(1,1), S(1,2), S(1,3), '*r');
+end 
 hold off
-grid on;
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
-title('Computed torus');
+grid on;
+title('Computed periodic tori');

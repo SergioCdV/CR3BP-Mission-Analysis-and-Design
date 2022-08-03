@@ -1,24 +1,26 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 12/11/21
-% File: MLQR_control.m 
+% File: MSKDRE_control.m 
 % Issue: 0 
 % Validated: 
 
-%% Manifold Linear Quadratic Regulator Control %%
-% This script contains the function to compute the control law by means of an LQR controller to provide low-thrust stationkeeping.
+%% Manifold Stationkeeping State Dependent Ricatti Equation %%
+% This script contains the function to compute the control law by means of an SDRE controller to provide low-thrust stationkeeping.
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
+%         - scalar t, the current simulation time
+%         - matrix F, the initial conditions of the periodic orbit Floquet
+%           basis
+%         - array St, the system target state evolution
+%         - scalar Jref, the referecen Jacobi Constant value
 %         - array Sn, the system state (with the STM)
-%         - matrices Q and M, penalizing on the state error and the control
-%           effort
-
-% Output: - vector u, the computed control law
+%         - matrices Q and R, to compute the LQR controller
 
 % New versions: 
 
-function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
+function [u] = MSKDRE_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
     %Approximation 
     n = 6;                                          %Dimension of the state vector
     
@@ -42,27 +44,27 @@ function [u] = MLQR_control(mu, t, T, L, F, St, Sg, Sn, Q, M)
 
         %Jacobi Constant constraint
         Sr = St(i,1:n)+Sn(i,1:n);               %Absolute trajectory
-        e(2) = jacobi_constant(mu, Sr.');       %Absolute Jacobi Constant 
-        e(2) = e(2)-Sg;                         %Jacobi Constant error
-        e = e.'
+        J = jacobi_constant(mu, Sr.');          %Absolute Jacobi Constant 
+        e(2) = J-Sg;                            %Jacobi Constant error
+        e = e.';
 
         %Compute the gradient of the integrals 
         V = invE*B;                             %Control input matrix
         V = V(1,:);                             %Control input matrix
         dJ = jacobi_gradient(mu,Sr.').';        %Gradient of the Jacobi Constant 
         V(2,:) = dJ*B;                          %Gradient of the Jacobi Constant with respect to the Floquet variables
-        C = dJ*F*L;                             %Gradient of the Jacobi Constant with respect to the relative Floquet variables 
-        A(2,1) = C(1,1);                        %Gradient of the Jacobi Constant with respect to the unstable relative Floquet variable
+        C = dJ*E*L;                             %Gradient of the Jacobi Constant with respect to the relative Floquet variables 
+        A(2,1) = C(1);                          %Gradient of the Jacobi Constant with respect to the unstable relative Floquet variable
 
         %SDRE design
         C = ctrb(A,V);                          %Controlabillity matrix
-        [K,~,~] = lqr(A,V,Q,M);  
 
         %Control law
         if (rank(C) ~= max(size(A)))
             u(:,i) = zeros(3,1);           
         else
-            u(:,i) = real(-K*e);           
+            [K,~,~] = lqr(A,V,Q,M);  
+            u(:,i) = -real(K*e);           
         end
     end
 end

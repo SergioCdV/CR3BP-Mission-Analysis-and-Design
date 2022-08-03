@@ -67,7 +67,7 @@ basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
 n = [10 10 10];                         % Polynomial order in the state vector expansion
 m = 500;                                % Number of sampling points
-cost_function = 'Minimum power';       % Cost function to be minimized
+cost_function = 'Minimum time';       % Cost function to be minimized
 
 % System data 
 system.mu = mu;     

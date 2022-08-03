@@ -63,41 +63,55 @@ Sn = repmat(S, floor(tf/target_orbit.Period)+1, 1);
 Sg = jacobi_constant(mu,Sn(1,1:n).');
 
 %% GNC algorithms definition 
-GNC.Algorithms.Guidance = '';                       %Guidance algorithm
-GNC.Algorithms.Navigation = '';                     %Navigation algorithm
-GNC.Algorithms.Control = 'MLQR';                    %Control algorithm
+GNC.Algorithms.Guidance = '';                         %Guidance algorithm
+GNC.Algorithms.Navigation = '';                       %Navigation algorithm
+GNC.Algorithms.Control = 'MSKLQR';                    %Control algorithm
 
-GNC.Guidance.Dimension = 9;                         %Dimension of the guidance law
-GNC.Control.Dimension = 3;                          %Dimension of the control law
+GNC.Guidance.Dimension = 9;                           %Dimension of the guidance law
+GNC.Control.Dimension = 3;                            %Dimension of the control law
 
-GNC.Navigation.NoiseVariance = 0;                   %Noise variance
+GNC.Navigation.NoiseVariance = 0;                     %Noise variance
 
-GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
-GNC.Control.MLQR.Q = eye(2);                        %Penalty on the state error
-GNC.Control.MLQR.M = eye(3);                        %Penalty on the control effort
-GNC.Control.MLQR.Reference = Sg;                    %Reference state
-GNC.Control.MLQR.Period = target_orbit.Period;      %Target orbital period
+GNC.System.mu = mu;                                   %Systems's reduced gravitational parameter
+GNC.Control.MSKDRE.Q = 1e3*eye(2);                    %Penalty on the state error
+GNC.Control.MSKDRE.M = eye(3);                        %Penalty on the control effort
+GNC.Control.MSKDRE.Reference = Sg;                    %Reference state
+GNC.Control.MSKDRE.Period = target_orbit.Period;      %Target orbital period
 
 %Floquet mode matrix
 [E, lambda] = eig(reshape(Sn(end,n+1:end), [n n]));
-GNC.Control.MLQR.FloquetModes = diag(log(diag(lambda))/target_orbit.Period);
+GNC.Control.MSKDRE.FloquetModes = diag(log(diag(lambda))/target_orbit.Period);
 for i = 1:size(E,2)
     E(:,i) = E(:,i)/lambda(i,i);
 end
-GNC.Control.MLQR.FloquetDirections = E; 
+GNC.Control.MSKDRE.FloquetDirections = E; 
+
+%Constant controller
+A = [lambda(1,1) 0; 0 0];                              %State matrix
+dJ = jacobi_gradient(mu, Sn(1,1:n).').';               %Jacobi gradient 
+C = dJ*E*lambda;                                       %Gradient of the Jacobi constant with the Floquet variables
+A(2,1) = C(1);                                         %Final state matrix
+B = E^(-1)*[zeros(3);eye(3)];                          %Control input matrix
+B = [B(1,:); dJ*B];                                    %Final control input matrix
+
+%Final LQR controller
+GNC.Control.MSKLQR.K = lqr(A,B,GNC.Control.MSKDRE.Q,GNC.Control.MSKDRE.M);                   
 
 %% GNC: MLQR control law
 %Initial conditions 
-k = 1e-3;                                       %Noise gain
-r_t0 = target_orbit.Trajectory(1,1:6);          %Initial guidance target conditions
-s0 = r_t0+k*rand(1,6);                          %Noisy initial conditions
-tspan = 0:dt:tf;                                %New integration time span
+k = dimensionalizer(Lem, 1, 1, 5e3, 'Position', 0);        %Noise gain
+k = [repmat(k,1,3) repmat(k,1,3)/1e6];
+r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial guidance target conditions
+s0 = r_t0+k*normrnd(0,1);                                   %Noisy initial conditions
+tspan = 0:dt:tf;                                            %New integration time span
+
+rev = floor(tf/target_orbit.Period);
 
 %Compute the trajectory
 s0 = [r_t0 s0-r_t0 reshape(eye(n), [1 n^2])];
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 tic
-[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.6), s0, options);
+[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.1), s0, options);
 [~, Staux2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(size(Staux1,1):end), Staux1(end,:), options);
 toc
 St = [Staux1; Staux2(2:end,:)];
@@ -106,10 +120,10 @@ St = [Staux1; Staux2(2:end,:)];
 [e, merit] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
 
 %Control law
-[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.6));
+[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.1));
 
 %Control integrals
-energy = control_effort(tspan(tspan < 0.6), u, false);
+energy = control_effort(tspan(tspan < 0.1), u, false);
 
 %Final absolute trajectory
 St = St(:,1:n)+St(:,n+1:2*n);
@@ -123,6 +137,8 @@ hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
 plot3(St(:,1), St(:,2), St(:,3), 'k'); 
+plot3(St(end,1), St(end,2), St(end,3), '*g');
+plot3(St(1,1), St(1,2), St(1,3), '*g');
 hold off
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');

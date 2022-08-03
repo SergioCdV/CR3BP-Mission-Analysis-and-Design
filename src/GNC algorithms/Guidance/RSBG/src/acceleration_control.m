@@ -21,7 +21,7 @@ function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
     mu_r(2) = mu;                                         % Gravitational parameter of the second primary
     R(1:3,:) = [-mu; 0; 0];                               % Location of the first primary in Cartesian coordinates
     R(4:6,:) = [1-mu; 0; 0];                              % Location of the second primary in Cartesian coordinates
-    R = repmat(R, 1, size(C,2));                          % Appropriate sizing for the complete state evolution
+    R = repmat(R, 1, size(C,2));                          % Appropriate sizing for the complete state evolutionç
     R = R-repmat(St.Trajectory(1:3,:),2,1);               % Non-autonomous primaries definition
     
     % Transformation to Cartesian coordinates
@@ -48,18 +48,21 @@ function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
     
         case 'Euler'
             % Normalizing factor
-            c = tf;
-    
-            Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
-            Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
-    
+            c = tf;    
+
             switch (St.Field)
                 case 'Absolute'
+                    Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
+                    Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
+
                     % Compute the control vector as a dynamics residual
                     gamma(1:3,:) = mu_r(1)*Rr(1:3,:)./sqrt(Rr(1,:).^2+Rr(2,:).^2+Rr(3,:).^2).^3;    % First primary gravitational acceleration
                     gamma(4:6,:) = mu_r(2)*Rr(4:6,:)./sqrt(Rr(4,:).^2+Rr(5,:).^2+Rr(6,:).^2).^3;    % Second primary gravitational acceleration
                     
                 case 'Relative'
+                    Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
+                    Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
+
                     % First primary gravitational acceleration
                     q = -dot(s(1:3,:)-2*R(1:3,:),s(1:3,:),1)./sqrt(dot(Rr(1:3,:),Rr(1:3,:),1)).^2;
                     f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));

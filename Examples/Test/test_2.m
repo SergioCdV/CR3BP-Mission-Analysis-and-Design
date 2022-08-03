@@ -119,12 +119,6 @@ tspan = 0:1e-3:2;
 s0 = [target_orbit.Trajectory(1,1:6) chaser_orbit.Trajectory(1,1:6)-target_orbit.Trajectory(1,1:6)];
 [t,S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke',t,s),tspan, s0);
 
-%%
-hold on
-view(3)
-plotObject(S(:,1:6));
-plotObject(S(:,1:6)+S(:,7:12));
-
 %% Plotting
 figure(1) 
 view(3)

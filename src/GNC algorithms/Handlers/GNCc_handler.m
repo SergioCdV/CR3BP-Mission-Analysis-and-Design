@@ -248,18 +248,30 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             %Stationkeeping control law
             u = MFSK_control(mu, T, Sn, tol, constraint);  
 
-        case 'MLQR'
+        case 'MSKLQR'
             %Stationkeeping parameters
-            Q = GNC.Control.MLQR.Q;                  %State error penalty
-            R = GNC.Control.MLQR.M;                  %State error penalty
-            mu = GNC.System.mu;                      %Systems's reduced gravitational parameter
-            Hg = GNC.Control.MLQR.Reference;         %Reference energy state
-            T = GNC.Control.MLQR.Period;             %Period of the target orbit 
-            L = GNC.Control.MLQR.FloquetModes;       %Floquet modes of the reference trajectory
-            F = GNC.Control.MLQR.FloquetDirections;  %Floquet modes of the reference trajectory
+            mu = GNC.System.mu;                        %Systems's reduced gravitational parameter
+            K = GNC.Control.MSKLQR.K;                  %State error controller
+            Hg = GNC.Control.MSKDRE.Reference;         %Reference energy state
+            T = GNC.Control.MSKDRE.Period;             %Period of the target orbit 
+            L = GNC.Control.MSKDRE.FloquetModes;       %Floquet modes of the reference trajectory
+            F = GNC.Control.MSKDRE.FloquetDirections;  %Floquet modes of the reference trajectory
             
             %Stationkeeping control law
-            u = MLQR_control(mu, t, T, L, F, St, Hg, Sn, Q, R); 
+            u = MSKLQR_control(mu, t, T, L, F, St, Hg, Sn, K); 
+
+            case 'MSKDRE'
+            %Stationkeeping parameters
+            mu = GNC.System.mu;                        %Systems's reduced gravitational parameter
+            Q = GNC.Control.MSKDRE.Q;                  %State error penalty
+            R = GNC.Control.MSKDRE.M;                  %State error penalty
+            Hg = GNC.Control.MSKDRE.Reference;         %Reference energy state
+            T = GNC.Control.MSKDRE.Period;             %Period of the target orbit 
+            L = GNC.Control.MSKDRE.FloquetModes;       %Floquet modes of the reference trajectory
+            F = GNC.Control.MSKDRE.FloquetDirections;  %Floquet modes of the reference trajectory
+            
+            %Stationkeeping control law
+            u = MSKDRE_control(mu, t, T, L, F, St, Hg, Sn, Q, R);
          
         case 'PFSK'
             %Stationkeeping parameters
@@ -280,6 +292,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             u = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax); 
 
         otherwise
+            warning('No valid control law was selected')
             u = zeros(GNC.Control.Dimension,size(Sn,1));    %No control requirements
     end
 end

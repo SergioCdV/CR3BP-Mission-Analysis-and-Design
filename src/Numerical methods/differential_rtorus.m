@@ -5,24 +5,23 @@
 % Issue: 0 
 % Validated: 26/07/22
 
-%% Impulsive Center Manifold Phasing %%
-% This script contains the function to compute a phasing guidance trajectory using
-% the center manifold expansion of the relative dynamics
+%% Differential relative torus %%
+% This script contains the function to compute the relative tori for
+% periodic orbits
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
-%         - scalar tf, the final time of flight
 %         - vector s0, initial conditions of both the target and the chaser
 %         - scalar tol, the differential corrector scheme tolerance for the
 %           constrained maneuver
 
-% Output: - array S, the rendezvous relative trajectory
+% Output: - array S, the relative tori seeds and parameters
 %         - structure state, containing the results of the differential
 %           corrector
 
 % New versions: 
 
-function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
+function [S, state] = differential_rtorus(mu, T, s0, tol)
     %Constants 
     m = 6;       % Phase space dimension
     
@@ -32,9 +31,8 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     end
     
     %Integration time span
-    % T = T*(1+dtheta/(2*pi*k));                                  %Needed relative period
-    dt = 1e-3;                                                  %Time step  
-    tspan = 0:dt:T;                                             %Integration time span
+    dt = 1e-3;                                             %Time step  
+    tspan = 0:dt:T;                                        %Integration time span
 
     %Integration tolerance and setup 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
@@ -53,15 +51,15 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     iter = 1;                                              %Initial iteration
 
     %Initial constants and parameters
-    nodes = 51;                                            %Number of points on the invariant curve
-    theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
-    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);         %Initial monodromy matrix
-    [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
-    lambda = diag(lambda);                                 %Consider only the pure eigenalues
-    index = imag(lambda) ~= 0;                             %Search for the center eigenvector
-    lambda_c = lambda(index);                              %Center eigenvalue
-    v_c = W(:,index);                                      %Center eigenvector
-    X = zeros(m*nodes+2,maxIter);                          %Preallocation of the free variables state vector
+    nodes = 51;                                                 %Number of points on the invariant curve
+    theta = 2*pi*(0:(nodes-1))/nodes;                           %Parametrization of the invariant curve
+    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);              %Initial monodromy matrix
+    [W, lambda] = eig(Monodromy);                               %Eigenspectrum of the monodromy matrix
+    lambda = diag(lambda);                                      %Consider only the pure eigenalues
+    index = imag(lambda) ~= 0;                                  %Search for the center eigenvector
+    lambda_c = lambda(index);                                   %Center eigenvalue
+    v_c = W(:,index);                                           %Center eigenvector
+    X = zeros(m*nodes+2,maxIter);                               %Preallocation of the free variables state vector
 
     %Definition of the phasing period and rotation number
     X(end-1,1) = T;                                             %Initial orbital period or stroboscopic time
