@@ -40,7 +40,7 @@ function [u] = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax)
         V = F^(-1)*B;
 
         %Primer vector 
-        p = -pinv(V)*expm(-J.'*t(i))*lambda; 
+        p = -V.'*expm(-J.'*t(i))*lambda; 
 
         %Switch depending on the cot function to minimize
         switch (cost_function)

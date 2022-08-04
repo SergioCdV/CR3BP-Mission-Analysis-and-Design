@@ -27,7 +27,7 @@
 
 % New versions: 
 
-function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, cost_function, Tmax, solver)
+function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, beta, cost_function, Tmax, solver)
     %Constants 
     m = 6;       %Phase space dimension
     
@@ -41,15 +41,15 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     foptions = optimoptions('fsolve', 'Display', 'none', 'StepTolerance', 1e-10); 
     boptions = bvpset('RelTol', 1e-10, 'AbsTol', 1e-10*ones(12,1), 'Nmax', 2000);
 
-    dt = 1e-3;                                                  %Integration time step  
+    dt = 1e-2;                                                  %Integration time step  
+    tspan = 0:dt:T;                                             %Integration time span
     
     %Initial conditions and integration
     Phi = eye(m);                                               %Initial STM 
     Phi = reshape(Phi, [m^2 1]);                                %Reshape the initial STM
     s0 = [s0; Phi];                                             %Complete phase space + linear variational initial conditions
     
-    tspan = 0:dt:tf;                                            %Integration time span
-    [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 
     %Energy constraint
     constraint_flag = constraint.Flag;                          %Constraint flag
@@ -59,8 +59,8 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
 
     %Preallocation
     u = zeros(3,length(tspan));                         %Control vector
-    dalpha = zeros(6,size(Saux,1));                     %Time history of the Floquet coordinates
-    S = zeros(size(Saux));                              %Close-loop trajectory
+    dalpha = zeros(6,size(Sn,1));                       %Time history of the Floquet coordinates
+    S = zeros(size(Sn));                                %Close-loop trajectory
     S(1,:) = s0;                                        %Initial conditions
 
     %Definition of the GNC structure
@@ -69,15 +69,12 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     GNC.Algorithms.Control = 'PFSK';                    %Control algorithm  
     GNC.Guidance.Dimension = 6;                         %Dimension of the guidance law
     GNC.Control.Dimension = 3;                          %Dimension of the control law
+    GNC.Navigation.NoiseVariance = 0;                   %Noise covariance for the system
     GNC.System.mu = mu;                                 %Systems's reduced gravitational parameter
     GNC.Control.PFSK.CostFunction = cost_function;      %Cost function to optimize
     GNC.Control.PFSK.MaxThrust = Tmax;                  %Maximum available thrust
-    GNC.Control.PFSK.Problem = problem;                 %Optimal problem to be solved
     GNC.Control.PFSK.Beta = beta;                       %Weigth of the minimum fuel problem
     GNC.Control.PFSK.Period = T;                        %Orbital period of the target orbit
-
-    %Floquet analysis                                             
-    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), 0:dt:T, s0, options);
 
     Monodromy = reshape(Sn(end,2*m+1:end), [m,m]);              %Monodromy matrix of the relative orbit
     [F,J] = eig(Monodromy);                                     %Eigenspectrum of the monodromy matrix
@@ -89,16 +86,17 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
     GNC.Control.PFSK.FloquetExponents = J;                      %Floquet exponents of the reference trajectory
     GNC.Control.PFSK.FloquetDirections = F;                     %Floquet directions of the reference trajectory
 
-    lambda(:,1) = [1; zeros(5,1)];                              %Initial co-state guess
+    Saux = Sn;
+    lambda(:,1) = 10*ones(6,1);                                 %Initial co-state guess
+    tspan = 0:dt:tf;                                            %Integration time span
 
     %Receding window
     for i = 1:length(tspan)-1
         %Compute the initial guess        
-        M = reshape(Saux(1,2*m+1:end), [m m]);                      %Instantenous Monodromy matrix
+        M = reshape(Saux(1,2*m+1:end), [m m]);                      %Instantaneous Monodromy matrix
         P = F*expm(-J*mod(tspan(i),T));                             %Full Floquet projection matrix
         E = M*P;                                                    %Instantenous Floquet projection matrix
         alpha(:,1) = E^(-1)*Saux(1,m+1:2*m).';                      %Initial Floquet coordinates
-        GNC.Control.PFSK.InitialPrimer = lambda(:,1);               %Initial primer vector
     
         switch (solver)
             case 'BVP4C'
@@ -108,10 +106,11 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 solinit.y = repmat([alpha(:,1); lambda(:,1)], 1, nsteps);
 
                 %Solve the problem 
-                sol = bvp4c(@(t,s)floquet_dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1), GNC), solinit, boptions);
+                sol = bvp4c(@(t,s)floquet_dynamics(t, s, GNC), @(x,x2)bounds(x, x2, alpha(:,1)), solinit, boptions);
     
                 %New initial primer vector
                 GNC.Control.PFSK.InitialPrimer = sol.y(m+1:2*m,1);    
+                lambda(:,1) = sol.y(m+1:2*m,1); 
 
             case 'Newton'
                 %Solve the dual minimum time/fuel problem usign a Newton method
@@ -129,18 +128,18 @@ function [S, u, state] = PFSK_wrapper(mu, T, tf, s0, constraint, problem, beta, 
                 error('No valid solver was selected');
         end
     
-        %Re-integration of the trajectory
-        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+        %Re-integration
         [taux, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), [0 dt], s0, options);
     
         %Re-assembly of the control vector 
-        [~, ~, du] = GNCc_handler(GNC, Saux(:,1:m), Saux(:,m+1:end), taux);
+        [~, ~, du] = GNCc_handler(GNC, Saux(end,1:m), Saux(end,m+1:end), taux);
     
         %Time-step solution 
         s0 = Saux(end,:);             %New initial conditions
         S(i+1,:) = Saux(end,:);       %New time step of the trajectory
-        u(:,i) = du(:,end);           %Applied control vector
+        u(:,i) = du;                  %Applied control vector
         dalpha(:,i) = alpha(:,1);     %Time history of the Floquet coordinates
+        alpha(1,1)
     end
 
     %Final step
@@ -205,27 +204,21 @@ function [e] = pfskivp(s, GNC, alpha0)
 end
 
 % Two-boundary value problem constraints
-function [e] = bounds(x, x2, alpha0, GNC)
+function [e] = bounds(x, x2, alpha0)
     %Constants 
     m = 6;                                  %Phase space dimension 
-    problem = GNC.Control.PFSK.Problem;     %Optimal problem to be solved
 
-    %Initial boundary conditions 
-    e(1:m) = (x(1:m)-alpha0)/norm(alpha0); 
-
-    %Final boundary conditions
+    %State variables
     alpha = x2(1:m);                        %Final Floquet coordinates
     lambda = x2(m+1:2*m);                   %Final co-state 
-    switch (problem)
-        case 'Strict'
-            e(m+1:2*m) = [alpha(1); lambda(2:end)];                  
-        case 'Minimization'
-            e(m+1:2*m) = [lambda(1)-1; lambda(2:end)];             
-        case 'Rendezvous'
-            e(m+1:2*m) = alpha;                              
-        otherwise
-            error('No valid optimal control problem was selected')
-    end
+
+    %Initial boundary conditions 
+    e(1:m) = x(1:m)-alpha0; 
+
+    %Final boundary conditions
+%     dJ = jacobi_gradient()
+%     dC = norm(lambda(2:end))^2/dot(lambda, dJ);
+    e(m+1:2*m) = [lambda(1)-alpha(1)/abs(alpha(1)); lambda(2:end)]; 
 end
 
 % Variational dynamics

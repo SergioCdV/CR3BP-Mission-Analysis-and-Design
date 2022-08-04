@@ -99,7 +99,7 @@ GNC.Control.MSKLQR.K = lqr(A,B,GNC.Control.MSKDRE.Q,GNC.Control.MSKDRE.M);
 
 %% GNC: MLQR control law
 %Initial conditions 
-k = dimensionalizer(Lem, 1, 1, 5e3, 'Position', 0);        %Noise gain
+k = dimensionalizer(Lem, 1, 1, 5e3, 'Position', 0);         %Noise gain
 k = [repmat(k,1,3) repmat(k,1,3)/1e6];
 r_t0 = target_orbit.Trajectory(1,1:6);                      %Initial guidance target conditions
 s0 = r_t0+k*normrnd(0,1);                                   %Noisy initial conditions

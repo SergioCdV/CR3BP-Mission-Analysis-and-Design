@@ -41,7 +41,7 @@ function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, tau, 
     C = evaluate_state(P,B,n);
 
     % Control input 
-    u = acceleration_control(mu, St, C, tf, dynamics);
+    [u, ~] = acceleration_control(mu, St, C, tf, dynamics);
 
     % Equalities 
     ceq = [];

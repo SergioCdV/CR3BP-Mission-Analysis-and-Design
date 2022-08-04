@@ -30,9 +30,11 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     if (size(s0,1) == 1)
         s0 = s0.';
     end
+
+    %Compute the reference period 
+    Tref = T*(1-dtheta/(2*pi*k));                               %Needed relative period
     
     %Integration time span
-    % T = T*(1+dtheta/(2*pi*k));                                  %Needed relative period
     dt = 1e-3;                                                  %Time step  
     tspan = 0:dt:T;                                             %Integration time span
 
@@ -53,7 +55,7 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     iter = 1;                                              %Initial iteration
 
     %Initial constants and parameters
-    nodes = 51;                                            %Number of points on the invariant curve
+    nodes = 2*k+1;                                         %Number of points on the invariant curve
     theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
     Monodromy = reshape(Sn(end,2*m+1:end), [m m]);         %Initial monodromy matrix
     [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
@@ -118,7 +120,7 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
 
         %Compute the error vector 
         u = R*urot;
-        error = reshape(u.', [nodes*m,1])-X(1:nodes*m,iter);
+        error = [reshape(u.', [nodes*m,1])-X(1:nodes*m,iter); T-Tref];
 
         %Compute the sensibility matrix
         DG = kron(R,eye(m))*bSTM-eye(m*nodes);  %STM-like sensibility matrix
@@ -126,7 +128,7 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
         dRho = reshape(dRho, [m*nodes 1]);      %Derivative with respect to the rotation angle
 
         %Compute the Newton-Rhapson update
-        A = [DG dF dRho];                       %Complete sensibility matrix
+        A = [DG dF dRho; zeros(1,m*nodes) 1 0]; %Complete sensibility matrix
         ds = real(-pinv(A)*error);              %Newton-Rhapson innovation
         X(:,iter+1) = X(:,iter)+ds;             %Update the variables vector 
 
@@ -139,7 +141,10 @@ function [S, state] = ICP_guidance(mu, T, dtheta, k, s0, tol)
     end
      
     %Final invariant curve initial conditions
-    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];     
+    ds = reshape(X(1:end-2,iter), [nodes m]);               %Final state variation
+
+    %Final mappings 
+    S.Trajectory = [repmat(s0(1:m).', [nodes 1]) repmat(s0(m+1:2*m).', [nodes 1])+ds];               
 
     S.Period = X(end-1,iter);                               %Final stroboscopic time
     S.Rotation = X(end,iter);                               %Final rotation number

@@ -81,7 +81,7 @@ initial_state = chaser_orbit.Trajectory(50,1:6);
 final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-3;     % Maximum acceleration 
+T = 5e-4;     % Maximum acceleration 
 K = 1;        % Initial input revolutions 
 
 % Setup 
