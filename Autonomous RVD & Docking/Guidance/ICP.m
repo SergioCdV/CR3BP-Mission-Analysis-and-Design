@@ -12,6 +12,9 @@
 % points reference frame as defined by Howell, 1984.
 
 %% Set up %%
+clear; 
+close all; 
+
 %Set up graphics 
 set_graphics();
 
@@ -37,7 +40,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 30e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -48,7 +51,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
@@ -63,112 +66,57 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 
 %% Generate the guidance trajectory
 % Guidance trajectory parameters
-k = 10;                                         % Number of phasing revolutions
+k = 21;                                         % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);   % Initial phase difference
 
 %Absolute tori
-% L0 = [L(1:3,1).' zeros(1,3)];
-% [Str, state(1)] = differential_rtorus(mu, target_orbit.Period, [L0 r_c0], tol);
+% L0 = [L(1:3,1).' zeros(1,6)];
+% [Str, state(1)] = differential_rtorus(mu, target_orbit.Period, [r_t0 r_c0], eps, tol);
 
 % Phasing tori 
-[Str, state(1)] = ICP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], tol);
-
-
-phasing_orbit.Trajectory = [];
-phasing_orbit.Period = Str.Period;
-for i = 1:size(Str.Trajectory,1)
-    % Integration of the quasi-periodic trajectory
-    tspan = 0:dt:Str.Period;
-    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
-    S = St(:,1:6)+St(:,7:12);
-    phasing_orbit.Trajectory = [phasing_orbit.Trajectory; S(1:end-1,:)];
-end 
+eps = 1e-5; 
+[Str, state(1)] = ICP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], eps, tol);
 
 % Periodicity check 
-index = floor(mod(k*Str.Period,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
+extra = floor(mod(k*Str.Period,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
 chaser_orbit.Trajectory = repmat(chaser_orbit.Trajectory(1:end-1,:), floor(k*Str.Period/target_orbit.Period), 1);
 target_orbit.Trajectory = repmat(target_orbit.Trajectory(1:end-1,:), floor(k*Str.Period/target_orbit.Period), 1); 
-target_orbit.Trajectory = [target_orbit.Trajectory; target_orbit.Trajectory(1:index,:)];
+target_orbit.Trajectory = [target_orbit.Trajectory; target_orbit.Trajectory(1:extra,:)];
+
+% Final rendezvous difference 
+S0 = chaser_orbit.Trajectory(1,1:3);                        % Initial guidance point 
+Sf = Str.Trajectory(end,1:3)+Str.Trajectory(end,7:9);       % Final guidance point 
+e(1) = norm(target_orbit.Trajectory(1,1:3)-S0);             % Initial position space error
+e(2) = norm(target_orbit.Trajectory(end,1:3)-Sf);           % Final position space error
 
 %% Results 
 %Plot results 
 figure(1) 
 view(3) 
 hold on
-T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'r'); 
-plot3(chaser_orbit.Trajectory(1,1), chaser_orbit.Trajectory(1,2),chaser_orbit.Trajectory(1,3), '*k')
-plot3(phasing_orbit.Trajectory(:,1), phasing_orbit.Trajectory(:,2), phasing_orbit.Trajectory(:,3), 'b', 'Linewidth', 0.05)
-legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'AutoUpdate', 'off')
-plot3(S(1,1), S(1,2), S(1,3), '*r');
-S0 = [target_orbit.Trajectory(1,1:6) zeros(1,6) reshape(eye(6), [1 36])]; 
-plot3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), '*b'); 
-plot3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), '*b'); 
+T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b'); 
+
+% Phasing orbit 
+phasing_orbit.Period = Str.Period;
+for i = size(Str.Trajectory,1)-1:-1:1
+    % Integration of the quasi-periodic trajectory
+    tspan = 0:dt:Str.Period;
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
+    S = St(:,1:6)+St(:,7:12);
+    guidance = plot3(S(:,1), S(:,2), S(:,3), 'g');
+    guidance.Color(4) = 0.5; 
+    legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
+end  
+
+% Initial and final conditions
+scatter3(chaser_orbit.Trajectory(1,1), chaser_orbit.Trajectory(1,2),chaser_orbit.Trajectory(1,3), 'filled', 'k')
+scatter3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), 'filled', 'k'); 
+scatter3(Str.Trajectory(end,1)+Str.Trajectory(end,7), Str.Trajectory(end,2)+Str.Trajectory(end,8), Str.Trajectory(end,3)+Str.Trajectory(end,9), 'filled', 'r');
+scatter3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), 'filled', 'r');
 hold off
+
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
 title('Guidance trajectory between periodic orbits');
-
-%Configuration space evolution
-figure(2)
-subplot(1,2,1)
-hold on
-plot(tspan(1:size(St,1)), St(:,7)); 
-plot(tspan(1:size(St,1)), St(:,8)); 
-plot(tspan(1:size(St,1)), St(:,9)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Configuration coordinates');
-grid on;
-legend('$x$', '$y$', '$z$');
-title('Position in time');
-subplot(1,2,2)
-hold on
-plot(tspan(1:size(St,1)), St(:,10)); 
-plot(tspan(1:size(St,1)), St(:,11)); 
-plot(tspan(1:size(St,1)), St(:,12)); 
-hold off
-xlabel('Nondimensional epoch');
-ylabel('Velocity coordinates');
-grid on;
-legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Velocity in time');
-
-%Rendezvous animation 
-if (false)
-    dh = 50; 
-    steps = fix(size(St,1)/dh);
-    M = cell(1,steps);
-    h = figure;
-    filename = 'phasing_tori.gif';
-    view([37 20])
-    hold on
-    plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), '.-b', 'Linewidth', 0.1);
-    plot3(phasing_orbit.Trajectory(:,1), phasing_orbit.Trajectory(:,2), phasing_orbit.Trajectory(:,3), '.-b', 'Linewidth', 0.1);
-    xlabel('Synodic x coordinate');
-    ylabel('Synodic y coordinate');
-    zlabel('Synodic z coordinate');
-    scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
-    text(L(1,Ln)-2e-2, L(2,Ln), 0, '$L_2$');
-    grid on;
-    title('Rendezvous simulation');
-    
-    for i = 1:dh:size(St,1)
-        T = scatter3(target_orbit.Trajectory(i,1), target_orbit.Trajectory(i,2), target_orbit.Trajectory(i,3), 20, 'b', 'filled'); 
-        V = scatter3(chaser_orbit.Trajectory(i,1), chaser_orbit.Trajectory(i,2), chaser_orbit.Trajectory(i,3), 20, 'b', 'filled'); 
-        C = scatter3(phasing_orbit.Trajectory(i,1), phasing_orbit.Trajectory(i,2), phasing_orbit.Trajectory(i,3), 20, 'r', 'filled'); 
-        drawnow;
-        frame = getframe(h);
-        im = frame2im(frame);
-        [imind,cm] = rgb2ind(im,256); 
-        if (i == 1) 
-            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
-        else 
-            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
-        end 
-        delete(T); 
-        delete(V);
-    end
-    hold off
-end
