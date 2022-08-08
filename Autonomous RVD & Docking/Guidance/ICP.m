@@ -40,7 +40,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 30e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 60e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -51,7 +51,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
@@ -66,7 +66,7 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 
 %% Generate the guidance trajectory
 % Guidance trajectory parameters
-k = 21;                                         % Number of phasing revolutions
+k = 10;                                         % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);   % Initial phase difference
 
 %Absolute tori
@@ -104,7 +104,7 @@ for i = size(Str.Trajectory,1)-1:-1:1
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
     S = St(:,1:6)+St(:,7:12);
     guidance = plot3(S(:,1), S(:,2), S(:,3), 'g');
-    guidance.Color(4) = 0.5; 
+    guidance.Color(4) = 0.2; 
     legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
 end  
 

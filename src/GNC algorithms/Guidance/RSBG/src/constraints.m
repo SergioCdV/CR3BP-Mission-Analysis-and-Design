@@ -22,7 +22,7 @@
 % Outputs: - inequality constraint residual vector c
 %          - equality constraint residual vector ceq
 
-function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, tau, dynamics)
+function [c, ceq] = constraints(cost, mu, St, T, initial, final, n, x, B, basis, tau, dynamics)
     % Extract the optimization variables
     P = reshape(x(1:end-2), [length(n), max(n)+1]);     % Control points
     tf = x(end-1);                                      % Final time of flight 
@@ -41,10 +41,15 @@ function [c, ceq] = constraints(mu, St, T, initial, final, n, x, B, basis, tau, 
     C = evaluate_state(P,B,n);
 
     % Control input 
-    [u, ~] = acceleration_control(mu, St, C, tf, dynamics);
+    [u, dv] = acceleration_control(mu, St, C, tf, dynamics);
 
-    % Equalities 
-    ceq = [];
+    % Equalities
+    switch (cost)
+        case 'Minimum power'
+            ceq = trapz(tau, dot(dv,u,1));
+        otherwise
+            ceq = [];
+    end
 
     % Inequality (control authority)
     switch (dynamics)

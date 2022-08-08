@@ -38,7 +38,7 @@ function display_results(exitflag, cost, output, r0, t0, tfapp, tf, dV)
         case 'Minimum time'
             fprintf("Final cost: %0.2f days\n\n", tf*days2sec);
         case 'Minimum power'
-            fprintf("Final cost: %0.2f J\n\n", dV);
+            fprintf("Final cost: %0.2f m/s\n\n", dV*r0/t0);
         otherwise
             error('No valid cost function was selected');
     end

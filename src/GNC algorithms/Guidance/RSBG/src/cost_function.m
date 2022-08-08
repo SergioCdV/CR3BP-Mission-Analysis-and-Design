@@ -83,9 +83,24 @@ function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, 
             end
         
             % Control input
-            [u, dv] = acceleration_control(mu, St, C, tf, dynamics);
+            u = acceleration_control(mu, St, C, tf, dynamics);        
+        
+            % Control cost
+            switch (dynamics)
+                case 'Sundman'
+                    r = sqrt(C(1,:).^2+C(3,:).^2);                   % Radial evolution
+                    a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Non-dimensional acceleration
+                    a = a./r;                                        % Dimensional acceleration
 
-            r = abs(trapz(tau,dot(dv,u,1))/tf);
+                case 'Euler'
+                    a = sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2);         % Dimensional acceleration
+
+                otherwise
+                    error('No valid dynamic formulation was selected');
+            end
+            
+            % Cost function
+            r = trapz(tau,a)/tf;
 
         otherwise 
             error('No valid cost function was selected');

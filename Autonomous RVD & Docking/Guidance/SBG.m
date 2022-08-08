@@ -62,12 +62,12 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
-time_distribution = 'Chebyshev';        % Distribution of time intervals
+time_distribution = 'Linear';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
 n = [10 10 10];                         % Polynomial order in the state vector expansion
 m = 500;                                % Number of sampling points
-cost_function = 'Minimum time';       % Cost function to be minimized
+cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % System data 
 system.mu = mu;     
@@ -85,6 +85,7 @@ T = 5e-4;     % Maximum acceleration
 K = 1;        % Initial input revolutions 
 
 % Setup 
+options.STM = true; 
 options.order = n; 
 options.basis = basis;
 options.grid = time_distribution; 
@@ -115,7 +116,7 @@ time = zeros(1,iter);
 options.resultsFlag = false; 
 for i = 1:iter
     tic 
-    [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_coe, final_coe, K, T, m, time_distribution, basis, n, options);
+    [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
     time(i) = toc;
 end
 

@@ -117,7 +117,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     beq = [];
     
     % Non-linear constraints
-    nonlcon = @(x)constraints(mu, St, T, initial, final, n, x, B, basis, tau, dynamics);
+    nonlcon = @(x)constraints(cost, mu, St, T, initial, final, n, x, B, basis, tau, dynamics);
     
     % Modification of fmincon optimisation options and parameters (according to the details in the paper)
     options = optimoptions('fmincon', 'TolCon', 1e-6, 'Display', 'off', 'Algorithm', 'sqp');
@@ -141,6 +141,15 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     switch (St.Field)
         case 'Relative'
             St.Trajectory = [target_trajectory(tf, tau, St.Period, St.Cp); target_trajectory(tf, tau, St.Period, St.Cv)];
+    end
+    
+    % Integrate the STM 
+    if (setup.STM)          
+        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);                                            % Integration setup
+        Phi0 = reshape(eye(6), [36 1]);                                                                   % Initial conditions
+        [~, STM] = ode45(@(t,s)var_equations(mu, tf, St, n, P, basis, t, s), tau, Phi0, options);         % Integration
+    else
+        STM = [];
     end
 
     % Control input
@@ -181,6 +190,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Back transaltion of the origin of the synodic frame 
     C = cylindrical2cartesian(C, true);
     C(1:6,:) = C(1:6,:)+St.Trajectory(1:6,:);
+    C = [C; STM.'];
 
     % Results 
     if (setup.resultsFlag)
