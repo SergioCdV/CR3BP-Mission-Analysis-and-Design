@@ -16,11 +16,12 @@
 %         - vector x, the degree of freedom to be optimized 
 %         - cell array B, the polynomial basis to be used 
 %         - string basis, the polynomial basis to be used
+%         - string sampling_distribution, the sampling distribution to be used
 %         - string dynamics, the dynamic parametrization to be used
 
 % Outputs: - scalar r, the cost index to be optimized
 
-function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, dynamics)
+function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, sampling_distribution, dynamics)
     % Optimization variables 
     tf = x(end-1);                                      % The final time of flight
 
@@ -42,7 +43,7 @@ function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, 
             % Evaluate the target periodic trajectory 
             switch (St.Field)
                 case 'Relative'
-                    St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
+                    St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cp);
             end
         
             % Control input
@@ -79,7 +80,7 @@ function [r] = cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, 
             % Evaluate the target periodic trajectory 
             switch (St.Field)
                 case 'Relative'
-                    St.Trajectory = target_trajectory(tf, tau, St.Period, St.Cp);
+                    St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cp);
             end
         
             % Control input

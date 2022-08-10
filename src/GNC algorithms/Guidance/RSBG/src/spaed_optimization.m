@@ -33,6 +33,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     sampling_distribution = setup.grid;     % Sampling grid to be used
     m = setup.nodes;                        % Number of nodes in the grid
     cost = setup.cost_function;             % Cost function to be minimized   
+    manifold = setup.manifold;              % Manifold component to be nullified
 
     % Characteristics of the system 
     mu = system.mu;                         % Characteristic gravitational parameter of the CR3BP
@@ -108,7 +109,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     P_ub = [Inf*ones(L,1); 10*12*2*pi; Inf];
     
     % Objective function
-    objective = @(x)cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, dynamics);
+    objective = @(x)cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, sampling_distribution, dynamics);
     
     % Linear constraints and inequalities
     A = [];
@@ -117,7 +118,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     beq = [];
     
     % Non-linear constraints
-    nonlcon = @(x)constraints(cost, mu, St, T, initial, final, n, x, B, basis, tau, dynamics);
+    nonlcon = @(x)constraints(cost, mu, St, T, initial, final, n, x, B, basis, tau, sampling_distribution, dynamics, manifold);
     
     % Modification of fmincon optimisation options and parameters (according to the details in the paper)
     options = optimoptions('fmincon', 'TolCon', 1e-6, 'Display', 'off', 'Algorithm', 'sqp');
@@ -140,14 +141,12 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Final target trajectory 
     switch (St.Field)
         case 'Relative'
-            St.Trajectory = [target_trajectory(tf, tau, St.Period, St.Cp); target_trajectory(tf, tau, St.Period, St.Cv)];
+            St.Trajectory = [target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cp); target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cv)];
     end
     
     % Integrate the STM 
     if (setup.STM)          
-        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);                                            % Integration setup
-        Phi0 = reshape(eye(6), [36 1]);                                                                   % Initial conditions
-        [~, STM] = ode45(@(t,s)var_equations(mu, tf, St, n, P, basis, t, s), tau, Phi0, options);         % Integration
+        STM = stm_computation(mu, tf, St, n, P, sampling_distribution, basis, tau);       
     else
         STM = [];
     end
@@ -190,7 +189,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Back transaltion of the origin of the synodic frame 
     C = cylindrical2cartesian(C, true);
     C(1:6,:) = C(1:6,:)+St.Trajectory(1:6,:);
-    C = [C; STM.'];
+    C = [C; STM];
 
     % Results 
     if (setup.resultsFlag)

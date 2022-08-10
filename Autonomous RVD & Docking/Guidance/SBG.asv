@@ -62,7 +62,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
-time_distribution = 'Chebyshev';        % Distribution of time intervals
+time_distribution = 'Linear';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
 n = [10 10 10];                         % Polynomial order in the state vector expansion
@@ -85,7 +85,6 @@ T = 5e-4;     % Maximum acceleration
 K = 1;        % Initial input revolutions 
 
 % Setup 
-options.manifold = 'Unstable';
 options.STM = true; 
 options.order = n; 
 options.basis = basis;
@@ -134,6 +133,7 @@ for i = 1:size(C,2)
 
     [V, lambda] = eig(STM); 
     alpha(:,i) = V^(-1)*C(1:6,i);
+    theta = acos(dot()/norm(V(:,2)))
 end
 
 %% Manifolds computation

@@ -5,18 +5,24 @@
 % Function to compute the target's orbit trajectory in the non-dimensional
 % time
 
-% Inputs: - vector tspan, the integration time span
+% Inputs: - string sampling_distribution, indicating the distribution of the sampling grid
+%         - vector tspan, the integration time span
 %         - scalar T, the target's orbit period
 %         - array Cp, the target's orbit Chebyshev polynomial weights
 
 % Outputs: - array C, the final target's periodic evolution
 
-function [C] = target_trajectory(tf, tau, T, Cp)
+function [C] = target_trajectory(sampling_distribution, tf, tau, T, Cp)
     % Construct the polynomial basis
     tspan = tf*tau;
-    if (tau(1) == -1)
-        tspan = 2*tspan;
-        tspan = (tspan+tspan(end))/2;
+    switch (sampling_distribution)
+        case 'Chebyshev'
+            tspan = 2*tspan;
+            tspan = (tspan+2*tf)/2;
+        case 'Legendre'
+            tspan = 2*tspan;
+            tspan = (tspan+2*tf)/2;
+        otherwise
     end
     
     k = floor(tspan(end)/T);
