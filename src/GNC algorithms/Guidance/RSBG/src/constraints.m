@@ -41,6 +41,7 @@ function [c, ceq] = constraints(cost, mu, St, T, initial, final, n, x, B, basis,
 
     % Trajectory evolution
     C = evaluate_state(P,B,n);
+    S = cylindrical2cartesian(C(1:6,:), true);
 
     % Control input 
     [u, dv] = acceleration_control(mu, St, C, tf, dynamics);
@@ -63,38 +64,17 @@ function [c, ceq] = constraints(cost, mu, St, T, initial, final, n, x, B, basis,
             error('No valid dynamics formulation was selected');
     end
 
-    tol = 1e-5; 
-    switch (manifold)
-        case 'Center'
-            alpha = zeros(6,size(C,2));
-            S = cylindrical2cartesian(C(1:6,:),true);
-            STM = stm_computation(mu, tf, St, n, P, sampling_distribution, basis, tau);
-            for i = 1:size(alpha,2)
-                aux = reshape(STM(:,i), [6 6]);
-                [V,~] = eig(aux);
-                alpha(:,i) = V^(-1)*S(1:6,i);
-            end
-            c = [c abs(alpha(3:6,:))-tol];
-        case 'Unstable'
-            alpha = zeros(6,size(C,2));
-            S = cylindrical2cartesian(C(1:6,:),true);
-            STM = stm_computation(mu, tf, St, n, P, sampling_distribution, basis, tau);
-            for i = 1:size(alpha,2)
-                aux = reshape(STM(:,i), [6 6]);
-                [V,~] = eig(aux);
-                alpha(:,i) = V^(-1)*S(1:6,i);
-            end
-            c = [c abs(alpha(1,end))-tol];
-        case 'Stable'
-            alpha = zeros(6,size(C,2));
-            S = cylindrical2cartesian(C(1:6,:),true);
-            STM = stm_computation(mu, tf, St, n, P, sampling_distribution, basis, tau);
-            for i = 1:size(alpha,2)
-                aux = reshape(STM(:,i), [6 6]);
-                [V,~] = eig(aux);
-                alpha(:,i) = V^(-1)*S(1:6,i);
-            end
-            c = [c abs(alpha(2,end))-tol];
-        otherwise
-    end
+%     % Stable manifold insertion constraint 
+%     STM = stm_computation(mu, tf, St, n, zeros(length(n), length(tau)), B, sampling_distribution, basis, tau, 'Numerical');
+%     [V, ~] = eig(reshape(STM(:,end), [6 6])); 
+%     alpha = V^(-1)*S(:,end);
+% 
+%     ceq = [ceq real(alpha(1))];
+% 
+%     % Unstable manifold departure constraint 
+%     STM = stm_computation(mu, tf, St, n, P, B, sampling_distribution, basis, tau, 'Numerical');
+%     [V, ~] = eig(reshape(STM(:,2), [6 6])); 
+%     alpha = V^(-1)*S(:,2);
+% 
+%     ceq = [ceq real(alpha(2))];
 end

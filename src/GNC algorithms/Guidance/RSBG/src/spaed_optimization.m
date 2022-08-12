@@ -146,7 +146,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     
     % Integrate the STM 
     if (setup.STM)          
-        STM = stm_computation(mu, tf, St, n, P, sampling_distribution, basis, tau);       
+        STM = stm_computation(mu, tf, St, n, P, B, sampling_distribution, basis, tau, 'Numerical'); 
     else
         STM = [];
     end

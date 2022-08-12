@@ -20,7 +20,7 @@ function [C] = evaluate_state(P, B, n)
         % State vector fitting
         k = n(i)+1;
         for j = 1:3
-            C(i+N*(j-1),:) = P(i,1:n(i)+1)*B{i}(1+k*(j-1):k*j,:);
+            C(i+N*(j-1),:) = P(i,1:k)*B{i}(1+k*(j-1):k*j,:);
         end
     end
 end
