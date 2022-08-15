@@ -46,7 +46,7 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-%Halo characteristics 
+% %Halo characteristics 
 Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 2;                                                             %Orbits around L1
@@ -65,8 +65,8 @@ animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 500;                                % Number of sampling points
+n = [15 15 15];                         % Polynomial order in the state vector expansion
+m = 100;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % System data 
@@ -81,11 +81,12 @@ initial_state = chaser_orbit.Trajectory(50,1:6);
 final_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-4;     % Maximum acceleration 
-K = 2;        % Initial input revolutions 
+T = 5e-2;     % Maximum acceleration 
+K = 0;        % Initial input revolutions 
 
 % Setup 
-options.manifold = 'Unstable';
+%options.manifold.constraint = 'Unstable';
+options.manifold = chaser_orbit.Period;
 options.STM = true; 
 options.order = n; 
 options.basis = basis;
@@ -123,7 +124,6 @@ end
 
 time = mean(time);
 
-%%
 % Analysis of the STM 
 d = zeros(1,size(C,2));         % STM determinant
 alpha = zeros(6,size(C,2));
