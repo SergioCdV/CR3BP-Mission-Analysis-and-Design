@@ -44,7 +44,7 @@ function [J] = rel_jacobian(mu, s)
                 f = q*(3*(1+q)+q^2)/(1+(1+q)^(3/2));                          %Encke coefficient
                 
                 %Derivative of the Encke coefficient
-                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(2*(r(:,k)+rho),rho)/norm(rc(:,k))^2)*rc(i,k); 
+                df = -(3*sqrt(1+q)/norm(rc(:,k))^2)*(1-dot(2*r(:,k)+rho,rho)/norm(rc(:,k))^2)*rc(i,k); 
                 
                 %Encke acceleration
                 if (i == j)
