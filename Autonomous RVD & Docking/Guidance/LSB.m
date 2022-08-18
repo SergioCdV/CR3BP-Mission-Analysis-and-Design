@@ -46,20 +46,6 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-% %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
-
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-
-%Correct the seed and obtain initial conditions for a halo orbit
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
@@ -77,8 +63,11 @@ system.Distance = Lem;
 % Chaser's initial Cartesian state vector
 initial_state = chaser_orbit.Trajectory(50,1:6); 
 
+% Target's initial Cartesian state vector
+target_state = target_orbit.Trajectory(1,1:6); 
+
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 5e-4;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
@@ -95,47 +84,34 @@ options.resultsFlag = true;
 options.animations = false;  
 
 %% Results
-% Target state evolution setup
-dt = 1e-3;                                              % Time step
-tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
+% Setup of the solution 
+GNC.Algorithm = 'Minimum energy';                 % Solver algorithm
 
-target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
-target.Center = 2;                                      % Multi-revolitions center for the absolute vectorfield
-target.Final = target_state;                             % Final state vector
-target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
+GNC.LQR.StateMatrix = eye(2);           % State error weight matrix
+GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 
-% Simple solution    
+GNC.Tmax = T/sqrt(3)*(T0^2/Lem);        % Constrained acceleration
+
+GNC.TOF = 0.5*pi;                       % Maneuver time
+
+GNC.selector = 1; 
+
+method = 'Prescribed shape-based'; 
+method = 'Minimum energy';
+
+% Relative solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
+[Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, GNC.TOF, GNC);  
 toc 
 
-% Average results 
-iter = 0; 
-time = zeros(1,iter);
-options.resultsFlag = false; 
-for i = 1:iter
-    tic 
-    [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
-    time(i) = toc;
-end
-
-time = mean(time);
-
-% Analysis of the STM 
-d = zeros(1,size(C,2));         % STM determinant
-alpha = zeros(6,size(C,2));
-
-for i = 1:size(C,2)
-    STM = reshape(C(end-35:end,i),[6 6]); 
-    d(i) = det(STM);
-
-    [V, lambda] = eig(STM); 
-    alpha(:,i) = V^(-1)*C(1:6,i);
-end
+% Absolute chase trajectory
+tau = linspace(0,tf,size(Sr,2));
+[~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tau, target_state, options);
+C = Sc.'+Sr;
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
-tspan = 0:dt:0.1*tf;         % Integration timespan
+tspan = 0:1e-3:0.1*tf;         % Integration timespan
 
 manifold_ID = 'S';           % Stable manifold (U or S)
 manifold_branch = 'L';       % Left branch of the manifold (L or R)
@@ -146,9 +122,14 @@ manifold_branch = 'R';       % Left branch of the manifold (L or R)
 UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chaser_orbit.Trajectory, rho, tspan);
 
 %% Plots
-index = floor(mod(tf,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
-
 % Orbit representation
+figure 
+plot3(Sr(1,:),Sr(2,:),Sr(3,:),'k','LineWidth',0.4); 
+xlabel('Relative synodic $x$ coordinate')
+ylabel('Relative synodic $y$ coordinate')
+zlabel('Relative synodic $z$ coordinate')
+grid on; 
+
 figure_orbits = figure;
 view(3)
 hold on
@@ -156,7 +137,6 @@ xlabel('Synodic $x$ coordinate')
 ylabel('Synodic $y$ coordinate')
 zlabel('Synodic $z$ coordinate')
 plot3(C(1,1),C(2,1),C(3,1),'*k');                                                                                                                % Initial conditions
-plot3(target_orbit.Trajectory(index,1),target_orbit.Trajectory(index,2),target_orbit.Trajectory(index,3),'*k');  
 N = plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth',0.4);                                                                                             % Trasfer orbit
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'LineStyle','--','Color','r','LineWidth', 0.9);  % Target's orbit
 plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3),'LineStyle','-.','Color','b','LineWidth', 0.9);   % Charser's initial orbit
@@ -180,7 +160,6 @@ legend('off')
 
 % Propulsive acceleration plot
 figure;
-%title('Spacecraft acceleration in time')
 hold on
 plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
 plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
@@ -208,12 +187,3 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
-
-figure
-hold on
-plot(tau, alpha(1,:)); 
-hold off 
-grid on;
-xlabel('Time')
-ylabel('$\alpha_s$')
-title('Stable state component')
