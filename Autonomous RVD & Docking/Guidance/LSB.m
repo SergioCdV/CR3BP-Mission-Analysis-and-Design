@@ -64,10 +64,10 @@ system.Distance = Lem;
 initial_state = chaser_orbit.Trajectory(50,1:6); 
 
 % Target's initial Cartesian state vector
-target_state = target_orbit.Trajectory(1,1:6); 
+target_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-4;     % Maximum acceleration 
+T = 5e-3;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
@@ -85,19 +85,19 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-GNC.Algorithm = 'Minimum energy';                 % Solver algorithm
+GNC.Algorithm = 'SDRE';                 % Solver algorithm
 
-GNC.LQR.StateMatrix = eye(2);           % State error weight matrix
+GNC.LQR.StateMatrix = 10*eye(2);           % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 
 GNC.Tmax = T/sqrt(3)*(T0^2/Lem);        % Constrained acceleration
 
-GNC.TOF = 0.5*pi;                       % Maneuver time
+GNC.TOF = pi;                       % Maneuver time
 
 GNC.selector = 1; 
 
 method = 'Prescribed shape-based'; 
-method = 'Minimum energy';
+% method = 'Dynamics shape-based';
 
 % Relative solution    
 tic
