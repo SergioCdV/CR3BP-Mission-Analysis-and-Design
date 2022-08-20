@@ -66,7 +66,7 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 
 %% Generate the guidance trajectory
 % Guidance trajectory parameters
-k = 10;                                         % Number of phasing revolutions
+k = 5;                                         % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);   % Initial phase difference
 
 %Absolute tori

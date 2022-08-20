@@ -69,7 +69,7 @@ hold on
 for i = 1:num
     %Compute the chaser's orbit
     [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(i,:), maxIter, tol);
-    tspan = 0:dt:1.1*chaser_orbit.Period;                       %Integration time span
+    tspan = 0:dt:2*chaser_orbit.Period;                       %Integration time span
     
     r_t0 = halo_orbit.Trajectory(1,1:6);                        %Initial target conditions
     r_c0 = chaser_orbit.Trajectory(1,1:6);                      %Initial chaser conditions 

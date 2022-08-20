@@ -48,17 +48,11 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
-time_distribution = 'Chebyshev';        % Distribution of time intervals
+time_distribution = 'Linear';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
-dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [15 15 15];                         % Polynomial order in the state vector expansion
+n = [15 15];                            % Polynomial order in the state vector expansion
 m = 100;                                % Number of sampling points
-cost_function = 'Minimum energy';       % Cost function to be minimized
-
-% System data 
-system.mu = mu;     
-system.Time = T0; 
-system.Distance = Lem; 
+cost_function = 'Minimum time';       % Cost function to be minimized
 
 % Chaser's initial Cartesian state vector
 initial_state = chaser_orbit.Trajectory(50,1:6); 
@@ -71,9 +65,6 @@ T = 5e-3;     % Maximum acceleration
 K = 0;        % Initial input revolutions 
 
 % Setup 
-%options.manifold.constraint = 'Unstable';
-options.manifold = chaser_orbit.Period;
-options.STM = true; 
 options.order = n; 
 options.basis = basis;
 options.grid = time_distribution; 
@@ -86,18 +77,15 @@ options.animations = false;
 %% Results
 % Setup of the solution 
 GNC.Algorithm = 'SDRE';                 % Solver algorithm
-
-GNC.LQR.StateMatrix = 10*eye(2);           % State error weight matrix
+GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
-
 GNC.Tmax = T/sqrt(3)*(T0^2/Lem);        % Constrained acceleration
-
-GNC.TOF = pi;                       % Maneuver time
-
-GNC.selector = 1; 
+GNC.TOF = pi;                           % Maneuver time
+GNC.SBOPT.setup = options;
 
 method = 'Prescribed shape-based'; 
-% method = 'Dynamics shape-based';
+method = 'Dynamics shape-based';
+method = 'Numerical shape-based';
 
 % Relative solution    
 tic

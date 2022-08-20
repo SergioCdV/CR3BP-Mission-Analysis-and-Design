@@ -64,41 +64,37 @@ function [c, ceq] = constraints(cost, mu, St, T, initial, final, n, x, B, basis,
             error('No valid dynamics formulation was selected');
     end
 
-    % Stable manifold departure constraint 
-    Tr = manifold;                                                  % Relative period
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
-    tspan = 0:1e-3:Tr;                                              % Integration time span
-    s0 = [[target_trajectory(sampling_distribution, tf, 0, St.Period, St.Cp); target_trajectory(sampling_distribution, tf, 0, St.Period, St.Cv)]+C(1:6,1); reshape(eye(6), [36 1])];           % Relative initial conditions
-    [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
-
-    STM = reshape(Sr(2,7:end), [6 6]);                                      % State transition matrix 
-    [V, ~] = eig(STM);                                                      % Eigenspectrum of the STM 
- 
-    us = V(:,1)/norm(V(:,1));                                               % Stable manifold unit vector
-    eps = 1e-4;                                                             % Stable manifold displacement
-    s0(1:6) = s0(1:6)+eps*us;                                               % Stable relative initial conditions
-
-    tspan = tf*tau;
-    switch (sampling_distribution)
-        case 'Chebyshev'
-            tspan = 2*tspan;
-            tspan = (tspan+2*tf)/2;
-        case 'Legendre'
-            tspan = 2*tspan;
-            tspan = (tspan+2*tf)/2;
-        otherwise
-    end
-
-    tspan = tspan(tspan < tf/10);
-    tspan = flip(tspan);                                                                    % Reverse time span
-    
-    St = [target_trajectory(sampling_distribution, tf, flip(tspan/tf), St.Period, St.Cp); target_trajectory(sampling_distribution, tf, flip(tspan/tf), St.Period, St.Cv)];
-   
-    S = S(1:6,1:size(St,2))+St;                                                             % Relative trajecotry
-
-    [~, Sr] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);      % Stable fiber
-
-    alpha = sqrt(dot(Sr(:,1:3).'-S(1:3,:), Sr(:,1:3).'-S(1:3,:), 1));                       % Distance to the stable fiber
-    c = [c alpha(1:end-1)-alpha(2:end)];                                                    % Monotinically departing away from the original stable fiber
-    
+%     % Stable manifold departure constraint 
+%     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+%     Tr = manifold;                                                  % Relative period
+%     tspan = 0:1e-3:Tr;                                              % Integration time span
+% 
+%     % Target trajectory 
+%     target = [target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cp); target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cv)];
+% 
+%     s0 = [target(1:6,1); S(1:6,1); reshape(eye(6), [36 1])];           % Relative initial conditions
+%     [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+% 
+%     STM = reshape(Sr(2,7:end), [6 6]);                                      % State transition matrix 
+%     [V, ~] = eig(STM);                                                      % Eigenspectrum of the STM 
+%  
+%     us = V(:,1)/norm(V(:,1));                                               % Stable manifold unit vector
+%     eps = 1e-4;                                                             % Stable manifold displacement
+%     s0(1:6) = s0(1:6)+eps*us;                                               % Stable relative initial conditions
+% 
+%     tspan = tf*tau;
+%     switch (sampling_distribution)
+%         case 'Chebyshev'
+%             tspan = 2*tspan;
+%             tspan = (tspan+2*tf)/2;
+%         case 'Legendre'
+%             tspan = 2*tspan;
+%             tspan = (tspan+2*tf)/2;
+%         otherwise
+%     end
+% 
+%                                                                 
+% 
+%     alpha = sqrt(dot(Sr(:,1:3).'-S(1:3,:), Sr(:,1:3).'-S(1:3,:), 1));                       % Distance to the stable fiber
+%     c = [c alpha(1:end-1)-alpha(2:end)];                                                    % Monotinically departing away from the original stable fiber
 end

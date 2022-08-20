@@ -33,7 +33,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 5;                                                            %Number of orbits to continuate
+num = 10;                                                            %Number of orbits to continuate
 method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
 algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
 object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
@@ -47,18 +47,18 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 % %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
-
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-
-%Correct the seed and obtain initial conditions for a halo orbit
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+% Ln = 2;                                                             %Orbits around L1
+% gamma = L(end,Ln);                                                  %Li distance to the second primary
+% m = 1;                                                              %Number of periods to compute
+% 
+% %Compute a halo seed 
+% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% 
+% %Correct the seed and obtain initial conditions for a halo orbit
+% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
@@ -76,6 +76,7 @@ system.Distance = Lem;
 
 % Chaser's initial Cartesian state vector
 initial_state = chaser_orbit.Trajectory(50,1:6); 
+target_state = target_orbit.Trajectory(50,1:6); 
 
 % Spacecraft propulsion parameters 
 T = 5e-2;     % Maximum acceleration 
@@ -83,7 +84,7 @@ K = 0;        % Initial input revolutions
 
 % Setup 
 %options.manifold.constraint = 'Unstable';
-options.manifold = chaser_orbit.Period;
+options.manifold = chaser_orbit.Period*target_orbit.Period/abs(chaser_orbit.Period-target_orbit.Period);
 options.STM = true; 
 options.order = n; 
 options.basis = basis;
@@ -99,9 +100,12 @@ options.animations = false;
 dt = 1e-3;                                              % Time step
 tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
 
-target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
+% Absolute rendezvous optimization parameters
 target.Center = 2;                                      % Multi-revolitions center for the absolute vectorfield
-target.Final = target_state;                             % Final state vector
+target.Final = target_state;                            % Final state vector
+
+% Relative rendezvous optimization parameters
+target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
 target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
 
 % Simple solution    
