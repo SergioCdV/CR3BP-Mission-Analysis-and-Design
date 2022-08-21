@@ -193,6 +193,37 @@ function [S, state] = one_torus(mu, T, s0, epsilon, tol)
     order = 10; 
     [Cp, Cv, ~] = CTR_guidance(order, theta, S.Trajectory(:,1:m)+S.Trajectory(:,m+1:2*m));
     S.Curve = [Cp; Cv];  
+
+    % Parametrization of the stable manifold as a function of the torus latitude 
+    STM = kron(R,eye(m))*bSTM;
+    [V,lambda] = eig(STM); 
+    lambda = diag(lambda); 
+    r = abs(lambda); 
+    Vs = V(:, r < 1 & imag(lambda) == 0);
+
+    if (isempty(Vs))
+        S.StableManifold = S.Curve;
+    else
+        us = epsilon*Vs(:,1)/norm(Vs(:,1));
+        order = 10; 
+        [Cp, Cv, ~] = CTR_guidance(order, theta, S.Trajectory(:,1:m)+S.Trajectory(:,m+1:2*m)+reshape(us, [nodes m]));
+        S.StableManifold = [Cp; Cv];
+    end
+
+    % Parametrization of the unstable manifold as a function of the torus latitude 
+    [V,lambda] = eig(STM); 
+    lambda = diag(lambda); 
+    r = abs(lambda); 
+    Vu = V(:, r > 1 & imag(lambda) == 0);
+
+    if (isempty(Vu))
+        S.StableManifold = S.Curve;
+    else
+        us = epsilon*Vu(:,1)/norm(Vu(:,1));
+        order = 10; 
+        [Cp, Cv, ~] = CTR_guidance(order, theta, S.Trajectory(:,1:m)+S.Trajectory(:,m+1:2*m)+reshape(us, [nodes m]));
+        S.StableManifold = [Cp; Cv];
+    end
 end
 
 % 4D center manifold correction

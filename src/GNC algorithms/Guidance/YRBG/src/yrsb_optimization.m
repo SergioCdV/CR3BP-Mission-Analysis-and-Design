@@ -75,6 +75,10 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system
     us = V(:,1)/norm(V(:,1));                               % Unstable manifold
     epsilon = 1e-4;                                         % Unstable manifold displacement
 
+    if (Sc.Branch == 'L')
+        epsilon = -epsilon; 
+    end
+
     % Boundary conditions   
     initial = epsilon*us.';                                                                                % Relative initial conditions in cartesian coordinates 
     final = final_orbit(curve, 0);                                                                         % Final initial guess for the insertion point

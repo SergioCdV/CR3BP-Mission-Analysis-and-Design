@@ -29,7 +29,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
@@ -75,7 +75,7 @@ system.Time = T0;
 system.Distance = Lem; 
 
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 1e-2;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
@@ -94,6 +94,7 @@ options.animations = false;
 dt = 1e-3;                                              % Time step
 tspan = (0:dt:chaser_orbit.Period).';                   % Integration time for the original chaser orbit
 chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
+chaser.Branch = 'L';                                    % Stable manifold branch
 
 % Compute the relative quasi-periodic invariant curve 
 [S, state] = differential_rtorus(mu, target_orbit.Period, [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)], 1e-4, 1e-10);
@@ -102,7 +103,7 @@ QIC = final_orbit(S.Curve, theta);
 
 % Simple solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system, S.Curve, chaser, K, T, options);
+[C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system, S.StableManifold, chaser, K, T, options);
 toc 
 
 % Average results 
