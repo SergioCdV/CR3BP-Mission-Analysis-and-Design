@@ -95,15 +95,15 @@ function [S, state] = one_torus(mu, T, s0, epsilon, tol)
     iter = 1;                                              %Initial iteration
 
     %Initial constants and parameters
-    nodes = 51;                                                 %Number of points on the invariant curve
-    theta = 2*pi*(0:(nodes-1))/nodes;                           %Parametrization of the invariant curve
-    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);              %Initial monodromy matrix
-    [W, lambda] = eig(Monodromy);                               %Eigenspectrum of the monodromy matrix
-    lambda = diag(lambda);                                      %Consider only the pure eigenalues
-    index = imag(lambda) ~= 0;                                  %Search for the center eigenvector
-    lambda_c = lambda(index);                                   %Center eigenvalue
-    v_c = W(:,index);                                           %Center eigenvector
-    X = zeros(m*nodes+2,maxIter);                               %Preallocation of the free variables state vector
+    nodes = 21;                                            %Number of points on the invariant curve
+    theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
+    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);         %Initial monodromy matrix
+    [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
+    lambda = diag(lambda);                                 %Consider only the pure eigenalues
+    index = imag(lambda) ~= 0;                             %Search for the center eigenvector
+    lambda_c = lambda(index);                              %Center eigenvalue
+    v_c = W(:,index);                                      %Center eigenvector
+    X = zeros(m*nodes+2,maxIter);                          %Preallocation of the free variables state vector
 
     %Definition of the phasing period and rotation number
     X(end-1,1) = T;                                             %Initial orbital period or stroboscopic time
@@ -180,13 +180,19 @@ function [S, state] = one_torus(mu, T, s0, epsilon, tol)
     end
      
     %Final invariant curve initial conditions
-    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];     
-
+    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];  
+                                      
     S.Period = X(end-1,iter);                               %Final stroboscopic time
     S.Rotation = X(end,iter);                               %Final rotation number
     state.State = ~GoOn;                                    %Final convergence flag 
     state.Iter = iter;                                      %Final iteration 
     state.Error = norm(error);                              %Final error
+
+    % Parametrization of the final curve as a function of the torus latitude 
+    theta(theta < 0) = theta(theta < 0)+2*pi; 
+    order = 10; 
+    [Cp, Cv, ~] = CTR_guidance(order, theta, S.Trajectory(:,1:m)+S.Trajectory(:,m+1:2*m));
+    S.Curve = [Cp; Cv];  
 end
 
 % 4D center manifold correction
@@ -323,7 +329,10 @@ function [S, state] = two_torus(mu, T, s0, epsilon, tol)
     end
      
     %Final invariant curve initial conditions
-    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];     
+    S.Trajectory = [repmat(s0(1:m).', nodes, 1) repmat(s0(m+1:2*m).', nodes, 1)+reshape(X(1:end-2,iter), [nodes m])];   
+
+    order = 100; 
+    [Cp, Cv, ~] = CTR_guidance(order, theta.', S.Trajectory(:,7:12));
 
     S.Period = X(end-1,iter);                               %Final stroboscopic time
     S.Rotation = X(end,iter);                               %Final rotation number
