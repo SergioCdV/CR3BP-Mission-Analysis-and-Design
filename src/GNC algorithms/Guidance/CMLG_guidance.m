@@ -34,14 +34,20 @@ function [S, dV, state, Sref] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
     %Orbit parameters (frequencies)
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
+    cn = legendre_coefficients(mu, L(1), gamma, 2);             %Legendre coefficient c_2 (equivalent to mu)
     c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
     wv  = sqrt(c2);                                             %Out of plane frequency
     kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
 
+    if (length(L) > 1)
+        A = [zeros(3) eye(3); Sigma Theta]^(-1);                % Scaling matrix
+    else
+        A = eye(m);         % No scaling needed
+    end
+
     %Integration of the relative chaser trajectory 
-    s0c = [s0(1:m) s0(m+1:end)-s0(1:m)];                        %Initial relative chaser conditions
+    s0c = [s0(1:m) s0(m+1:end)-A*s0(1:m)];                      %Initial relative chaser conditions
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0c, options);
     sf = Sn(1,m+1:end).';
 
