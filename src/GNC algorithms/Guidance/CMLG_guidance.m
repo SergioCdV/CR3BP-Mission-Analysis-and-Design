@@ -24,7 +24,7 @@
 
 % New versions: 
 
-function [S, dV, state, Sref] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, tol)
+function [S, dV, state, Sref, SM] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, tol)
     %Constants 
     m = 6;              %Relative phase space dimension
     dt = 1e-3;          %Time step
@@ -41,13 +41,21 @@ function [S, dV, state, Sref] = CMLG_guidance(mu, L, gamma, tf, constraint, s0, 
     kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
 
     if (length(L) > 1)
-        A = [zeros(3) eye(3); Sigma Theta]^(-1);                % Scaling matrix
+        Theta = [0 2 0; -2 0 0; 0 0 0];
+        Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
+        SM = [zeros(3) eye(3); Sigma Theta]^(-1);                % Scaling matrix
+
+        cn = legendre_coefficients(mu, L(2), gamma, 2);         %Legendre coefficient c_2 (equivalent to mu)
+        c2 = cn(2);                                             %Legendre coefficient c_2 (equivalent to mu)
+        Theta = [0 2 0; -2 0 0; 0 0 0];
+        Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
+        SM = SM*[zeros(3) eye(3); Sigma Theta];                   % Scaling matrix
     else
-        A = eye(m);         % No scaling needed
+        SM = eye(m);         % No scaling needed
     end
 
     %Integration of the relative chaser trajectory 
-    s0c = [s0(1:m) s0(m+1:end)-A*s0(1:m)];                      %Initial relative chaser conditions
+    s0c = [s0(1:m)*SM.' s0(m+1:end)-s0(1:m)*SM.'];                    %Initial relative chaser conditions
     [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0c, options);
     sf = Sn(1,m+1:end).';
 

@@ -65,6 +65,19 @@ setup = [mu maxIter tol direction];                                 %General set
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
+% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+% Ln = 2;                                                             %Orbits around L1
+% gamma = L(end,Ln);                                                  %Li distance to the second primary
+% m = 1;                                                              %Number of periods to compute
+% 
+% %Compute a halo seed 
+% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% 
+% %Correct the seed and obtain initial conditions for a halo orbit
+% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+
 %% Modelling in the synodic frame %%
 r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
@@ -84,9 +97,15 @@ Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
-[Str, V1, state(1), S0] = CMLG_guidance(mu, Ln, gamma, 2*tf, constraint, [r_t0 r_c0], tol);
-% [Str, V2, state(1), S0] = CML_guidance(mu, Ln, gamma, tf, [r_t0 r_c0], tol);
-St = Str(:,1:6)+Str(:,7:12);
+[Str, V1, state(1), S0, A] = CMLG_guidance(mu, [1 1], gamma, 2*tf, constraint, [r_t0 r_c0], tol);
+
+% Comparison against the TISS controller
+[~, dV, ~] = TISS_control(mu, 2*tf, [r_t0 r_c0-r_t0].', tol, 'Position', true);  
+
+St = Str(:,7:12);
+for i = 1:size(Str,1)
+    St(i,:) = St(i,:)+Str(i,1:6)*A.';
+end
 
 %Integration of the natural quasi-periodic model
 tspan = 0:dt:2*tf;
@@ -107,7 +126,7 @@ xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 grid on;
-legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit')
+legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'Quasi-periodic guess')
 title('Guidance trajectory between periodic orbits');
 
 %Configuration space evolution
