@@ -25,13 +25,16 @@ function [C] = target_trajectory(sampling_distribution, tf, tau, T, Cp)
         otherwise
     end
     
-    k = floor(tspan(end)/T);
-    for i = 1:k
-        index = find(tspan >= T);
-        tspan(index(1):end) = tspan(index(1):end)-T;
-    end
+%     k = floor(tspan(end)/T);
+%     for i = 1:k
+%         index = find(tspan >= T);
+%         tspan(index(1):end) = tspan(index(1):end)-T;
+%     end
+% 
+%     tspan = 2*tspan/T-1;                                  % Mapping into the T * [-1,1] domain
 
-    tspan = 2*tspan/T-1;                                  % Mapping into the T * [-1,1] domain
+    theta = mod((2*pi/T)*tspan,2*pi);                     % Anomaly evolution
+    tspan = 2*theta/(2*pi)-1;                             % Anomaly mapping
     P = CH_basis('first', size(Cp,2)-1, tspan);           % Chebyshev polynomials
     C = Cp*P;                                             % Evaluate the target trajectory
 end

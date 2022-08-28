@@ -24,7 +24,7 @@
 % New versions: 
 
 %% Auxiliary functions 
-function [S, state] = ICP_guidance(mu, T, dtheta, K, s0, epsilon, tol)
+function [S, state, Tref] = ICP_guidance(mu, T, dtheta, K, s0, epsilon, tol)
     %Constants 
     m = 6;       % Phase space dimension
     
@@ -56,19 +56,20 @@ function [S, state] = ICP_guidance(mu, T, dtheta, K, s0, epsilon, tol)
 
     % Final algorithm
     if (dim == 2)
-        [S, state] = one_torus(mu, T, dtheta, K, s0, epsilon, tol);
+        [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol);
     elseif (dim == 4)
-        [S, state] = two_torus(mu, T, dtheta, K, s0, epsilon, tol);
+        [S, state, Tref] = two_torus(mu, T, dtheta, K, s0, epsilon, tol);
     else
         warning('No relative center manifold exists');
         S = []; 
         state.State = false; 
+        Tref = T; 
     end
 end
 
 %% Auxiliary functions 
 % Phasing on a 2D center manifold 
-function [S, state] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
+function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
     %Constants 
     m = 6;       % Phase space dimension
     

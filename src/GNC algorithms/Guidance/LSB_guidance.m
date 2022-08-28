@@ -45,6 +45,8 @@ function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method
         otherwise 
             error('No valid algorithm has been selected')
     end
+
+    u(2,:) = zeros(1,size(u,2));
 end
 
 %% Auxiliary functions
@@ -184,12 +186,12 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     final = zeros(4,1);                                         % Rendezvous sufficient conditions
 
     % Restrict the TOF for some control algorithms to avoid singularities 
-    switch (GNC.Algorithm)
-        case 'SDRE'
-            tf(1) = pi/(2*wv);          % Maximum non-singular TOF for the out-of-plane motion
-            tf(2) = (pi/2-phi0)/wp;     % Maximum non-singular TOF for the in-plane motion
-            tf = min(tf);               % Avoid any singularity
-    end
+%     switch (GNC.Algorithm)
+%         case 'SDRE'
+%             tf(1) = pi/(2*wv);          % Maximum non-singular TOF for the out-of-plane motion
+%             tf(2) = (pi/2-phi0)/wp;     % Maximum non-singular TOF for the in-plane motion
+%             tf = min(tf);               % Avoid any singularity
+%     end
 
     % Initial estimation of the TOF      
     tspan = 0:1e-3:tf; 
@@ -293,13 +295,16 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
  
     % Compute the final control law 
     u = Tmax*[-(ddAx+2*dAx*(wp-kap).*sin(wp*tspan+phi)).*cos(wp*tspan+phi); (ddAz+2*dAz*wv.*cos(wv*tspan+psi)).*sin(wv*tspan+psi)];
-    u = [u(1,:); kap*ddAx.'.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); u(3,:)];      
+    u = [u(1,:); kap*ddAx.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); u(2,:)];      
 end
 
 % First order form of the amplitude dynamics 
 function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
     % Initialization
     u = zeros(2,1); 
+    
+    % Constants
+    Tmax = GNC.Tmax;                                    % Maximum thrust
 
     % Compute the control law 
     switch (GNC.Algorithm)
@@ -314,7 +319,7 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 
             % In-plane motion
             A = [0 1; 0 Alpha(1,1)];                                         % Constant state dynamics 
-            B = [0 Theta(1,1)];                                              % Control input matrix
+            B = [0; Theta(1,1)];                                             % Control input matrix
             K = lqr(A,B,Q,R);                                                % LQR matrix 
             u(1) = -K*s([1 3]);                                              % Control law
 
@@ -349,7 +354,6 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
             B = [zeros(2); eye(2)];                             % Global control input matrix
 
         case 'Minimum time'
-            Tmax = GNC.Tmax;                                    % Maximum thrust
             e = Tmax*s(1)+(1/2)*abs(s(3))*s(3);                 % Error to the first switching curve
             u(1) = -Tmax*tanh(5e7*e);              
             e = Tmax*s(2)+(1/2)*abs(s(4))*s(4);                 % Error to the second switching curve
@@ -361,6 +365,15 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 
         otherwise 
             error('No valid control algorithm was selected');
+    end
+
+    % Control input saturation 
+    if (norm(u) > sqrt(2)*Tmax)
+        u = sign(u)*Tmax;
+    end
+
+    if (isnan(norm(u)))
+        u = zeros(size(u));
     end
 
     % Vectorfield

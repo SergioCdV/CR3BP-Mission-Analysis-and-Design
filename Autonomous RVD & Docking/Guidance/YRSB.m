@@ -207,11 +207,14 @@ xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
 
-figure
-hold on
-plot(tau, alpha(1,:)); 
-hold off 
-grid on;
-xlabel('Time')
-ylabel('$\alpha_s$')
-title('Stable state component')
+
+if (options.STM)
+    figure
+    hold on
+    plot(tau, alpha(1,:)); 
+    hold off 
+    grid on;
+    xlabel('Time')
+    ylabel('$\alpha_s$')
+    title('Stable state component')
+end

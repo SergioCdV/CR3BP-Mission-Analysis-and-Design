@@ -24,12 +24,6 @@ function [r] = cost_function(curve, cost, mu, St, initial, n, tau, x, B, basis, 
     % Optimization variables 
     tf = x(end-2);                                   % Final time of flight on the unstable manifold
     tf = sum(tf);                                    % Complete TOF
-    theta = x(end);                                  % Optimal insertion phase
-
-    % Compute the insertion phase and final conditions
-    final = final_orbit(curve, theta);
-    final = final-target_trajectory(sampling_distribution, tf, tau(end), St.Period, [St.Cp; St.Cv]);
-    final = cylindrical2cartesian(final, false).';
    
     switch (cost)
         case 'Minimum time'
@@ -39,16 +33,22 @@ function [r] = cost_function(curve, cost, mu, St, initial, n, tau, x, B, basis, 
             % Minimize the control input
             P = reshape(x(1:end-3), [length(n), max(n)+1]);     % Control points
             N = floor(x(end-1));                                % The optimal number of revolutions
+
+            % Evaluate the initial periodic trajectory 
+            St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, [St.Cp; St.Cv]);
+
+            % Compute the insertion phase and final conditions
+            theta = x(end);                                     % Optimal insertion phase
+            final = final_orbit(curve, theta);
+            final = final-St.Trajectory(:,end);
+            final = cylindrical2cartesian(final, false).';
         
             % Boundary conditions
             P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
         
             % State evolution
             C = evaluate_state(P,B,n);
-        
-            % Evaluate the initial periodic trajectory 
-            St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, St.Cp);
-        
+                
             % Control input
             u = acceleration_control(mu, St, C, tf, dynamics);        
         

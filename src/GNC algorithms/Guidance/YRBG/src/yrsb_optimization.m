@@ -57,7 +57,8 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system
     % Target state evolution
     order = 20;                                            % Order of the polynomial
 
-    [Cp, Cv, ~] = CTR_guidance(order, Sc.Trajectory(:,1).', Sc.Trajectory(:,2:7));
+    theta = linspace(0,2*pi,size(Sc.Trajectory,1));
+    [Cp, Cv, ~] = CTR_guidance(order, theta, Sc.Trajectory(:,2:7));
 
     Sc.Cp = Cp;                                             % Target's orbit position coordinates
     Sc.Cv = Cv;                                             % Target's orbit velocity coordinates
@@ -133,9 +134,12 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system
     N = floor(sol(end-1));                                  % Optimal number of revolutions 
     theta = sol(end);                                       % Optimal insertion phase
 
+    % Final target trajectory 
+    Sc.Trajectory = target_trajectory(sampling_distribution, sum(tf), tau, Sc.Period, [Sc.Cp; Sc.Cv]);
+
     % Compute the insertion phase and final conditions
-    final = final_orbit(curve, theta);                                                                     % Final initial guess for the insertion point
-    final = final-target_trajectory(sampling_distribution, tf, tau(end), Sc.Period, [Sc.Cp; Sc.Cv]);       % Final initial guess for the insertion point
+    final = final_orbit(curve, theta);                      % Final initial guess for the insertion point
+    final = final-Sc.Trajectory(:,end);                     % Final initial guess for the insertion point
     final = cylindrical2cartesian(final, false).';
     
     % Final control points imposing boundary conditions
@@ -143,9 +147,6 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system
     
     % Final state evolution
     C = evaluate_state(P,B,n);
-
-    % Final target trajectory 
-    Sc.Trajectory = [target_trajectory(sampling_distribution, sum(tf), tau, Sc.Period, Sc.Cp); target_trajectory(sampling_distribution, sum(tf), tau, Sc.Period, Sc.Cv)];
     
     % Integrate the STM 
     if (setup.STM)          

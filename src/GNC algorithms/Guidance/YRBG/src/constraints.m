@@ -27,14 +27,14 @@ function [c, ceq] = constraints(curve, cost, mu, St, T, initial, n, x, B, basis,
     P = reshape(x(1:end-3), [length(n), max(n)+1]);     % Control points
     tf = x(end-2);                                      % Final time of flight on the unstable manifold 
     N = floor(x(end-1));                                % Optimal number of revolutions
-    theta = x(end);                                     % Optimal insertion phase
 
-    % Evaluate the target periodic trajectory
-    St.Trajectory = target_trajectory(sampling_distribution, sum(tf), tau, St.Period, St.Cp);
+    % Evaluate the initial periodic trajectory 
+    St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, [St.Cp; St.Cv]);
 
     % Compute the insertion phase and final conditions
+    theta = x(end);                                     % Optimal insertion phase
     final = final_orbit(curve, theta);
-    final = final-target_trajectory(sampling_distribution, tf, tau(end), St.Period, [St.Cp; St.Cv]);
+    final = final-St.Trajectory(:,end);
     final = cylindrical2cartesian(final, false).';
 
     % Boundary conditions points

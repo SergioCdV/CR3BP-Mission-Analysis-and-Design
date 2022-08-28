@@ -1,5 +1,5 @@
-%% Autonomous RVD and docking in the CR3BP  %%
-% Date: 27/08/22
+%% Project: Shape-based optimization for low-thrust transfers %%
+% Date: 14/07/22
 
 %% Set up
 set_graphics(); 
@@ -29,7 +29,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
@@ -47,25 +47,25 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %Halo characteristics 
-% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 2;                                                             %Orbits around L1
-% gamma = L(end,Ln);                                                  %Li distance to the second primary
-% m = 1;                                                              %Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-% 
-% %Correct the seed and obtain initial conditions for a halo orbit
-% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 2;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+
+%Correct the seed and obtain initial conditions for a halo orbit
+[chaser_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [10 10 10];                         % Polynomial order in the state vector expansion
+n = [15 15 15];                         % Polynomial order in the state vector expansion
 m = 500;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
@@ -75,7 +75,7 @@ system.Time = T0;
 system.Distance = Lem; 
 
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 1e-3;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
@@ -94,16 +94,16 @@ options.animations = false;
 dt = 1e-3;                                              % Time step
 tspan = (0:dt:chaser_orbit.Period).';                   % Integration time for the original chaser orbit
 chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
+chaser.Branch = 'L';                                    % Stable manifold branch
 
-% Compute the relative orbit 
-Tr = max(chaser_orbit.Period, target_orbit.Period);
-rho0 = [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)-chaser_orbit.Trajectory(1,1:6)];
-tspan = 0:dt:Tr;
-[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, rho0, options);
+% Compute the relative quasi-periodic invariant curve 
+[S, state] = differential_rtorus(mu, target_orbit.Period, [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)], 1e-4, 1e-10);
+theta = linspace(0,2*pi,50); 
+QIC = final_orbit(S.Curve, theta);
 
 % Simple solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, K, T, options);
+[C, dV, u, tf, tfapp, tau, exitflag, output] = yrsb_optimization(system, S.StableManifold, chaser, K, T, options);
 toc 
 
 % Average results 
@@ -144,7 +144,7 @@ manifold_ID = 'U';           % Unstable manifold (U or S)
 manifold_branch = 'R';       % Left branch of the manifold (L or R)
 UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chaser_orbit.Trajectory, rho, tspan);
 
-%% Plots
+%% Plots 
 figure_orbits = figure;
 view(3)
 hold on

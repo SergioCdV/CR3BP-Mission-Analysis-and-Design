@@ -5,6 +5,15 @@
 set_graphics(); 
 close all
 
+%% Center Manifold Shape-based Optimization Guidance demonstration for IAC 2022 %% 
+% This script provides an interface to demonstrate the CML guidance core.
+
+% The relative motion of two spacecraft in the same halo orbit around L1 in the
+% Earth-Moon system is analyzed.
+
+% Units are non-dimensional and solutions are expressed in the Lagrange
+% points reference frame as defined by Howell, 1984.
+
 %% Trajectory generation 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -42,11 +51,11 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
-
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-%Halo characteristics 
+butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
+
+% %Halo characteristics 
 % Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 % Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 % Ln = 2;                                                             %Orbits around L1
@@ -61,12 +70,11 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 500;                                % Number of sampling points
+n = [15 15 15];                         % Polynomial order in the state vector expansion
+m = 600;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % System data 
@@ -74,11 +82,17 @@ system.mu = mu;
 system.Time = T0; 
 system.Distance = Lem; 
 
+% Chaser's initial Cartesian state vector
+initial_state = chaser_orbit.Trajectory(50,1:6); 
+target_state = target_orbit.Trajectory(50,1:6); 
+
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 5e-4;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
+%options.manifold.constraint = 'Unstable';
+options.manifold = chaser_orbit.Period*target_orbit.Period/abs(chaser_orbit.Period-target_orbit.Period);
 options.STM = false; 
 options.order = n; 
 options.basis = basis;
@@ -90,21 +104,23 @@ options.resultsFlag = true;
 options.animations = false;  
 
 %% Results
-% Chaser state evolution setup
+% Target state evolution setup
 dt = 1e-3;                                              % Time step
-tspan = (0:dt:chaser_orbit.Period).';                   % Integration time for the original chaser orbit
-chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
+tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
 
-% Compute the relative orbit 
-Tr = max(chaser_orbit.Period, target_orbit.Period);
-rho0 = [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)-chaser_orbit.Trajectory(1,1:6)];
-tspan = 0:dt:Tr;
-[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, rho0, options);
+% Absolute rendezvous optimization parameters
+target.Center = 2;                                      % Multi-revolitions center for the absolute vectorfield
+target.Final = target_state;                            % Final state vector
+
+% Relative rendezvous optimization parameters
+target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
+target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
 
 % Simple solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, K, T, options);
+[Sr, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
 toc 
+C = Sr(1:6,:)+Sr(7:12,:);
 
 % Average results 
 iter = 0; 
@@ -112,17 +128,17 @@ time = zeros(1,iter);
 options.resultsFlag = false; 
 for i = 1:iter
     tic 
-    [C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory, chaser, K, T, options);
+    [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
     time(i) = toc;
 end
 
 time = mean(time);
 
+% Analysis of the STM 
+d = zeros(1,size(C,2));         % STM determinant
+alpha = zeros(6,size(C,2));
+
 if (options.STM)
-    % Analysis of the STM 
-    d = zeros(1,size(C,2));         % STM determinant
-    alpha = zeros(6,size(C,2));
-    
     for i = 1:size(C,2)
         STM = reshape(C(end-35:end,i),[6 6]); 
         d(i) = det(STM);
@@ -131,6 +147,10 @@ if (options.STM)
         alpha(:,i) = V^(-1)*C(1:6,i);
     end
 end
+
+% Perfomance evaluation 
+[error, merit] = figures_merit(tf*tau, Sr.'); 
+effort = control_effort(tf*tau, u*Lem/T0^2, false);
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
@@ -144,7 +164,7 @@ manifold_ID = 'U';           % Unstable manifold (U or S)
 manifold_branch = 'R';       % Left branch of the manifold (L or R)
 UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chaser_orbit.Trajectory, rho, tspan);
 
-%% Plots
+%% Plots 
 figure_orbits = figure;
 view(3)
 hold on
@@ -203,14 +223,3 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
-
-if (options.STM)
-    figure
-    hold on
-    plot(tau, alpha(1,:)); 
-    hold off 
-    grid on;
-    xlabel('Time')
-    ylabel('$\alpha_s$')
-    title('Stable state component')
-end

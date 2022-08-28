@@ -1,6 +1,16 @@
 %% Autonomous RVD and docking in the CR3BP  %%
 % Date: 27/08/22
 
+%% Halo raising demonstration for IAC 2022 %% 
+% This script provides an interface to demonstrate the HRSB guidance core.
+
+% The relative motion of two spacecraft in the same halo orbit around L1 in the
+% Earth-Moon system is analyzed.
+
+% Units are non-dimensional and solutions are expressed in the Lagrange
+% points reference frame as defined by Howell, 1984.
+
+
 %% Set up
 set_graphics(); 
 close all
@@ -42,9 +52,9 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
-
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+
+butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
 
 %Halo characteristics 
 % Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
@@ -61,7 +71,6 @@ butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vecto
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
-animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
@@ -86,7 +95,7 @@ options.grid = time_distribution;
 options.nodes = m; 
 options.formulation = dynamics; 
 options.cost_function = cost_function;
-options.resultsFlag = true; 
+options.resultsFlag = false; 
 options.animations = false;  
 
 %% Results
@@ -97,13 +106,24 @@ chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
 
 % Compute the relative orbit 
 Tr = max(chaser_orbit.Period, target_orbit.Period);
-rho0 = [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)-chaser_orbit.Trajectory(1,1:6)];
+rho0 = [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1e3,1:6)-chaser_orbit.Trajectory(1,1:6)];
 tspan = 0:dt:Tr;
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, rho0, options);
 
 % Simple solution    
+theta = linspace(0,2*pi,10);
+dV = zeros(size(theta));
+
+for i = 1:length(theta)
+    tic
+    [~, dV(i), ~, ~, ~, ~, ~, ~] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(i), K, T, options);
+    toc 
+end
+
+options.resultsFlag = true;
+[~, index] = sort(dV); 
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, K, T, options);
+[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(index(1)), K, T, options);
 toc 
 
 % Average results 
@@ -203,14 +223,3 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
-
-if (options.STM)
-    figure
-    hold on
-    plot(tau, alpha(1,:)); 
-    hold off 
-    grid on;
-    xlabel('Time')
-    ylabel('$\alpha_s$')
-    title('Stable state component')
-end
