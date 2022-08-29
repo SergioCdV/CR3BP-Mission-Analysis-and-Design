@@ -24,7 +24,7 @@ n = 6;
 
 %Time span 
 dt = 1e-3;                          %Time step
-tf = 2*pi;                          %Rendezvous time
+tf = 1.5*pi;                          %Rendezvous time
 
 %CR3BP constants 
 mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
@@ -38,7 +38,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 35e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -111,7 +111,7 @@ rev = floor(tf/target_orbit.Period);
 s0 = [r_t0 s0-r_t0 reshape(eye(n), [1 n^2])];
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 tic
-[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.1), s0, options);
+[~, Staux1] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan(tspan < 0.3), s0, options);
 [~, Staux2] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(size(Staux1,1):end), Staux1(end,:), options);
 toc
 St = [Staux1; Staux2(2:end,:)];
@@ -120,10 +120,10 @@ St = [Staux1; Staux2(2:end,:)];
 [e, merit] = figures_merit(tspan, [St(:,1:n) abs(St(:,1:n)-Sn(1:size(St,1),1:n))]);
 
 %Control law
-[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.1));
+[~, ~, u] = GNCc_handler(GNC, Staux1(:,1:n), Staux1(:,n+1:end), tspan(tspan < 0.3));
 
 %Control integrals
-energy = control_effort(tspan(tspan < 0.1), u, false);
+energy = control_effort(tspan(tspan < 0.3), u, false);
 
 %Unstable component
 alpha = zeros(1,size(St,1)); 
@@ -143,15 +143,17 @@ Sr = Sr(:,1:n)+Sr(:,n+1:2*n);
 figure(1) 
 view(3) 
 hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b','LineWidth', 0.9); 
+index = floor(linspace(1,size(St,1),50));
+scatter3(Sn(index,1), Sn(index,2), Sn(index,3), 'b','filled'); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r', 'LineWidth', 0.9); 
 plot3(St(:,1), St(:,2), St(:,3), 'k','LineWidth', 0.9); 
 hold off
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
 legend('Reference orbit', 'Natural orbit', 'Stationkeeping orbit')
+axis('equal')
 
 %Configuration space evolution
 figure(3)

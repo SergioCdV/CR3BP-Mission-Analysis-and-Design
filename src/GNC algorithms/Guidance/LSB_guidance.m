@@ -198,7 +198,7 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
 
     % Setup of the integration 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)rendezvous(final, t, s)); 
-    [t, x] = ode45(@(t,s)amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC), tspan, initial, options);
+    [t, x] = ode45(@(t,s)amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC), tspan, initial);
 
     % Final TOF 
     tf = t(end); 
@@ -355,9 +355,9 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 
         case 'Minimum time'
             e = Tmax*s(1)+(1/2)*abs(s(3))*s(3);                 % Error to the first switching curve
-            u(1) = -Tmax*tanh(5e7*e);              
+            u(1) = -Tmax*tanh(5e6*e);              
             e = Tmax*s(2)+(1/2)*abs(s(4))*s(4);                 % Error to the second switching curve
-            u(2) = -Tmax*tanh(5e7*e);
+            u(2) = -Tmax*tanh(5e6*e);
 
             % Compute the amplitude vector field 
             A = [zeros(2) eye(2); zeros(2,4)];                  % Constant state dynamics 

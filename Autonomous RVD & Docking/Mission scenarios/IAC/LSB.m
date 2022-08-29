@@ -69,7 +69,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 time_distribution = 'Chebyshev';      % Distribution of time intervals
 basis = 'Chebyshev';                  % Polynomial basis to be use
 n = [15 15];                          % Polynomial order in the state vector expansion
-m = 100;                              % Number of sampling points
+m = 600;                              % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % Chaser's initial Cartesian state vector
@@ -93,7 +93,7 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-GNC.Algorithm = 'SDRE';                 % Solver algorithm
+GNC.Algorithm = 'SDRE';         % Solver algorithm
 GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 GNC.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
@@ -101,7 +101,7 @@ GNC.TOF = pi;                           % Maneuver time
 GNC.SBOPT.setup = options;
 
 % method = 'Prescribed shape-based'; 
-method = 'Dynamics shape-based';
+ method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
 % method = 'Minimum energy';
 
@@ -134,10 +134,10 @@ UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chas
 %% Plots
 % Orbit representation
 figure 
-plot3(Sr(1,:),Sr(2,:),Sr(3,:),'b','LineWidth',0.4); 
-xlabel('Relative synodic $x$ coordinate')
-ylabel('Relative synodic $y$ coordinate')
-zlabel('Relative synodic $z$ coordinate')
+plot3(Sr(1,:),Sr(2,:),Sr(3,:),'b','LineWidth',0.9); 
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')
 grid on; 
 
 figure_orbits = figure;
