@@ -26,6 +26,7 @@ nodes = 10;                         %Number of nodes for the multiple shooting c
 maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
+%% Initial conditions and halo orbit computation %%
 %Halo characteristics 
 Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
@@ -51,9 +52,18 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
 
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+%Halo characteristics 
+Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 1;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 time_distribution = 'Chebyshev';      % Distribution of time intervals
@@ -83,7 +93,7 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-GNC.Algorithm = 'Minimum time';                 % Solver algorithm
+GNC.Algorithm = 'SDRE';                 % Solver algorithm
 GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 GNC.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
@@ -91,8 +101,8 @@ GNC.TOF = pi;                           % Maneuver time
 GNC.SBOPT.setup = options;
 
 % method = 'Prescribed shape-based'; 
-% method = 'Dynamics shape-based';
-method = 'Numerical shape-based';
+method = 'Dynamics shape-based';
+% method = 'Numerical shape-based';
 % method = 'Minimum energy';
 
 % Relative solution    
@@ -138,9 +148,9 @@ plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.T
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
 plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
 grid on; 
-xlabel('Synodic $x$ coordinate')
-ylabel('Synodic $y$ coordinate')
-zlabel('Synodic $z$ coordinate')
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')
 legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
 plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
 plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions

@@ -63,10 +63,21 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+
+%Halo characteristics 
+Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 1;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
+r_t0 = target_orbit.Trajectory(1,1:6);                            %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
@@ -84,19 +95,22 @@ Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
-[Str, V1, ilg_state, S0] = CMLG_guidance(mu, Ln, gamma, 2*tf, constraint, [r_t0 r_c0], tol);
+[Str, V1, ilg_state, S0] = CMLG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
 Str(end,10:12) = zeros(1,3);
 
+% Error evaluation 
+[error, merit] = figures_merit(tspan, Str);
+
 % Comparison against the TISS controller
-[~, dV, tiss_state] = TISS_control(mu, 2*tf, [r_t0 r_c0-r_t0].', tol, 'Position', true);  
+[Str2, dV, tiss_state] = TISS_control(mu, tf, [r_t0 r_c0-r_t0].', tol, 'Position', true);  
 
 % Final absolute trajectories
-tspan = 0:dt:2*tf;                  % Final transfer time span
+tspan = 0:dt:tf;                  % Final transfer time span
 S0 = S0(:,1:6)+S0(:,7:12);          % Natural quasi-periodic model    
 St = Str(:,1:n)+Str(:,n+1:2*n);     % Transfer trajectory
 
 % Error evaluation 
-[error, merit] = figures_merit(tspan, Str);
+[error, merit2] = figures_merit(tspan, Str2);
 
 %% Results 
 %Plot results 
@@ -104,12 +118,12 @@ figure(1)
 view(3) 
 hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'LineWidth', 0.9); 
-plot3(Sr(:,1), Sr(:,2), Sr(:,3), '-ob', 'LineWidth', 0.9, 'MarkerIndices', floor(linspace(1,size(Sr,1),10))); 
+plot3(Sr(:,1), Sr(:,2), Sr(:,3), '-ob', 'LineWidth', 0.9, 'MarkerIndices', floor(linspace(1,size(Sr,1),5))); 
 plot3(St(:,1), St(:,2), St(:,3), 'r', 'LineWidth', 1); 
-plot3(S0(:,1), S0(:,2), S0(:,3), 'g', 'LineWidth', 0.1); 
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+plot3(S0(:,1), S0(:,2), S0(:,3), 'g', 'LineWidth', 0.5); 
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
 legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'Quasi-periodic guess', 'AutoUpdate', 'off')
 plot3(L(1,Ln), L(2,Ln), 0, '+k');

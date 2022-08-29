@@ -37,7 +37,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -78,11 +78,12 @@ for i = 1:num
 
     %Integration of the model
     [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
-    plot3(S(:,7), S(:,8), S(:,9), 'b', 'Linewidth', 0.1); 
+    plot3(S(:,7), S(:,8), S(:,9), 'b', 'Linewidth', 0.5); 
 end
 hold off
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
-title('Family of relative periodic halo orbits');
+axis('equal')
+% title('Family of relative periodic halo orbits');
