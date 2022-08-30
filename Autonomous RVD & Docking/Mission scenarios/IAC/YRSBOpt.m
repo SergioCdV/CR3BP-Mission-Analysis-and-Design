@@ -29,7 +29,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
@@ -42,30 +42,25 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
-
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 2;                                                             %Orbits around L1
+Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
 %Compute a halo seed 
 halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-
-%Correct the seed and obtain initial conditions for a halo orbit
-[chaser_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [15 15 15];                         % Polynomial order in the state vector expansion
+n = [10 10 10];                         % Polynomial order in the state vector expansion
 m = 500;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 

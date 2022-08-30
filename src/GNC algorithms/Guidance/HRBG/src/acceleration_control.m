@@ -49,30 +49,19 @@ function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
         case 'Euler'
             % Normalizing factor
             c = tf;    
-
-            switch (St.Field)
-                case 'Absolute'
-                    Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
-                    Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
-
-                    % Compute the control vector as a dynamics residual
-                    gamma(1:3,:) = mu_r(1)*Rr(1:3,:)./sqrt(Rr(1,:).^2+Rr(2,:).^2+Rr(3,:).^2).^3;    % First primary gravitational acceleration
-                    gamma(4:6,:) = mu_r(2)*Rr(4:6,:)./sqrt(Rr(4,:).^2+Rr(5,:).^2+Rr(6,:).^2).^3;    % Second primary gravitational acceleration
                     
-                case 'Relative'
-                    Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
-                    Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
+            Rr(1:3,:) = s(1:3,:)-R(1:3,:);                                                  % Relative position to the first primary
+            Rr(4:6,:) = s(1:3,:)-R(4:6,:);                                                  % Relative position to the first primary
 
-                    % First primary gravitational acceleration
-                    q = -dot(s(1:3,:)-2*R(1:3,:),s(1:3,:),1)./sqrt(dot(Rr(1:3,:),Rr(1:3,:),1)).^2;
-                    f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
-                    gamma(1:3,:) = -mu_r(1)./sqrt(dot(R(1:3,:),R(1:3,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(1:3,:));
-    
-                    % Second primary gravitational acceleration
-                    q = -dot(s(1:3,:)-2*R(4:6,:),s(1:3,:),1)./sqrt(dot(Rr(4:6,:),Rr(4:6,:),1)).^2;
-                    f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
-                    gamma(4:6,:) = -mu_r(2)./sqrt(dot(R(4:6,:),R(4:6,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(4:6,:));
-            end
+            % First primary gravitational acceleration
+            q = -dot(s(1:3,:)-2*R(1:3,:),s(1:3,:),1)./sqrt(dot(Rr(1:3,:),Rr(1:3,:),1)).^2;
+            f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
+            gamma(1:3,:) = -mu_r(1)./sqrt(dot(R(1:3,:),R(1:3,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(1:3,:));
+
+            % Second primary gravitational acceleration
+            q = -dot(s(1:3,:)-2*R(4:6,:),s(1:3,:),1)./sqrt(dot(Rr(4:6,:),Rr(4:6,:),1)).^2;
+            f = q.*(3*(1+q)+q.^2)./(1+(1+q).^(3/2));
+            gamma(4:6,:) = -mu_r(2)./sqrt(dot(R(4:6,:),R(4:6,:),1)).^3.*((1+f).*s(1:3,:)-f.*R(4:6,:));
     
             % Gyroscopic acceleration
             omega = [-2*s(5,:)-s(1,:); 2*s(4,:)-s(2,:); zeros(1,size(C,2))];
@@ -81,9 +70,6 @@ function [u, dv, f] = acceleration_control(mu, St, C, tf, dynamics)
             dv = s(4:6,:);                                              % Inertial velocity field
             f = c^2*(gamma(1:3,:)+gamma(4:6,:));                        % Forces field
             a = s(7:9,:)+omega;                                         % Inertial acceleration field
-
-        otherwise
-            error('No valid dynamics formulation was selected');
     end
 
     % Compute the control vector as a residual 

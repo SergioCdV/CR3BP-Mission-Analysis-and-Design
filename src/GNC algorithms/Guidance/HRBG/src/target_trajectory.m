@@ -30,11 +30,13 @@ function [C] = target_trajectory(sampling_distribution, tf, tau, T, Cp)
 %         index = find(tspan >= T);
 %         tspan(index(1):end) = tspan(index(1):end)-T;
 %     end
-
+% 
 %     tspan = 2*tspan/T-1;                                  % Mapping into the T * [-1,1] domain
 
-    theta = mod((2*pi/T)*tspan,2*pi);                     % Anomaly evolution
-    tspan = 2*theta/(2*pi)-1;                             % Anomaly evolution
+    % Compute the initial phase 
+    theta = tspan*(2*pi/T);
+    theta = mod(theta,2*pi);
+    tspan = 2*theta/(2*pi)-1;
     P = CH_basis('first', size(Cp,2)-1, tspan);           % Chebyshev polynomials
     C = Cp*P;                                             % Evaluate the target trajectory
 end

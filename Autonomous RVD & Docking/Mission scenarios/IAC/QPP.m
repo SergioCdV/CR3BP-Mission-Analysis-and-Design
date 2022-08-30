@@ -40,14 +40,14 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 60e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 30e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
 %Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+halo_param = [-1 Az Ln gamma m];                                     %Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
 
 %Correct the seed and obtain initial conditions for a halo orbit
@@ -55,7 +55,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 chaser_orbit = target_orbit;
 
 %% Modelling in the synodic frame %%
-index = 5e2;                                                        %Phasing point
+index = 2e2;                                                        %Phasing point
 r_t0 = target_orbit.Trajectory(index,1:6);                          %Initial target conditions
 r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
 rho0 = r_c0-r_t0;                                                   %Initial relative conditions
@@ -66,7 +66,7 @@ target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Tr
 
 %% Generate the guidance trajectory
 % Guidance trajectory parameters
-k = 10;                                         % Number of phasing revolutions
+k = 5;                                         % Number of phasing revolutions
 dtheta = 2*pi/target_orbit.Period*(index*dt);   % Initial phase difference
 
 % Phasing tori 
@@ -75,7 +75,7 @@ eps = 1e-5;
 
 % ILG transfer 
 constraint.Flag = false;
-[~, dV, state(2)] = CMLG_guidance(mu, Ln, gamma, target_orbit.Period, constraint, [r_t0 r_c0], tol);
+[~, dV, state(2)] = CMLG_guidance(mu, Ln, gamma, 1, constraint, [r_t0 r_c0], tol);
 
 % Periodicity check 
 extra = floor(mod(k*Str.Period,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
@@ -98,7 +98,7 @@ dVf = norm(target_orbit.Trajectory(end,4:6)-Str.Trajectory(end,4:6)-Str.Trajecto
 figure(1) 
 view(3) 
 hold on
-T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b'); 
+T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9); 
 
 % Phasing orbit 
 phasing_orbit.Period = Str.Period;
@@ -107,8 +107,8 @@ for i = size(Str.Trajectory,1)-1:-1:1
     tspan = 0:dt:Str.Period;
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
     S = St(:,1:6)+St(:,7:12);
-    guidance = plot3(S(:,1), S(:,2), S(:,3), 'g');
-    guidance.Color(4) = 0.2; 
+    guidance = plot3(S(:,1), S(:,2), S(:,3), 'r');
+    guidance.Color(4) = 0.3; 
     legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
 end  
 
@@ -119,7 +119,7 @@ scatter3(Str.Trajectory(end,1)+Str.Trajectory(end,7), Str.Trajectory(end,2)+Str.
 scatter3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), 'filled', 'r');
 hold off
 
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;

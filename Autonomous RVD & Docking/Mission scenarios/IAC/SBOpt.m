@@ -27,9 +27,9 @@ maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
 %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 30e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
+Ln = 2;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
 m = 1;                                                              %Number of periods to compute
 
@@ -51,30 +51,25 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
+%Halo characteristics 
+Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 2;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
 
-% %Halo characteristics 
-% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 2;                                                             %Orbits around L1
-% gamma = L(end,Ln);                                                  %Li distance to the second primary
-% m = 1;                                                              %Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-% 
-% %Correct the seed and obtain initial conditions for a halo orbit
-% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+%Compute a halo seed 
+halo_param = [-1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [15 15 15];                         % Polynomial order in the state vector expansion
-m = 600;                                % Number of sampling points
+n = [10 10 10];                         % Polynomial order in the state vector expansion
+m = 300;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % System data 
@@ -83,12 +78,12 @@ system.Time = T0;
 system.Distance = Lem; 
 
 % Chaser's initial Cartesian state vector
-initial_state = chaser_orbit.Trajectory(50,1:6); 
-target_state = target_orbit.Trajectory(50,1:6); 
+initial_state = chaser_orbit.Trajectory(1,1:6); 
+target_state = target_orbit.Trajectory(1,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-4;     % Maximum acceleration 
-K = 0;        % Initial input revolutions 
+T = 1e-3;     % Maximum acceleration 
+K = 1;        % Initial input revolutions 
 
 % Setup 
 %options.manifold.constraint = 'Unstable';
@@ -173,9 +168,9 @@ plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.T
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
 plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
 grid on; 
-xlabel('Synodic $x$ coordinate')
-ylabel('Synodic $y$ coordinate')
-zlabel('Synodic $z$ coordinate')
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')
 legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
 plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
 plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions
@@ -200,7 +195,7 @@ hold on
 plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
 plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
 yline(T, '--k')
-xlabel('Flight time')
+xlabel('$t$')
 ylabel('$\mathbf{a}$')
 legend('$a$','$a_x$','$a_y$','$a_z$')
 grid on;

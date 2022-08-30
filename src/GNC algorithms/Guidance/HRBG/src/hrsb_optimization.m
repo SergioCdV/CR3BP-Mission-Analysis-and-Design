@@ -8,9 +8,8 @@
 % Inputs: - structure system, containing the physical information of the
 %           CR3BP of interest
 %         - vector initial_state, the initial Cartesian state 
-%         - structure St, defining the target evolution in time and the
-%           vectorfield to be used in the optimization (absolute or relative
-%           dynamics)
+%         - structure Sc, defining the reference orbit evolution in time and the
+%           vectorfield to be used in the optimization
 %         - scalar K, an initial desired revolutions value 
 %         - scalar T, the maximum allowed acceleration
 %         - structure setup, containing the setup of the algorithm in general
@@ -25,7 +24,7 @@
 %          - structure output, containing information on the final state of
 %            the optimization process
 
-function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, St, K, T, setup)
+function [C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, St_orbit, Sc, theta0, K, T, setup)
     % Setup of the algorithm
     n = setup.order;                        % Order in the approximation of the state vector
     dynamics = setup.formulation;           % Formulation of the dynamics
@@ -33,7 +32,6 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     sampling_distribution = setup.grid;     % Sampling grid to be used
     m = setup.nodes;                        % Number of nodes in the grid
     cost = setup.cost_function;             % Cost function to be minimized   
-    manifold = setup.manifold;              % Manifold component to be nullified
 
     % Characteristics of the system 
     mu = system.mu;                         % Characteristic gravitational parameter of the CR3BP
@@ -52,39 +50,26 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     tau = sampling_grid(m, sampling_distribution, '');
     [B, tau] = state_basis(n, tau, basis);
 
-    % Target's orbit high-order approximation
-    switch (St.Field)
-        case 'Absolute'
-            % Target state evolution
-            L = [libration_points(mu) [-mu 1-mu; 0 0; 0 0; 1 0]];   % Location of the libration / primaries points
-            St.Trajectory = [L(1:3,St.Center); zeros(3,1)];
-            St.Trajectory = repmat(St.Trajectory,1,m);
+    % Chaser state evolution
+    order = 50;                                             % Order of the polynomial
+    theta = linspace(0,2*pi,size(Sc.Trajectory,1));         % Orbit torus anomaly 
 
-            % Boundary conditions 
-            initial = initial_state.'-St.Trajectory(:,1);           % Initial conditions
-            final = St.Final.'-St.Trajectory(:,1);                  % Final conditions
-            initial = cylindrical2cartesian(initial, false).';      % Initial state vector in cylindrical coordinates                  
-            final = cylindrical2cartesian(final, false).';          % Final state vector in cylindrical coordinates 
+    [Cp, Cv, ~] = CTR_guidance(order, theta, Sc.Trajectory(:,2:7));
+    
+    Sc.Cp = Cp;                                             % Target's orbit position coordinates
+    Sc.Cv = Cv;                                             % Target's orbit velocity coordinates
+    Sc.Period = Sc.Trajectory(end,1);                       % Final target's period
 
-        case 'Relative'
-            % Target state evolution
-            order = 50;                                             % Order of the polynomial
-            theta = linspace(0,2*pi,size(St.Trajectory,1));         % Anomaly evolution 
+    % Target state evolution
+    theta = linspace(0,2*pi,size(St_orbit,1));              % Orbit torus anomaly
+    [Cp, Cv, ~] = CTR_guidance(order, theta, St_orbit);     % Regression of the target orbit
+    St.Cp = Cp;                                             % Target's orbit position coordinates
+    St.Cv = Cv;                                             % Target's orbit velocity coordinates
 
-            [Cp, Cv, ~] = CTR_guidance(order, theta, St.Trajectory(:,2:7));
-
-            St.Cp = Cp;                                             % Target's orbit position coordinates
-            St.Cv = Cv;                                             % Target's orbit velocity coordinates
-            St.Period = St.Trajectory(end,1);                       % Final target's period
-
-            % Boundary conditions   
-            initial = initial_state.'-St.Trajectory(1,2:7).';       % Relative initial conditions
-            initial = cylindrical2cartesian(initial, false).';      % Initial chaser state vector in cylindrical coordinates   
-            final = zeros(1,6);                                     % Rendezvous Condition
-
-        otherwise 
-            error('No valid vectorfield was chosen')
-    end
+    % Boundary conditions   
+    initial = zeros(1,6);                                   % Relative initial conditions given by the Rendezvous Condition
+    final = final_orbit([St.Cp; St.Cv], theta0);            % Final conditions on the target orbit
+    final = cylindrical2cartesian(final, false).';          % Final conditions in cylindrical coordinates 
 
     % Normlized spacecraft propulsion parameters 
     T = T*(t0^2/r0);                                        
@@ -95,7 +80,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Initial guess for the boundary control points
     mapp = 300;   
     tapp = sampling_grid(mapp, sampling_distribution, '');
-    [~, Capp, Napp, tfapp] = initial_approximation(mu, St, tfapp, tapp, initial, final, basis, dynamics); 
+    [~, Capp, Napp, tfapp] = initial_approximation(mu, Sc, tfapp, tapp, initial, final, basis, dynamics); 
     
     % Initial fitting for n+1 control points
     [P0, ~] = initial_fitting(n, tapp, Capp, basis);
@@ -103,14 +88,14 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     % Initial guess reshaping
     x0 = reshape(P0, [size(P0,1)*size(P0,2) 1]);
     L = length(x0);
-    x0 = [x0; tfapp; Napp];
+    x0 = [x0; tfapp; Napp; theta0];
     
     % Upper and lower bounds 
-    P_lb = [-Inf*ones(L,1); 0; 0];
-    P_ub = [Inf*ones(L,1); 10*12*2*pi; Inf];
+    P_lb = [-Inf*ones(L,1); 0; 0; 0];
+    P_ub = [Inf*ones(L,1); 10*12*2*pi; Inf; 2*pi];
     
     % Objective function
-    objective = @(x)cost_function(cost, mu, St, initial, final, n, tau, x, B, basis, sampling_distribution, dynamics);
+    objective = @(x)cost_function(St, cost, mu, Sc, initial, n, tau, x, B, basis, sampling_distribution, dynamics);
     
     % Linear constraints and inequalities
     A = [];
@@ -119,7 +104,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     beq = [];
     
     % Non-linear constraints
-    nonlcon = @(x)constraints(cost, mu, St, T, initial, final, n, x, B, basis, tau, sampling_distribution, dynamics);
+    nonlcon = @(x)constraints(St, cost, mu, Sc, T, initial, n, x, B, basis, tau, sampling_distribution, dynamics);
     
     % Modification of fmincon optimisation options and parameters (according to the details in the paper)
     options = optimoptions('fmincon', 'TolCon', 1e-6, 'Display', 'off', 'Algorithm', 'sqp');
@@ -129,31 +114,34 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     [sol, dV, exitflag, output] = fmincon(objective, x0, A, b, Aeq, beq, P_lb, P_ub, nonlcon, options);
     
     % Solution 
-    P = reshape(sol(1:end-2), [size(P0,1) size(P0,2)]);     % Optimal control points
-    tf = sol(end-1);                                        % Optimal time of flight
-    N = floor(sol(end));                                    % Optimal number of revolutions 
-    
+    P = reshape(sol(1:end-3), [size(P0,1) size(P0,2)]);     % Optimal control points
+    tf = sol(end-2);                                        % Optimal time of flight
+    N = floor(sol(end-1));                                  % Optimal number of revolutions 
+    theta = sol(end);                                       % Optimal insertion phase
+
+    % Final target trajectory 
+    Sc.Trajectory = target_trajectory(sampling_distribution, tf, tau, Sc.Period, [Sc.Cp; Sc.Cv]);
+
+    % Compute the insertion phase and final conditions
+    final = final_orbit([St.Cp; St.Cv], theta);
+    final = final-Sc.Trajectory(:,end);
+    final = cylindrical2cartesian(final, false).'; 
+
     % Final control points imposing boundary conditions
     P = boundary_conditions(tf, n, initial, final, N, P, B, basis);
     
     % Final state evolution
     C = evaluate_state(P,B,n);
-
-    % Final target trajectory 
-    switch (St.Field)
-        case 'Relative'
-            St.Trajectory = target_trajectory(sampling_distribution, tf, tau, St.Period, [St.Cp; St.Cv]);
-    end
     
     % Integrate the STM 
     if (setup.STM)          
-        STM = stm_computation(mu, tf, St, n, P, B, sampling_distribution, basis, tau, 'Numerical'); 
+        STM = stm_computation(mu, tf, Sc, n, P, B, sampling_distribution, basis, tau, 'Numerical'); 
     else
         STM = [];
     end
 
     % Control input
-    u = acceleration_control(mu, St, C, tf, dynamics);
+    u = acceleration_control(mu, Sc, C, tf, dynamics);
     u = u/tf^2;
 
     % Time domain normalization 
@@ -174,11 +162,11 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     switch (dynamics)
         case 'Sundman'
             % Initial TOF 
-            r = sundman_radius(mu, tf, St, Capp);
+            r = sundman_radius(mu, tf, Sc, Capp);
             tfapp = tfapp*trapz(tau, r);
     
             % Control input
-            r = sundman_radius(mu, tf, St, C);
+            r = sundman_radius(mu, tf, Sc, C);
             u = u./(r.^2);
     
             % Final TOF 
@@ -189,7 +177,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
 
     % Back transaltion of the origin of the synodic frame 
     C = cylindrical2cartesian(C, true);
-    C = [St.Trajectory(1:6,:); C];
+    C(1:6,:) = C(1:6,:)+Sc.Trajectory(1:6,:);
     C = [C; STM];
 
     % Results 

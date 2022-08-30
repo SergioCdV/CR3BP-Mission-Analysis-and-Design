@@ -98,7 +98,7 @@ function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
         
     %Differential corrector setup
     GoOn = true;                                           %Convergence boolean
-    maxIter = 50;                                          %Maximum number of iterations
+    maxIter = 100;                                         %Maximum number of iterations
     iter = 1;                                              %Initial iteration
 
     %Initial constants and parameters
@@ -136,6 +136,9 @@ function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
     urot = zeros(nodes,m);                              %First return of the nodes without the rotation
     bSTM = zeros(m*nodes,m*nodes);                      %Augmented state transition matrix
     dF = zeros(m*nodes, 1);                             %Time derivative of the nodes
+
+    %Minimum velocity impulse 
+    Vmin = 1e-7;
         
     while ((GoOn) && (iter < maxIter))
         %Torus variables
@@ -164,9 +167,18 @@ function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
             bSTM(1+m*(i-1):m*i,1+m*(i-1):m*i) = reshape(Saux(end,2*m+1:end), [m m]);
         end
 
+        %Minimum impulse constraint 
+        dv = zeros(nodes,1);
+        VA = zeros(nodes,m*nodes);
+        for i = 1:nodes
+            index = 4+m*(i-1);
+            dv(i) = norm(X(index:index+2,iter))-Vmin;
+            VA(i,1+m*(i-1):m*i) = [zeros(1,3) X(index:index+2,iter).'/norm(X(index:index+2,iter))];
+        end
+
         %Compute the error vector 
         u = R*urot;
-        error = [reshape(u.', [nodes*m,1])-X(1:nodes*m,iter); T-Tref];
+        error = [reshape(u.', [nodes*m,1])-X(1:nodes*m,iter); T-Tref; dv];
 
         %Compute the sensibility matrix
         DG = kron(R,eye(m))*bSTM-eye(m*nodes);  %STM-like sensibility matrix
@@ -174,9 +186,9 @@ function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
         dRho = reshape(dRho, [m*nodes 1]);      %Derivative with respect to the rotation angle
 
         %Compute the Newton-Rhapson update
-        A = [DG dF dRho; zeros(1,m*nodes) 1 0]; %Complete sensibility matrix
-        ds = real(-pinv(A)*error);              %Newton-Rhapson innovation
-        X(:,iter+1) = X(:,iter)+ds;             %Update the variables vector 
+        A = [DG dF dRho; zeros(1,m*nodes) 1 0; VA zeros(nodes,2)]; %Complete sensibility matrix
+        ds = real(-pinv(A)*error);                                 %Newton-Rhapson innovation
+        X(:,iter+1) = X(:,iter)+ds;                                %Update the variables vector 
 
         %Convergence analysis 
         if (norm(ds) < tol)

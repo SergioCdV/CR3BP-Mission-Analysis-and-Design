@@ -52,23 +52,18 @@ direction = 1;                                                      %Direction t
 setup = [mu maxIter tol direction];                                 %General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
-
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
 
 %Halo characteristics 
-% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 2;                                                             %Orbits around L1
-% gamma = L(end,Ln);                                                  %Li distance to the second primary
-% m = 1;                                                              %Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-% 
-% %Correct the seed and obtain initial conditions for a halo orbit
-% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+Az = 15e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
+Ln = 1;                                                             %Orbits around L1
+gamma = L(end,Ln);                                                  %Li distance to the second primary
+m = 1;                                                              %Number of periods to compute
+
+%Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
 time_distribution = 'Chebyshev';        % Distribution of time intervals
@@ -111,15 +106,17 @@ tspan = 0:dt:Tr;
 [~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, rho0, options);
 
 % Simple solution    
-theta = linspace(0,2*pi,10);
+theta = linspace(0,2*pi,2);
 dV = zeros(size(theta));
 
+options.nodes = 500; 
 for i = 1:length(theta)
     tic
     [~, dV(i), ~, ~, ~, ~, ~, ~] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(i), K, T, options);
     toc 
 end
 
+options.nodes = 500; 
 options.resultsFlag = true;
 [~, index] = sort(dV); 
 tic
@@ -168,14 +165,14 @@ UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chas
 figure_orbits = figure;
 view(3)
 hold on
-plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
-plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), '--b', 'LineWidth', 0.4);                         % Target's orbit
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '--ob', 'LineWidth', 0.4, ...
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
 plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
 grid on; 
-xlabel('Synodic $x$ coordinate')
-ylabel('Synodic $y$ coordinate')
-zlabel('Synodic $z$ coordinate')
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')
 legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
 plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
 plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions
