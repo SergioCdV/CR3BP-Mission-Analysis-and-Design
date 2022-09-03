@@ -95,6 +95,8 @@ Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
+tspan = 0:dt:tf;                  % Final transfer time span
+
 [Str, V1, ilg_state, S0] = CMLG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
 Str(end,10:12) = zeros(1,3);
 
@@ -105,7 +107,6 @@ Str(end,10:12) = zeros(1,3);
 [Str2, dV, tiss_state] = TISS_control(mu, tf, [r_t0 r_c0-r_t0].', tol, 'Position', true);  
 
 % Final absolute trajectories
-tspan = 0:dt:tf;                  % Final transfer time span
 S0 = S0(:,1:6)+S0(:,7:12);          % Natural quasi-periodic model    
 St = Str(:,1:n)+Str(:,n+1:2*n);     % Transfer trajectory
 
@@ -117,15 +118,15 @@ St = Str(:,1:n)+Str(:,n+1:2*n);     % Transfer trajectory
 figure(1) 
 view(3) 
 hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'LineWidth', 0.9); 
+plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'LineWidth', 0.9, 'MarkerIndices', floor(linspace(1,size(Sr,1),5))); 
 plot3(Sr(:,1), Sr(:,2), Sr(:,3), '-ob', 'LineWidth', 0.9, 'MarkerIndices', floor(linspace(1,size(Sr,1),5))); 
-plot3(St(:,1), St(:,2), St(:,3), 'r', 'LineWidth', 1); 
-plot3(S0(:,1), S0(:,2), S0(:,3), 'g', 'LineWidth', 0.5); 
+plot3(St(:,1), St(:,2), St(:,3), 'k', 'LineWidth', 1.5); 
+plot3(S0(:,1), S0(:,2), S0(:,3), 'r'); 
 xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
-legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'Quasi-periodic guess', 'AutoUpdate', 'off')
+legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'Quasi-periodic guess', 'AutoUpdate', 'off')
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});

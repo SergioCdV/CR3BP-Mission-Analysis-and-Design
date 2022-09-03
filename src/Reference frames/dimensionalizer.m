@@ -6,24 +6,24 @@
 % Validated: 
 
 %% Dimensionalizer %%
-% For a given gravitational parameter mu, distance between the primaries d and synodic period T, 
-% this function dimensionalizes/normalizes position or velocity vectors and
-% epochs.
+% For a given gravitational parameter mu, distance between the primaries d,
+% synodic period T, and velocity V, this function dimensionalizes/normalizes 
+% position or velocity vectors and epochs
 
-% Inputs: - scalar V, the characteristic velocity of the system.
-%         - scalar d, the characteristic distance of the system.
-%         - scalar T, the synodic period of the system.
-%         - string X, an epoch, position or velocity vector.
-%         - boolean direction, 0 to normalize and 1 to dimensionalize.
+% Inputs: - scalar d, the characteristic distance of the system
+%         - scalar T, the synodic period of the system
+%         - scalar V, the characteristic velocity of the system
+%         - string X, an epoch, position or velocity vector
+%         - boolean direction, 0 to normalize and 1 to dimensionalize
 
 % Outputs: - output sol, the normalized variable.
 
 % New versions: 
 
 function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
-    %Main computation
+    % Main computation
     if (direction == 0)
-        %Normalize input
+        % Normalize input
         switch (magnitude)
             case 'Epoch'
                 sol = X*(2*pi/T);
@@ -35,8 +35,8 @@ function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
                 error('No valid magnitude was selected');
         end
             
-    elseif (direction == 1)
-        %Dimensionalize input
+    else
+        % Dimensionalize input
         switch (magnitude)
             case 'Epoch'
                 sol = X*(T/(2*pi));
@@ -47,9 +47,5 @@ function [sol] = dimensionalizer(d, T, V, X, magnitude, direction)
             otherwise
                 error('No valid magnitude was selected');
         end
-        
-    %Error branch
-    else
-        error('No valid direction was selected');
     end
 end

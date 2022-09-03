@@ -109,7 +109,7 @@ tspan = 0:dt:Tr;
 theta = linspace(0,2*pi,2);
 dV = zeros(size(theta));
 
-options.nodes = 500; 
+options.nodes = 100; 
 for i = 1:length(theta)
     tic
     [~, dV(i), ~, ~, ~, ~, ~, ~] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(i), K, T, options);
@@ -120,8 +120,9 @@ options.nodes = 500;
 options.resultsFlag = true;
 [~, index] = sort(dV); 
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(index(1)), K, T, options);
+[Sr, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(index(1)), K, T, options);
 toc 
+C = Sr(1:6,:)+Sr(7:12,:);
 
 % Average results 
 iter = 0; 
@@ -165,15 +166,15 @@ UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chas
 figure_orbits = figure;
 view(3)
 hold on
-plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), '--b', 'LineWidth', 0.4);                         % Target's orbit
-plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '--ob', 'LineWidth', 0.4, ...
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), '-b', 'LineWidth', 0.2);                         % Target's orbit
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.2, ...
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
-plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
+plot3(C(1,:),C(2,:),C(3,:),'-.r', 'LineWidth', 1.1);                                                                                                 % Trasfer orbit
 grid on; 
 xlabel('$x$')
 ylabel('$y$')
 zlabel('$z$')
-legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
+legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
 plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
 plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
@@ -190,7 +191,7 @@ text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
 %     U.Color(4) = 0.1;
 % end
 hold off
-
+%%
 % Propulsive acceleration plot
 figure;
 hold on

@@ -7,20 +7,20 @@
 
 %% Synodic to Lagrange %%
 % For a given vector v at an epoch e, this function transforms a given vector 
-% from the synodic frame to the Lagrange point reference frame.
+% from the synodic frame to the Lagrange point reference frame
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system.
+% Inputs: - scalar mu, the reduced gravitational parameter of the system
 %         - vector v, a given position vector.
-%         - scalar gamma, the characteristic distance of the libration point.
-%         - boolean point, 1 for L1 or L3 and 2 for L2.
-%         - boolean direction, 0 for synodic-to-lagrange change and 1 for the viceversa conversion.
+%         - scalar gamma, the characteristic distance of the libration point
+%         - boolean point, 1 for L1 or L3 and 2 for L2
+%         - boolean direction, 0 for synodic-to-lagrange change and 1 for the viceversa conversion
 
-% Outputs: - the vector V, v expressed in the new reference frame.
+% Outputs: - the vector V, v expressed in the new reference frame
 
 % New versions: 
 
 function [V] = synodic2lagrange(mu, gamma, point, v, direction)
-    %Libration point synodic position vector
+    % Libration point synodic position vector
     switch (point)
         case 1 
             X = [1-mu-gamma; 0; 0];
@@ -34,12 +34,10 @@ function [V] = synodic2lagrange(mu, gamma, point, v, direction)
             X = [mu+1/2; -sqrt(3)/2; 0];
     end
     
-    %Main computations 
+    % Main computations 
     if (direction)
         V = (v-X)/gamma;
-    elseif (~direction)
-        V = gamma*v+X;
     else
-        error('No valid direction was selected');
+        V = gamma*v+X;
     end
 end

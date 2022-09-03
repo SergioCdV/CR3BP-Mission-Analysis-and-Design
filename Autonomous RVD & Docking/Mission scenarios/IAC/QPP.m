@@ -62,7 +62,8 @@ rho0 = r_c0-r_t0;                                                   %Initial rel
 s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
 
 % Phasing 
-target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Trajectory(1:index,:)];
+target_orbit.Trajectory = [target_orbit.Trajectory(index:end,:); target_orbit.Trajectory(1:index-1,:)];
+original_period = size(target_orbit.Trajectory,1);
 
 %% Generate the guidance trajectory
 % Guidance trajectory parameters
@@ -98,27 +99,33 @@ dVf = norm(target_orbit.Trajectory(end,4:6)-Str.Trajectory(end,4:6)-Str.Trajecto
 figure(1) 
 view(3) 
 hold on
-T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9); 
+T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 1);
 
 % Phasing orbit 
 phasing_orbit.Period = Str.Period;
-for i = size(Str.Trajectory,1)-1:-1:1
+for i = 1:size(Str.Trajectory,1)
     % Integration of the quasi-periodic trajectory
     tspan = 0:dt:Str.Period;
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
     S = St(:,1:6)+St(:,7:12);
-    guidance = plot3(S(:,1), S(:,2), S(:,3), 'r');
-    guidance.Color(4) = 0.3; 
+    guidance = plot3(S(:,1), S(:,2), S(:,3), ':r');
+    guidance.Color(4) = 0.4; 
     legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
 end  
 
 % Initial and final conditions
-scatter3(chaser_orbit.Trajectory(1,1), chaser_orbit.Trajectory(1,2),chaser_orbit.Trajectory(1,3), 'filled', 'k')
-scatter3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), 'filled', 'k'); 
-scatter3(Str.Trajectory(end,1)+Str.Trajectory(end,7), Str.Trajectory(end,2)+Str.Trajectory(end,8), Str.Trajectory(end,3)+Str.Trajectory(end,9), 'filled', 'r');
-scatter3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), 'filled', 'r');
+scatter3(Str.Trajectory(end,1)+Str.Trajectory(end,7), Str.Trajectory(end,2)+Str.Trajectory(end,8), Str.Trajectory(end,3)+Str.Trajectory(end,9), 'r', 'filled', 'SizeData', 10);
+scatter3(target_orbit.Trajectory(1,1), target_orbit.Trajectory(1,2), target_orbit.Trajectory(1,3), 'filled', 'k', 'SizeData', 10);
+scatter3(target_orbit.Trajectory(end,1), target_orbit.Trajectory(end,2), target_orbit.Trajectory(end,3), 'filled', 'k', 'SizeData', 5); 
+for i = 1:k-1
+    point = 1+(size(target_orbit.Trajectory,1)/k)*i;
+    scatter3(target_orbit.Trajectory(point,1), target_orbit.Trajectory(point,2), target_orbit.Trajectory(point,3), 'filled', 'k', 'SizeData', 10);
+    %text(target_orbit.Trajectory(point,1)-2e-3, target_orbit.Trajectory(point,2), target_orbit.Trajectory(point,3)+1.2e-10,string(i));
+end
+plot3(L(1,Ln), L(2,Ln), 0, '+k');
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
 hold off
-
 xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');

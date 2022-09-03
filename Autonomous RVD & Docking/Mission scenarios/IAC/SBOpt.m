@@ -163,17 +163,17 @@ UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chas
 figure_orbits = figure;
 view(3)
 hold on
-plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
-plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.5);                         % Target's orbit
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.5, ...
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
-plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
+plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.5);                                                                                                 % Trasfer orbit
 grid on; 
 xlabel('$x$')
 ylabel('$y$')
 zlabel('$z$')
-legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
-plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
-plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions
+legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
+plot3(C(1,1),C(2,1),C(3,1),'*k');                                                                                                               % Initial conditions
+plot3(C(1,end),C(2,end),C(3,end),'*k');                                                                                                         % Final conditions
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
