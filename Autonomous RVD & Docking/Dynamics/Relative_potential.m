@@ -38,7 +38,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 200e6;                                                 %Orbit amplitude out of the synodic plane
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -67,9 +67,9 @@ U = zeros(size(rt,1), length(x), length(y));     %Preallocation of the potential
 for t = 1:200
     for i = 1:length(x)
         for j = 1:length(y)
-                r = [x(i); y(i); 0];                      %Relative position vector
+                r = [x(i); y(i); 0];                         %Relative position vector
                 s = [rt(t,:).'; zeros(3,1); r; zeros(3,1)];  %Augmented phase space vector
-                U(t,i,j) = rel_potential(mu, s);           %Potential function
+                U(t,i,j) = rel_potential(mu, s);             %Potential function
         end
     end
 end

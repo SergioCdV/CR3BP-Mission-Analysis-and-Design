@@ -10,7 +10,7 @@
 % functions. 
 
 % Test 12 is concerned with differential correction algorithms validation and the exploration of 
-% different families of relative orbits.
+% different families of relative orbits
 
 % Credit to Grebow, 2006, for his initial seeds!
 

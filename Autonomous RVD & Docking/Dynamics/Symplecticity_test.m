@@ -3,14 +3,15 @@
 % 23/03/21 % 
 
 %% Phase space study %% 
-% This script provides an interface to test how the phase space volumens evolve. 
+% This script provides an interface to test how relative phase space
+% volumens evolve in time
 
 % The relative motion of two spacecraft in two halo orbits around L1 in the
 % Earth-Moon system is analyzed both from the direct integration of the
 % equations of motion and the full motion relative motion 
 
 % Units are non-dimensional and solutions are expressed in the Lagrange
-% points reference frame as defined by Howell, 1984.
+% points reference frame as defined by Howell, 1984
 
 %% Set up %%
 %Set up graphics 
@@ -37,7 +38,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary

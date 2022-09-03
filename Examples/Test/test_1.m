@@ -75,7 +75,7 @@ ylabel('Synodic $y$ coordinate');
 title('Pseudo-potential function $\tilde{U}$ isocurves');
 grid on 
 colorbar
-%%
+
 figure(2)
 potential_plot(mu, 2);
 figure(2)

@@ -17,26 +17,26 @@
 % New versions: 
 
 function potential_plot(mu, dim) 
-    %Set graphics 
+    % Set graphics 
     set_graphics(); 
     
-    %Planar configuration space meshgrid 
-    x = -1.5:1e-2:1.5;              %Synodic x coordinate
-    y = -1.5:1e-2:1.5;              %Synodic y coordinate
-    [X,Y] = meshgrid(x,y);          %Complete meshgrid
+    % Planar configuration space meshgrid 
+    x = -1.5:1e-2:1.5;              % Synodic x coordinate
+    y = -1.5:1e-2:1.5;              % Synodic y coordinate
+    [X,Y] = meshgrid(x,y);          % Complete meshgrid
     
-    %Compute the associated potential function in vectorized form
-    R1 = sqrt((X+mu).^2+Y.^2);      %Relative position to the first primary
-    R2 = sqrt((X-1+mu).^2+Y.^2);    %Relative position to the second primary
-    Uc = -(X.^2+Y.^2);              %Centrifugal potential function
-    Ug = -2*((1-mu)./R1+mu./R2);    %Gravitational potential function
-    U = Uc+Ug;                      %Total potential function
+    % Compute the associated potential function in vectorized form
+    R1 = sqrt((X+mu).^2+Y.^2);      % Relative position to the first primary
+    R2 = sqrt((X-1+mu).^2+Y.^2);    % Relative position to the second primary
+    Uc = -(X.^2+Y.^2);              % Centrifugal potential function
+    Ug = -2*((1-mu)./R1+mu./R2);    % Gravitational potential function
+    U = Uc+Ug;                      % Total potential function
     
-    %Location of the primaries  
-    R(:,1) = [-mu; 0];              %Location of the first primary
-    R(:,2) = [1-mu; 0];             %Location of the second primary
+    % Location of the primaries  
+    R(:,1) = [-mu; 0];              % Location of the first primary
+    R(:,2) = [1-mu; 0];             % Location of the second primary
    
-    %Plot results 
+    % Plot results 
     hold on
     if (dim == 3)
         surf(X, Y, U, 'FaceColor', 'red', 'EdgeColor', 'none');
@@ -50,8 +50,8 @@ function potential_plot(mu, dim)
         title('Pseudo-potential function $\tilde{U}$ surface')
         grid on;
     else
-        rho = -3.5:5e-2:-2.5;              %Number of isocurves
-        contour(X,Y,U,rho);                %Isoplot
+        rho = -3.5:5e-2:-2.5;                       % Number of isocurves
+        contour(X,Y,U,rho);                         % Isoplot
         scatter(R(1,1), R(2,1), 'k', 'filled');
         scatter(R(1,2), R(2,2), 'k', 'filled');
         labels = {'$M_1$', '$M_2$'};

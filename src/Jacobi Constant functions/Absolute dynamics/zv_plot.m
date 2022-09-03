@@ -7,7 +7,7 @@
 
 %% Zero velocity surfaces plot %%
 % For a given gravitational parameter mu, this function plots in 2D or 3D the zero velocity curves
-% corresponding to a given value of the Jacobi Constant.
+% corresponding to a given value of the Jacobi Constant
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system
 %         - scalar C, the given Jacobi constant
@@ -18,27 +18,27 @@
 % New versions: 
 
 function zv_plot(mu, C, dim) 
-    %Set graphics 
+    % Set graphics 
     set_graphics(); 
     
-    %Main plot
+    % Main plot
     if (dim == 3)
-        %3D configuration space meshgrid
+        % 3D configuration space meshgrid
         d = -2:0.05:2;
         [X,Y,Z] = meshgrid(d, d, d);
 
-        %Compute the pseudo-potential function
-        R1 = sqrt((X+mu).^2+Y.^2+Z.^2);     %Relative position to the first primary
-        R2 = sqrt((X-1+mu).^2+Y.^2+Z.^2);   %Relative position to the second primary
-        Uc = -(X.^2+Y.^2);                  %Centrifugal potential function
-        Ug = -2*((1-mu)./R1 + mu./R2);      %Gravitational potential function
-        U = Uc+Ug;                          %Total potential function
+        % Compute the pseudo-potential function
+        R1 = sqrt((X+mu).^2+Y.^2+Z.^2);     % Relative position to the first primary
+        R2 = sqrt((X-1+mu).^2+Y.^2+Z.^2);   % Relative position to the second primary
+        Uc = -(X.^2+Y.^2);                  % Centrifugal potential function
+        Ug = -2*((1-mu)./R1 + mu./R2);      % Gravitational potential function
+        U = Uc+Ug;                          % Total potential function
         
-        %Location of the primaries 
-        R(:,1) = [-mu; 0; 0];               %Location of the first primary
-        R(:,2) = [1-mu; 0; 0];              %Location of the second primary
+        % Location of the primaries 
+        R(:,1) = [-mu; 0; 0];               % Location of the first primary
+        R(:,2) = [1-mu; 0; 0];              % Location of the second primary
         
-        %Plot results
+        % Plot results
         view(3)
         hold on
         patch(isosurface(X,Y,Z,U,C), 'FaceColor', 'red', 'EdgeColor', 'none');
@@ -56,22 +56,22 @@ function zv_plot(mu, C, dim)
         zlabel('Synodic $z$ coordinate');
         title(sprintf('Zero velocity surface corresponding to C = %.2f', C));
     else
-        %3D configuration space meshgrid
+        % 3D configuration space meshgrid
         d = -2:0.01:2;
         [X,Y] = meshgrid(d, d);
 
-        %Compute the pseudo-potential function
-        R1 = sqrt((X+mu).^2+Y.^2);          %Relative position to the first primary
-        R2 = sqrt((X-1+mu).^2+Y.^2);        %Relative position to the second primary
-        Uc = -(X.^2+Y.^2);                  %Centrifugal potential function
-        Ug = -2*((1-mu)./R1 + mu./R2);      %Gravitational potential function
-        U = Uc+Ug;                          %Total potential function
+        % Compute the pseudo-potential function
+        R1 = sqrt((X+mu).^2+Y.^2);          % Relative position to the first primary
+        R2 = sqrt((X-1+mu).^2+Y.^2);        % Relative position to the second primary
+        Uc = -(X.^2+Y.^2);                  % Centrifugal potential function
+        Ug = -2*((1-mu)./R1 + mu./R2);      % Gravitational potential function
+        U = Uc+Ug;                          % Total potential function
         
-        %Location of the primaries 
-        R(:,1) = [-mu; 0; 0];               %Location of the first primary
-        R(:,2) = [1-mu; 0; 0];              %Location of the second primary
+        % Location of the primaries 
+        R(:,1) = [-mu; 0; 0];               % Location of the first primary
+        R(:,2) = [1-mu; 0; 0];              % Location of the second primary
         
-        %Plot results         
+        % Plot results         
         map = ones(2,3)*0.8;
         colormap(map);
         hold on

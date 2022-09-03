@@ -6,26 +6,25 @@
 % Validated: 
 
 %% Jacobi constant %%
-% For a given gravitational parameter mu, particular velocity
-% and position vectors v and r, this function computes the Jacobi constant
-% associated with that phase space vector. 
+% For a given gravitational parameter mu, phase space vector s, this function computes the Jacobi constant
+% associated with that phase space vector
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system. 
+% Inputs: - scalar mu, the reduced gravitational parameter of the system.
 %         - vector s, a 6x1 array containing both position and velocity of the satellite 
-%           respectively in the synodic frame.
+%           respectively in the synodic frame
 
-% Outputs: - scalar J, the Jacobi Constant associated with the input phase space vector. 
+% Outputs: - scalar J, the Jacobi Constant associated with the input phase space vector
 
 % New versions: 
 
 function [J] = jacobi_constant(mu, s)
-    %Define the synodic position and velocity vectors
-    r = s(1:3);     %Position vector
-    v = s(4:6);     %Velocity vector
+    % Define the synodic position and velocity vectors
+    r = s(1:3);     % Position vector
+    v = s(4:6);     % Velocity vector
         
-    %Compute the augmented potential function
+    % Compute the augmented potential function
     U = augmented_potential(mu, r);
     
-    %Compute the Jacobi Constant
+    % Compute the Jacobi Constant
     J = 2*U+dot(v,v);
 end
