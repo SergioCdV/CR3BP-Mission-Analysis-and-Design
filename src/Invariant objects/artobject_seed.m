@@ -7,122 +7,126 @@
 
 %% Linear seed %%
 % This script provides a function to generate a linear seed for various 
-% artificial, thursted objects or dynamical solutions.
+% artificial, thrusted objects or dynamical solutions
 
-% Inputs: - scalar mu, the reduced gravitational parameter of the system.
+% Inputs: - scalar mu, the reduced gravitational parameter of the system
 %         - vector parameters, containing the solution characteristic
-%           variables, as specified at each seed case.
+%           variables, as specified at each seed case
 %         - string object, to select the seed case to apply. Currently only
-%           halo and quasi-periodic torus seeds are available.
+%           halo and quasi-periodic torus seeds are available
 
 % Output: - vector field seed, containing the required initial solution
-%           seed. 
+%           seed
 
 % Methods: - Lyapunov orbits seeds employ a first order approximation from
 %           (solutions of the linearized equations of motion around the Lagrange
-%            point Li) from Howell et al.
+%            point Li) from Howell et al
 %          - Halo orbits seeds employ a semianalytical 3th order
-%            Richardson approximation. 
+%            Richardson approximation
 
-% New versions: include L3 solutions.
+% New versions: include L3 and triangular solutions
 
 function [seed, T] = artobject_seed(mu, parameters, object)
-    %Main interface 
+    % Main interface 
     switch (object) 
         case 'Lyapunov' 
-            [seed, T] = lyapunov_seed(mu, parameters);         %Generate a Lyapunov linear seed
+            [seed, T] = lyapunov_seed(mu, parameters);         % Generate a Lyapunov linear seed
         case 'Halo' 
-            [seed, T] = lyapunov_seed(mu, parameters);         %Generate a Halo 3D third order seed            
+            [seed, T] = lyapunov_seed(mu, parameters);         % Generate a Halo 3D third order seed            
         otherwise 
-            error('No valid options was selected');            %Display selection error
+            error('No valid options was selected');            % Display selection error
     end
 end
 
 %% Auxiliary functions 
-%Lyapunov linear seed orbit 
+% Lyapunov linear seed orbit 
 function [seed, T] = lyapunov_seed(mu, parameters)
-    %Constants 
-    rho = 10000;                %Number of points per period
+    % Constants 
+    rho = 10000;                % Number of points per period
     
     %Parameters of the Lyapunov orbit
-    Ax = parameters(1);         %In-plane trajectory
-    Az = parameters(2);         %Out-of-plane trajectory     
-    phi = parameters(3);        %In-plane phase
-    psi = parameters(4);        %Out-of-plane phase
-    n = parameters(5);          %Number of periods to generate
-    center = parameters(6:8);   %Center of the artificial orbit
+    Ax = parameters(1);         % In-plane trajectory
+    Az = parameters(2);         % Out-of-plane trajectory     
+    phi = parameters(3);        % In-plane phase
+    psi = parameters(4);        % Out-of-plane phase
+    n = parameters(5);          % Number of periods to generate
+    center = parameters(6:8);   % Center of the artificial orbit
 
-    %Artificial low thrust acceleration 
+    % Artificial low thrust acceleration 
     u = (1/2)*jacobi_gradient(mu, [center.'; zeros(3,1)]);
     a = norm(u(1:3));
         
     %Orbit parameters (frequencies)
-    c2 = mu/(center(1)-1+mu)^3+(1-mu)/(center(1)+mu)^3;         %Out-of-plane frequency
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+a)/(2*wp);                                      %Contraint on the planar amplitude
+    c2 = mu/(center(1)-1+mu)^3+(1-mu)/(center(1)+mu)^3;         % Out-of-plane frequency
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+a)/(2*wp);                                      % Contraint on the planar amplitude
     
-    %Temporal parametrization
-    T = (2*pi)/wp;                     %Period of the orbit 
-    tspan = linspace(0, n*T, rho);     %Integration vector
+    % Temporal parametrization
+    T = (2*pi)/wp;                     % Period of the orbit 
+    tspan = linspace(0, n*T, rho);     % Integration vector
     
-    %Seed trajectory
-    x = -Ax*cos(wp*tspan+phi);         %X relative coordinate
-    y = kap*Ax*sin(wp*tspan+phi);      %Y relative coordinate
-    z = Az*sin(wv*tspan+psi);          %Z relative coordinate
-    vx = wp*Ax*sin(wp*tspan+phi);      %Vx relative velocity
-    vy = kap*wp*Ax*cos(wp*tspan+phi);  %Vy relative velocity
-    vz = wv*Az*cos(wv*tspan+psi);      %Vz relative velocity  
+    % Seed trajectory
+    x = -Ax*cos(wp*tspan+phi);         % X relative coordinate
+    y = kap*Ax*sin(wp*tspan+phi);      % Y relative coordinate
+    z = Az*sin(wv*tspan+psi);          % Z relative coordinate
+    vx = wp*Ax*sin(wp*tspan+phi);      % Vx relative velocity
+    vy = kap*wp*Ax*cos(wp*tspan+phi);  % Vy relative velocity
+    vz = wv*Az*cos(wv*tspan+psi);      % Vz relative velocity  
     
     %Output seed
-    seed = [x.' y.' z.' vx.' vy.' vz.'];        %Seed trajectory relative to a Lagrange point
-    seed(:,1:3) = seed(:,1:3)+center;           %Seed trajectory relative to the artificial Lagrange point
+    seed = [x.' y.' z.' vx.' vy.' vz.'];        % Seed trajectory relative to a Lagrange point
+    seed(:,1:3) = seed(:,1:3)+center;           % Seed trajectory relative to the artificial Lagrange point
 end
 
-%Halo third order seed orbit
+% Halo third order seed orbit
 function [seed, T] = halo_seed(mu, parameters)
-    %Constants 
-    dtheta = 1e-3;              %Step in the angular variable
+    % Constants 
+    dtheta = 1e-3;              % Step in the angular variable
     
-    %Parameters of the orbit 
-    n = parameters(1);          %+1 for northern halo, -1 for southern halo
-    Az = parameters(2);         %Out-of-plane amplitude
-    L = parameters(3);          %Lagrange point identifier
-    gamma = parameters(4);      %Lagrange point coordinate
-    m = parameters(5);          %Number of periods
+    % Parameters of the orbit 
+    n = parameters(1);          % +1 for northern halo, -1 for southern halo
+    Az = parameters(2);         % Out-of-plane amplitude
+    L = parameters(3);          % Lagrange point identifier
+    gamma = parameters(4);      % Lagrange point coordinate
+    m = parameters(5);          % Number of periods
     
-    %Independent variable     
+    % Independent variable     
     tau = 0:dtheta:2*pi*m;
+
+    % Dimensionalising
+    Az = Az/gamma; 
     
-    %Determine some boolean parameters for the halo determination, concerning the nondimensional reference frame used in the
-    %approximation
-    if (L == 1) 
-        won = 1;            %Associated sign
-        primary = 1-mu;     %Reference primary position
-    elseif (L == 2) 
-        won = -1;           %Associated sign
-        primary = 1-mu;     %Reference primary position
-    elseif (L == 3) 
-        won = 1;            %Associated sign
-        primary = -mu;      %Reference primary position
-    else
-        error('No valid Lagrange point was selected'); 
+    % Determine some boolean parameters for the halo determination, concerning the nondimensional reference frame used
+    switch (L)
+        case 1
+            won = 1;            % Associated sign
+            primary = 1-mu;     % Reference primary position
+        case 2 
+            won = -1;           % Associated sign
+            primary = 1-mu;     % Reference primary position
+        case 3
+            won = 1;            % Associated sign
+            primary = -mu;      % Reference primary position
+        otherwise 
+            error('No valid Lagrange point was selected'); 
     end
     
-    %Legendre polynomial coefficients c_n for the Richardson approximation
-    order = 4;                                          %Order of the approximation
-    c = legendre_coefficients(mu, L, gamma, order);     %Legendre coefficients
+    % Legendre polynomial coefficients c_n for the Richardson approximation
+    order = 4;                                          % Order of the approximation
+    c = legendre_coefficients(mu, L, gamma, order);     % Legendre coefficients
     
-    %Determine the orbit spatial eigenvalue 
+    % Determine the orbit spatial eigenvalue 
     polylambda = [1 0 (c(2)-2) 0 -(c(2)-1)*(1+2*c(2))];
     lambda = sort(roots(polylambda));
+    
     if (L == 3) 
         lambda = abs(lambda(3));
     else
         lambda = abs(lambda(1));
     end
 
-    %Richardson 3th order approximation coefficients
+    % Richardson 3rd order approximation coefficients
     k = 2*lambda/(lambda^2+1-c(2));
     del = lambda^2-c(2);
     
@@ -156,10 +160,10 @@ function [seed, T] = halo_seed(mu, parameters)
     l2 = a2 + 2*(lambda^2)*s2;
     deltan = won*n;
 
-    %In-plane amplitude (related to Az by a non-linear analytical constraint)
+    % In-plane amplitude (related to Az by a non-linear analytical constraint)
     Ax = sqrt((-del-l2*Az^2)/l1);
 
-    %Phase space vector
+    % Phase space vector, third-order expansion
     x = a21*Ax^2+a22*Az^2-Ax*cos(tau)+(a23*Ax^2-a24*Az^2)*cos(2*tau)+(a31*Ax^3-a32*Ax*Az^2)*cos(3*tau);
     y = k*Ax*sin(tau)+(b21*Ax^2-b22*Az^2)*sin(2*tau)+(b31*Ax^3-b32*Ax*Az^2)*sin(3*tau);
     z = deltan*Az*cos(tau)+deltan*d21*Ax*Az*(cos(2*tau)-3)+deltan*(d32*Az*Ax^2-d31*Az^3)*cos(3*tau);
@@ -167,16 +171,16 @@ function [seed, T] = halo_seed(mu, parameters)
     dy = lambda*(k*Ax*cos(tau)+2*(b21*Ax^2-b22*Az^2)*cos(2*tau)+3*(b31*Ax^3-b32*Ax*Az^2)*cos(3*tau));
     dz = -lambda*deltan*Az*sin(tau)-2*lambda*deltan*d21*Ax*Az*sin(2*tau)-3*lambda*deltan*(d32*Az*Ax^2-d31*Az^3)*sin(3*tau);
 
-    %Position vector
-    x = (gamma*(x-won)+primary);   %Rescaled synodic x coordinate
-    y = gamma*y;                   %Rescaled synodic y coordinate
-    z = gamma*z;                   %Rescaled synodic z coordinate
-    r0 = [x.' -y.' z.'];           %Position vector
+    % Position vector
+    x = (gamma*(x-won)+primary);   % Rescaled synodic x coordinate
+    y = gamma*y;                   % Rescaled synodic y coordinate
+    z = gamma*z;                   % Rescaled synodic z coordinate
+    r0 = [x.' -y.' z.'];           % Position vector
 
-    %Velocity vector
+    % Velocity vector
     v0 = gamma*[dx.' dy.' dz.'];                            
     
-    %Output
+    % Output
     seed = [r0 v0];
     T = 2*pi/lambda;
 end

@@ -21,8 +21,8 @@ mu = 0.0121505856;                                          %Reduced gravitation
 L = libration_points(mu);                                   %Libration points computation
 
 %Generate a Lyapunov orbit seed
-Az = 50e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 50e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
+Ax = 20e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
 Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
@@ -62,21 +62,23 @@ UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, halo
 figure(1)
 hold on 
 plot3(lyapunov_orbit.Trajectory(:,1), lyapunov_orbit.Trajectory(:,2), lyapunov_orbit.Trajectory(:,3), 'k');
+plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3), 'k');
 for i = 1:size(StableManifold.Trajectory,1)
     ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
     plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
 end
+
 for i = 1:size(UnstableManifold.Trajectory,1)
     ManifoldAux = shiftdim(UnstableManifold.Trajectory(i,:,:));
     plot3(ManifoldAux(1:UnstableManifold.ArcLength(i),1), ManifoldAux(1:UnstableManifold.ArcLength(i),2), ManifoldAux(1:UnstableManifold.ArcLength(i),3), 'r');
 end
+%legend('Lyapunov orbit', 'Halo orbit', 'Halo orbit $W^s$', 'Halo orbit $W^u$', 'AutoUpdate', 'off', 'Location', 'northeast');
 scatter(1-mu, 0, 'k', 'filled');
 scatter(L(1,Ln), 0, 'k', 'filled');
 text([1-mu+1e-2 L(1,Ln)+0.02], [0 0], {'$M_2$', '$L_2$'});
 hold off
+grid on;
 xlabel('Synodic normalized $x$ coordinate');
 ylabel('Synodic normalized $y$ coordinate');
 zlabel('Synodic normalized $z$ coordinate');
 title('Unstable and stable manifolds of an $L_2$ Lyapunov orbit');
-legend('Lyapunov orbit', 'Stable manifold', 'Unstable manifold', 'Location', 'northeast');
-grid on;
