@@ -6,11 +6,11 @@
 % Validated: 06/07/21 
 
 %% Poincaré map crossing %%
-% This function contains a handle function to define orbital events to stop integration.
+% This function contains a handle function to define orbital events to stop integration
 
 function [Pos, isterminal, dir] = heteroclinic_crossing(~, x, mu, sign)
-    %Event definition
-    Pos = x(1)-(1-mu);  %Cross the x coordinate of the second primart
-    isterminal = 1;     %Halt the integration
-    dir = sign;         %Direction of the crossing
+    % Event definition
+    Pos = x(1)-(1-mu);      % Crossing of the Poincaré map at the secondary primary
+    isterminal = 1;         % Halt the integration
+    dir = sign;             % Direction of the crossing
 end

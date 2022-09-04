@@ -6,11 +6,11 @@
 % Validated: 
 
 %% x axis crossing %%
-% This function contains a handle function to define orbital events to stop integration.
+% This function contains a handle function to define orbital events to stop integration
 
 function [Pos, isterminal, dir] = x_crossing(~, x)
-    %Event definition
-    Pos = x(2);         %X axis crossing
-    isterminal = 1; 
-    dir = -1;           %Direction of the crossing
+    % Event definition
+    Pos = x(2);         % X axis crossing
+    isterminal = 1;     % Halt the integration
+    dir = -1;           % Direction of the crossing
 end

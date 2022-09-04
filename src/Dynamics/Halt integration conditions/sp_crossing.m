@@ -6,11 +6,11 @@
 % Validated: 
 
 %% Secondary primary crossing %%
-% This function contains a handle function to define orbital events to stop integration.
+% This function contains a handle function to define orbital events to stop integration
 
 function [Pos, isterminal, dir] = sp_crossing(~, x, mu)    
     %Event definition
-    Pos = x(1)-(1-mu);              %Secondary primary crossing
-    isterminal = 1; 
-    dir = 0;                        %Direction of the crossing
+    Pos = x(1)-(1-mu);              % Secondary primary crossing
+    isterminal = 1;                 % Halt the integration
+    dir = 0;                        % Direction of the crossing
 end
