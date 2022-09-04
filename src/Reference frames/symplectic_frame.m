@@ -17,10 +17,12 @@
 
 % Outputs: - the vector S, the state vector in the symplectic coordinate
 %            frame
+%          - matrix C, the symplectic-synodic canonical transformation
+%            matrix
 
 % New versions: 
 
-function [S] = symplectic_frame(mu, L, gamma, s)
+function [S, C] = symplectic_frame(mu, L, gamma, s)
     % Compute the eigenvalues of the problem 
     m = 6;                                                  % Dimension of the system 
     c = legendre_coefficients(mu, L, gamma, 2);             % Second order Legendre coefficient

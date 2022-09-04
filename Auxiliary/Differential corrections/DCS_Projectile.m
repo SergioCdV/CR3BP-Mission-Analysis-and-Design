@@ -80,6 +80,7 @@ plot(s1(1,:), s1(2,:), '-.r');
 plot(s(1,:), s(2,:), 'b');
 plot(xf(1), xf(2), 'o');
 hold off 
+grid on;
 xlabel('Range'); 
 ylabel('Altitude');
 title('Differential correction results for free fall motion'); 
@@ -155,6 +156,7 @@ figure(2)
 plot(s(:,1), s(:,2));
 xlabel('Range');
 ylabel('Altitude');
+grid on;
 title('Last correction to generate a Keplerian parabolic trajectory')
 
 %% Auxiliary functions

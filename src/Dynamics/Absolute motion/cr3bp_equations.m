@@ -10,63 +10,63 @@
 % the CR3BP General Library scripts. It accounts for a infinitesimal mass
 % moving in the normalized, non dimensional synodic frame define by the two primaries, which
 % are assumed to be in the same plane and in circular orbits. It also
-% contains the integration of the first variational equations of the flow.
+% contains the integration of the first variational equations of the flow
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system. 
 %         - scalar direction (in binary format, 1 or -1), indicating the
 %           time integration direction: 1 for forward integration, -1 for
-%           backward integration.
+%           backward integration
 %         - boolean flagVar, true for dyanmics and STM integration, 
-%           false for only dynamical integration.
-%         - scalar t, a reference epoch. 
+%           false for only dynamical integration
+%         - scalar t, a reference epoch
 %         - vector s, containing in an Nx1 array the phase space vector,
-%           possibly augmented with the state transition matrix at time t.
+%           possibly augmented with the state transition matrix at time t
 %         - cell array varargin, to include GNC requirements on the motion
 %           of the spacecraft
 
 % Outputs: - vector dr, the differential vector field, which will include
 %            the phase space trajectory and the STM integrated state when
-%            flagVar is true.
+%            flagVar is true
 
-% Methods: non-dimensional CR3BP dynamics in the synodic frame. 
+% Methods: non-dimensional CR3BP dynamics in the synodic frame
 
 % New versions: 
 
 function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
-    %Constants 
-    n = 6;                          %Phase space dimension 
+    % Constants 
+    n = 6;                          % Phase space dimension 
     
-    %Define the initial phase space vector
-    x = s(1);                       %Synodyc x coordinate
-    y = s(2);                       %Synodyc y coordinate 
-    z = s(3);                       %Synodyc z coordinate 
-    V = s(4:6);                     %Synodic velocity vector
+    % Define the initial phase space vector
+    x = s(1);                       % Synodyc x coordinate
+    y = s(2);                       % Synodyc y coordinate 
+    z = s(3);                       % Synodyc z coordinate 
+    V = s(4:6);                     % Synodic velocity vector
     
-    %Relevant system parameters
-    mup(1) = 1-mu;                  %First primary normalized position
-    mup(2) = mu;                    %Second primary normalized position
-    r(:,1) = [(x+mup(2)); y; z];    %Relative position vector to the first primary
-    r(:,2) = [(x-mup(1)); y; z];    %Relative position vector to the secondary primary
-    R(1) = norm(r(:,1));            %Distance to the first primary
-    R(2) = norm(r(:,2));            %Distance to the secondary primary
+    % Relevant system parameters
+    mup(1) = 1-mu;                  % First primary normalized position
+    mup(2) = mu;                    % Second primary normalized position
+    r(:,1) = [(x+mup(2)); y; z];    % Relative position vector to the first primary
+    r(:,2) = [(x-mup(1)); y; z];    % Relative position vector to the secondary primary
+    R(1) = norm(r(:,1));            % Distance to the first primary
+    R(2) = norm(r(:,2));            % Distance to the secondary primary
     
-    %Compute the time flow of the system (depending on the time direction)
+    % Compute the time flow of the system (depending on the time direction)
     if (direction == -1)
-        gamma = [x-2*V(2); y+2*V(1); 0];                                %Inertial acceleration
+        gamma = [x-2*V(2); y+2*V(1); 0];                                % Inertial acceleration
     else
-        gamma = [x+2*V(2); y-2*V(1); 0];                                %Inertial acceleration
+        gamma = [x+2*V(2); y-2*V(1); 0];                                % Inertial acceleration
     end
-    F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       %Time flow of the system
+    F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       % Time flow of the system
     
-    %Compute the GNC requirements 
+    % Compute the GNC requirements 
     if (~isempty(varargin))
         if (~isempty(varargin{1}))
-            GNC = varargin{1};                      %GNC handling structure
+            GNC = varargin{1};                      % GNC handling structure
             if (iscell(GNC))
                 GNC = GNC{1};
             end
 
-            %Include the GNC chain in the integration of the equations of motion
+            % Include the GNC chain in the integration of the equations of motion
             if (isfield(GNC.Algorithms, 'Control'))
                 switch (GNC.Algorithms.Control)
                     case 'MFKS'
@@ -75,29 +75,29 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
                         error('No valid GNC algorithm was selected')
                 end
     
-                %GNC scheme
-                [~, ~, u] = GNCt_handler(GNC, s.', t);            %Compute the control law
-                F(4:6) = F(4:6)+u;                                %Add the control vector 
+                % GNC scheme
+                [~, ~, u] = GNCt_handler(GNC, s.', t);            % Compute the control law
+                F(4:6) = F(4:6)+u;                                % Add the control vector 
             end
         end
     end
     
-    %Compute the variational equations if needed
+    % Compute the variational equations if needed
     if (flagVar)
-        %Compute the initial STM
-        Phi = reshape(s(n+1:end), [n n]);       %State transition matrix
-        J = abs_jacobian(mu,s);                 %Jacobian of the system 
-        dphi = J*Phi;                       	%Variational equations
+        % Compute the initial STM
+        Phi = reshape(s(n+1:end), [n n]);       % State Transition Matrix
+        J = abs_jacobian(mu,s);                 % Jacobian of the system 
+        dphi = J*Phi;                       	% Variational equations
         dphi = reshape(dphi, [n^2 1]); 
         
-        %Update the differential configuration space vector
+        % Update the differential configuration space vector
         dr = [F; dphi];
     else
-        %Update the differential configuration space vector
+        % Update the differential configuration space vector
         dr = F;  
     end
     
-    %Reverse the flow for backward integration
+    % Reverse the flow for backward integration
     if (direction == -1)
         dr = -dr;
     end

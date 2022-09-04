@@ -7,9 +7,8 @@
 
 %% Full relative motion in the CR3BP %%
 % This function contains the full nonlinear relative motion between two punctual particles in the 
-% circular restricted three body problem. It accounts for the two masses moving in the normalized, 
-% non dimensional synodic frame define by the two primaries, which are assumed to be in the same 
-% plane and in circular orbits. 
+% CR3BP. It accounts for the two masses moving in the normalized, non dimensional synodic frame 
+% define by the two primaries, which are assumed to be in the same  plane and in circular orbits
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system. 
 %         - scalar direction (in binary format, 1 or -1), indicating the

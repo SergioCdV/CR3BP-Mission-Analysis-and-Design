@@ -6,8 +6,7 @@
 % Validated: 
 
 %% CR3BP Dynamics %%
-% This function contains the 6-DOF dynamical model used within the rest of
-% the CR3BP General Library scripts.
+% This function contains the 6-DOF dynamical model of the CR3BP dynamics 
 
 % Inputs: - structure sysData, containing information about the central
 %           bodies of the system, concerned mainly with dimensionless data.

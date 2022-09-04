@@ -12,18 +12,18 @@
 %           with n the number of timeshots and m the phase space dimension (4 or 6)
 
 function plotObject(object)
-    %Analyze the dimension of the object 
+    % Analyze the dimension of the object 
     dim = size(object);
     
-    %Main procedure
+    % Main procedure
     if (any(dim == 20)) || (any(dim == 42)) || ((any(dim == 4)) || (any(dim == 6)))
-        %Select the proper format
+        % Select the proper format
         if (dim(1) == 4) || (dim(1) == 6)
             object = object.';
         end
         
-        %Plot object depending on its dimension
-        if (dim(2) == 4)
+        % Plot object depending on its dimension
+        if (size(object,2) == 4) || (size(object,2) == 20)
             plot(object(:,1), object(:,2));
             grid on;
         else
