@@ -42,7 +42,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 200e6;                                                 %Orbit amplitude out of the synodic plane. 
+Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
 Ln = 1;                                                     %Orbits around L1
 gamma = L(end,Ln);                                          %Li distance to the second primary
@@ -95,9 +95,9 @@ title('Relative orbit');
 figure(2)
 subplot(1,2,1)
 hold on
-plot(tspan, St(:,7)); 
-plot(tspan, St(:,8)); 
-plot(tspan, St(:,9)); 
+plot(tspan, S(:,7)); 
+plot(tspan, S(:,8)); 
+plot(tspan, S(:,9)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative configuration coordinates');
@@ -106,9 +106,9 @@ legend('$x$', '$y$', '$z$');
 title('Relative position in time');
 subplot(1,2,2)
 hold on
-plot(tspan, St(:,10)); 
-plot(tspan, St(:,11)); 
-plot(tspan, St(:,12)); 
+plot(tspan, S(:,10)); 
+plot(tspan, S(:,11)); 
+plot(tspan, S(:,12)); 
 hold off
 xlabel('Nondimensional epoch');
 ylabel('Relative velocity coordinates');

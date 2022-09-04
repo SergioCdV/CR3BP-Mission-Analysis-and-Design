@@ -94,6 +94,8 @@ GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
 GNC.Algorithms.Control = 'SDRE';                %Control algorithm
 
+GNC.Navigation.NoiseVariance = 0; 
+
 GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
 GNC.Control.Dimension = 3;                      %Dimension of the control law
 
