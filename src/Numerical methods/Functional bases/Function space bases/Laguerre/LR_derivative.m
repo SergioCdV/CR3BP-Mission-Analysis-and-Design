@@ -1,7 +1,11 @@
-%% Project: 
-% Date: 30/04/22
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
+% Date: 06/09/22
+% File: LR_derivative.m 
+% Issue: 0 
+% Validated:
 
-%% Laguerre derivative %%
+%% Laguerre polynomials derivative %%
 % This function allows to compute all Laguerre polynomials derivatives of order n,
 % evaluated at the argument u. 
 

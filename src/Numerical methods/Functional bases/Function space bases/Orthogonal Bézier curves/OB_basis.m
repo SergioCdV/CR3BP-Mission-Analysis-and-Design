@@ -1,7 +1,11 @@
-%% Project: 
-% Date: 29/01/2022
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
+% Date: 06/09/22
+% File: OB_basis.m 
+% Issue: 0 
+% Validated: 
 
-%% Orthogonal Bernstein polynomials
+%% Orthogonal Bernstein polynomials %%
 % This function uses the direct definition of orthogonal Bernstein polynomials
 
 % Inputs: - scalar degree, the number of polynomials in the basis

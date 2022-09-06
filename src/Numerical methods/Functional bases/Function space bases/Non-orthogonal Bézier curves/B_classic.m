@@ -1,9 +1,12 @@
-%% Project: 
-% Date: 29/01/2022
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
+% Date: 06/09/22
+% File: B_classic.m 
+% Issue: 0 
+% Validated:
 
 %% B_classic
-% This function uses the classical implementation for calculating a Bezier curve as defined by the determined points.
-% The time vector represents the number of points at which the curve B will be calculated
+% This function uses the classical implementation for calculating a Bezier curve as defined by the determined points
 
 % Inputs: - array points, the Bézier curve control points 
 %         - vector tvec, the control parameter t vector 

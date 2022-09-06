@@ -7,7 +7,7 @@
 
 %% Chebysev derivative %%
 % This function allows to compute all Chebyshev polynomials derivatives of order n of both kinds,
-% evaluated at the argument u. 
+% evaluated at the argument u
 
 % Inputs: - string kind, specifying the kind of Chebyshev polynomials to
 %           compute

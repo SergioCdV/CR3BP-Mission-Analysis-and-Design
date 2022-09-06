@@ -1,7 +1,11 @@
-%% Project: 
-% Date: 29/01/2022
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
+% Date: 06/09/22
+% File: B_casteljau.m 
+% Issue: 0 
+% Validated:
 
-%% B_casteljau
+%% B_casteljau %%
 % Function for calculation of a Bezier curve using De Casteljau's algorithm 
 
 % Inputs: - array points, the Bézier curve control points 

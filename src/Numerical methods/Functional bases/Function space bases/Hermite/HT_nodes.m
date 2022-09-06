@@ -1,9 +1,9 @@
-%% Project:  
+%% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 20/01/20
-% File: HT_nodes
+% Date: 06/09/22
+% File: HT_nodes.m 
 % Issue: 0 
-% Validated: 
+% Validated:
 
 %% Hermite nodes %%
 % This scripts provides the function to compute the Gauss-Hermite nodes

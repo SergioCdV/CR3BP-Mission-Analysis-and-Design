@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 30/04/22
-% File: CH_derivative.m 
+% File: CH_nodes.m 
 % Issue: 0 
 % Validated: 
 

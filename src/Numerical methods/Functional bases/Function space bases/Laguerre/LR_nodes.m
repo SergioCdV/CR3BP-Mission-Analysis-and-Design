@@ -1,9 +1,9 @@
-%% Project:  
+%% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 20/01/20
-% File: LG_nodes
+% Date: 06/09/22
+% File: LR_nodes.m 
 % Issue: 0 
-% Validated: 
+% Validated:
 
 %% Laguerre nodes %%
 % This scripts provides the function to compute the Laguerre nodes

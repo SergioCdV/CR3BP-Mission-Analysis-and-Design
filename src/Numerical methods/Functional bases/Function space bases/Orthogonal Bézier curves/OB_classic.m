@@ -4,7 +4,7 @@
 %% OB_classic
 % This function uses the classical implementation for calculating a Bezier
 % curve as defined by the determined points using orthonormal Bernstein
-% polynomials.
+% polynomials
 
 % The time vector represents the number of points at which the curve B will be calculated
 

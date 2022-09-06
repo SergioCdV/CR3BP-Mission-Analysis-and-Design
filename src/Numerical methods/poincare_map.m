@@ -12,30 +12,31 @@
 % Inputs: - structure Su, a portion of the unstable manifold
 %         - structure SS, a portion of the stable manifold
 %         - string map, selecting the Poincare map to compute
+
 % Output: - array S0, the initial conditions on the manifolds
 %         - vector TOF, containing the time of flight on each manifold
 
 % New versions: 
 
 function [S0, TOF] = poincare_map(Su, Ss, map)
-    %Constants 
+    % Constants 
     tol = 1e-3;     
     
-    %Branch the different Poincare maps
+    % Branch the different Poincare maps
     switch (map)
         case 'Connection'
-            %Preallocation of the intersection points 
+            % Preallocation of the intersection points 
             Iu = zeros(size(Su.Trajectory,1), size(Su.Trajectory,3));
             Is = zeros(size(Ss.Trajectory,1), size(Ss.Trajectory,3));
             
-            %Extract the intersection points 
+            % Extract the intersection points 
             for i = 1:size(Iu,1)
-                %Intersection of the stable manifold with the Poincare section
+                % Intersection of the stable manifold with the Poincare section
                 Iu(i,:) = shiftdim(Su.Trajectory(i,Su.ArcLength(i),:));    
             end
             
             for i = 1:size(Is,1)
-                %Intersection of the stable manifold with the Poincare section
+                % Intersection of the stable manifold with the Poincare section
                 if (size(Is,1) == 1)
                     Is(1,:) = shiftdim(Ss.Trajectory(1,Ss.ArcLength,:));
                 else
@@ -43,7 +44,7 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Select the connection point in the configuration space       
+            % Select the connection point in the configuration space       
             figure
             hold on 
             for i = 1:size(Iu,1)
@@ -90,7 +91,7 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
             %Configuration space initital conditions
             X0 = [x0 0 z0];                         
                
-            %Selected initial conditions on the unstable manifold
+            % Selected initial conditions on the unstable manifold
             k = 1; 
             Ius = zeros(size(Iu));
             indexu = zeros(size(Iu,1),2);
@@ -102,15 +103,15 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Save the intersection results
+            % Save the intersection results
             if (k == 1)
                 error('The unstable manifold does not intersect the Poincare section at the selected point');
             else
-                Ius = Ius(1:k-1,:);         %Selected intersection point
-                indexu = indexu(1:k-1);     %Selected intersection point
+                Ius = Ius(1:k-1,:);         % Selected intersection point
+                indexu = indexu(1:k-1);     % Selected intersection point
             end
             
-            %Selected initial conditions on the stable manifold
+            % Selected initial conditions on the stable manifold
             k = 1;
             Iss = zeros(size(Is));
             indexs = zeros(size(Is,1),1);
@@ -123,45 +124,45 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Save the intersection results
+            % Save the intersection results
             if (k == 1)
                 error('The stable manifold does not intersect the Poincare section at the selected point');
             else
-                Iss = Iss(1:k-1,:);         %Selected intersection point
-                indexs = indexs(1:k-1);     %Selected intersection point
+                Iss = Iss(1:k-1,:);         % Selected intersection point
+                indexs = indexs(1:k-1);     % Selected intersection point
             end
 
-            %Determine the size of the impulsive maneuver
+            % Determine the size of the impulsive maneuver
             dV = zeros(size(Ius,1), size(Iss,1)); 
             for i = 1:size(Ius,1)
                 for j = 1:size(Iss,1)
-                    dV(i,j) = norm(Ius(i,4:6)-Iss(j,4:6));    %Needed velocity change
+                    dV(i,j) = norm(Ius(i,4:6)-Iss(j,4:6));    % Needed velocity change
                 end
             end
           
-            %Find the minimum maneuver size
+            % Find the minimum maneuver size
             [Vr, Ir] = min(dV); 
             [~, Ic] = min(Vr);
             
-            %Output
+            % Output
             S0.Unstable = shiftdim(Su.Trajectory(indexu(Ir(Ic)),1,:));
             S0.Stable = shiftdim(Ss.Trajectory(indexs(Ic),1,:));
             TOF(1) = Su.TOF(indexu(Ir(Ic))); 
             TOF(2) = Ss.TOF(indexs(Ic));
 
         case 'X crossing'
-            %Preallocation of the intersection points 
+            % Preallocation of the intersection points 
             Iu = zeros(size(Su.Trajectory,1), size(Su.Trajectory,3));
             Is = zeros(size(Ss.Trajectory,1), size(Ss.Trajectory,3));
             
-            %Extract the intersection points 
+            % Extract the intersection points 
             for i = 1:size(Iu,1)
-                %Intersection of the stable manifold with the Poincare section
+                % Intersection of the stable manifold with the Poincare section
                 Iu(i,:) = shiftdim(Su.Trajectory(i,Su.ArcLength(i),:));    
             end
             
             for i = 1:size(Is,1)
-                %Intersection of the stable manifold with the Poincare section
+                % Intersection of the stable manifold with the Poincare section
                 if (size(Is,1) == 1)
                     Is(1,:) = shiftdim(Ss.Trajectory(1,Ss.ArcLength,:));
                 else
@@ -169,7 +170,7 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Select the connection point in the configuration space       
+            % Select the connection point in the configuration space       
             figure
             hold on 
             for i = 1:size(Iu,1)
@@ -213,10 +214,10 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
             ylabel('Synodic z coordinate')
             [x0, z0] = getpts(); 
             
-            %Configuration space initital conditions
+            % Configuration space initital conditions
             X0 = [x0 0 z0];                         
                
-            %Selected initial conditions on the unstable manifold
+            % Selected initial conditions on the unstable manifold
             k = 1; 
             Ius = zeros(size(Iu));
             indexu = zeros(size(Iu,1),2);
@@ -228,15 +229,15 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Save the intersection results
+            % Save the intersection results
             if (k == 1)
                 error('The unstable manifold does not intersect the Poincare section at the selected point');
             else
-                Ius = Ius(1:k-1,:);         %Selected intersection point
-                indexu = indexu(1:k-1);     %Selected intersection point
+                Ius = Ius(1:k-1,:);         % Selected intersection point
+                indexu = indexu(1:k-1);     % Selected intersection point
             end
             
-            %Selected initial conditions on the stable manifold
+            % Selected initial conditions on the stable manifold
             k = 1;
             Iss = zeros(size(Is));
             indexs = zeros(size(Is,1),1);
@@ -249,28 +250,27 @@ function [S0, TOF] = poincare_map(Su, Ss, map)
                 end
             end
             
-            %Save the intersection results
-            %Save the intersection results
+            % Save the intersection results
             if (k == 1)
                 error('The stable manifold does not intersect the Poincare section at the selected point');
             else
-                Iss = Iss(1:k-1,:);         %Selected intersection point
-                indexs = indexs(1:k-1);     %Selected intersection point
+                Iss = Iss(1:k-1,:);         % Selected intersection point
+                indexs = indexs(1:k-1);     % Selected intersection point
             end
             
-            %Determine the size of the impulsive maneuver
+            % Determine the size of the impulsive maneuver
             dV = zeros(size(Ius,1), size(Iss,1)); 
             for i = 1:size(Ius,1)
                 for j = 1:size(Iss,1)
-                    dV(i,j) = norm(Ius(i,4:6)-Iss(j,4:6));    %Needed velocity change
+                    dV(i,j) = norm(Ius(i,4:6)-Iss(j,4:6));    % Needed velocity change
                 end
             end
           
-            %Find the minimum maneuver size
+            % Find the minimum maneuver size
             [Vr, Ir] = min(dV); 
             [~, Ic] = min(Vr);
             
-            %Output
+            % Output
             S0.Unstable = shiftdim(Su.Trajectory(indexu(Ir(Ic)),1,:));
             S0.Stable = shiftdim(Ss.Trajectory(indexs(Ic),1,:));
             TOF(1) = Su.TOF(indexu(Ir(Ic))); 

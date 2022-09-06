@@ -1,7 +1,11 @@
-%% Project: 
-% Date: 30/01/2022
+%% CR3BP Library %% 
+% Sergio Cuevas del Valle
+% Date: 06/09/22
+% File: berstein_derivative.m 
+% Issue: 0 
+% Validated:
 
-%% Bernstein derivative %% 
+%% Bernstein polynomials derivative %% 
 % Function to compute the basis of the tangent space of the Bernstein polynomials 
 
 % Inputs:  - scalar n, the cardinal of the polynomial basis

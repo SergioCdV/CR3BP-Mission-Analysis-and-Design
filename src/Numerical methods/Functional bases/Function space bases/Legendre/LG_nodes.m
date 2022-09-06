@@ -1,9 +1,9 @@
-%% Project:  
+%% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 20/01/20
-% File: LG_nodes
+% Date: 06/09/22
+% File: LG_nodes.m 
 % Issue: 0 
-% Validated: 
+% Validated:
 
 %% Legendre-Gauss nodes %%
 % This scripts provides the function to compute the Legendre-Gauss nodes
@@ -31,7 +31,7 @@ function [y] = LG_nodes(N)
     maxIter = 1e4;  % Maximum number of iterations
 
     % Newton-Rhapson method
-    while (max(abs(y-y0)) > eps & iter < maxIter)   
+    while (max(abs(y-y0)) > eps && iter < maxIter)   
         for i = 1:length(y)
             L(i,:) = LG_derivative(N,y(i),1).';
             dL(i,:) = LG_derivative(N,y(i),2).';
