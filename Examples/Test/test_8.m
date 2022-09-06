@@ -7,42 +7,34 @@
 
 %% Test 8 %%
 % This scripts provides a test interface for the rest of the library
-% functions. 
+% functions
 
-% Test 8 is concerned with plotting several polynomial basis.
+% Test 8 is concerned with plotting several polynomial basis
 
 %% Main computation %%
-set_graphics(); 
+set_graphics();                                     % Graphical setting
 
 %Initial data
-order = 5;                                          %Number of polynomials to plot
-u = -1:1e-2:1;                                      %Normalized domain
+order = 5;                                          % Number of polynomials to plot
+u = -1:1e-2:1;                                      % Normalized domain
 
-%Polynomials evaluation
-L = LG_basis(order, u);                             %Preallocation of the polynomial basis
-T = CH_basis('first', order, u);                    %Computation of the polynomials
+% Polynomials evaluation
+L = LG_basis(order, u);                             % Preallocation of the polynomial basis
+T = CH_basis('first', order, u);                    % Computation of the polynomials
 
-%Regression of the a curve 
+% Regression of the a curve 
 t = 0:1e-3:5; 
 y = [ones(1,length(t)); zeros(2,length(t))]; 
 y(1,:) = t;
 dy = [ones(1,length(t)); zeros(2,length(t))];
 
-u = (2*t-(t(end)+t(1)))/(t(end)-t(1));              %Normalized time domain
+u = (2*t-(t(end)+t(1)))/(t(end)-t(1));              % Normalized time domain
 
-%Polynomials evaluation
-L = LG_basis(order, u);                             %Computation of the polynomials
-T = CH_basis('first', order, u);                    %Computation of the polynomials
+% Polynomials evaluation
+L = LG_basis(order, u);                             % Computation of the polynomials
+T = CH_basis('first', order, u);                    % Computation of the polynomials
 
 [Cp, Cv, Cg, Ci] =  CTR_guidance(order, t, [y; dy].');
-
-figure(4)
-yp = Cp*T; 
-yi = Ci*T; 
-hold on 
-plot(t,yp)
-plot(t,y)
-plot(t,yi(1,:))
 
 %% Plots and results %% 
 figure(1) 
@@ -67,3 +59,14 @@ xlabel('Normalized domain $u$');
 % legend('$T_0(u)$', '$T_1(u)$', '$T_2(u)$', '$T_3(u)$', '$T_4(u)$');
 ylabel('Chebyshev polynomial $T_n(u)$');
 
+figure(3)
+yp = Cp*T; 
+yi = Ci*T; 
+hold on 
+plot(t,yp)
+plot(t,y)
+plot(t,yi(1,:))
+hold off; 
+grid on;
+xlabel('Normalized domain $u$');
+ylabel('Chebyshev polynomial $T_n(u)$');

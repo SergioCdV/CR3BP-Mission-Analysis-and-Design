@@ -9,44 +9,51 @@
 % This scripts provides a test interface for the rest of the library
 % functions. 
 
-% Test 7 is concerned with differential correction algorithms for computation of dynamical 2D tori.
+% Test 7 is concerned with differential correction algorithms for 
+% computation of dynamical 2D tori
+
+%% Global setup 
+set_graphics();         % Set graphical environment 
+
+% Numerical setup 
+format long; 
+options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      % Integration tolerances
 
 %% Test values and constants
-%Set graphical environment 
-set_graphics(); 
+% Initial conditions
+mu = 0.0121505856;                                          % Reduced gravitational parameter of the system (Earth-Moon)
+Lem = 384400e3;                                             % Normalizing distance of the system (Earth-Moon)
+L = libration_points(mu);                                   % System libration points
+Az = 20e6;                                                  % Orbit amplitude out of the synodic plane. Play with it!
+Ax = 20e6;                                                  % Orbit amplitude in the synodic plane. Play with it! 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
+Ax = dimensionalizer(Lem, 1, 1, Ax, 'Position', 0);         % Normalize distances for the E-M system
+Ln = 1;                                                     % Orbits around Li. Play with it! (L1 or L2)
+gamma = L(end,Ln);                                          % Li distance to the second primary
+m = 1;                                                      % Number of periods to compute
+param_halo = [1 Az Ln gamma m];                             % Halo orbit parameters (-1 for southern halo)
+param_lyap = [Ax Az 0 0 Ln gamma m];                        % Lyapunov orbit parameters
 
-%Initial conditions
-mu = 0.0121505856;                                          %Reduced gravitational parameter of the system (Earth-Moon)
-L = libration_points(mu);                                   %System libration points
-Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 20e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
-gamma = L(end,Ln);                                          %Li distance to the second primary
-m = 1;                                                      %Number of periods to compute
-param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
-param_lyap = [Ax Az 0 0 Ln gamma m];                        %Lyapunov orbit parameters
-
-%Correction parameters 
-maxIter = 20;      %Maximum allowed iterations in the differential correction schemes
-tol = 1e-4;        %Tolerance 
+% Correction parameters 
+maxIter = 20;                                               % Maximum allowed iterations in the differential correction schemes
+tol = 1e-4;                                                 % Tolerance 
 
 %% Functions
-%Compute seeds
-[halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Generate a halo orbit seed
-lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    %Generate a Lyapunov orbit seed
-vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             %State vector of a vertical orbit
+% Compute seeds
+[halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   % Generate a halo orbit seed
+lyapunov_seed = object_seed(mu, param_lyap, 'Lyapunov');    % Generate a Lyapunov orbit seed
+vertical_seed = [0.9261 0 0.3616 0 -0.0544  0];             % State vector of a vertical orbit
 
-%Generate the orbits
+% Generate the orbits
 [lyapunov_orbit, ~] = differential_correction('Planar', mu, lyapunov_seed, maxIter, tol);
 [halo_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 [vertical_orbit, ~] = differential_correction('Double Plane Symmetric', mu, vertical_seed, maxIter, tol);
 
-%Compute the halo tori 
+% Compute the halo tori 
 [S, state] = differential_torus('Single shooting energy', mu, lyapunov_orbit, tol);
 
 %% Plot results 
+% Quasi-periodic tori
 figure(1) 
 view(3) 
 hold on
