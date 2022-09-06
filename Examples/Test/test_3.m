@@ -7,40 +7,40 @@
 
 %% Test 3 %%
 % This scripts provides a test interface for the rest of the library
-% functions. 
+% functions
 
-% Test 3 is concerned with the computation of invariant manifols associated
-% with periodic orbits.
+% Test 3 is concerned with the computation of invariant manifols 
+% associated with periodic orbits
 
 %% General setup 
-format long;                                                %Set command window numerical format
-set_graphics();                                             %Set up the graphical environment
+format long;                                                % Set command window numerical format
+set_graphics();                                             % Set up the graphical environment
 
 %% Initial conditions 
-mu = 0.0121505856;                                          %Reduced gravitational parameter of the system
-L = libration_points(mu);                                   %Libration points computation
+mu = 0.0121505856;                                          % Reduced gravitational parameter of the system
+L = libration_points(mu);                                   % Libration points computation
 
 %Generate a Lyapunov orbit seed
-Az = 20e6;                                                  %Orbit amplitude out of the synodic plane. Play with it!
-Ax = 20e6;                                                  %Orbit amplitude in the synodic plane. Play with it! 
-Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    %Normalize distances for the E-M system
-Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    %Normalize distances for the E-M system
-Ln = 1;                                                     %Orbits around Li. Play with it! (L1 or L2)
-gamma = L(end,Ln);                                          %Li distance to the second primary
-m = 1;                                                      %Number of orbital periods to compute
-param_halo = [1 Az Ln gamma m];                             %Halo orbit parameters (-1 for southern halo)
-param = [Ax Az 0 0 Ln gamma m];                             %Lyapunov orbit parameters
-lyapunov_seed = object_seed(mu, param, 'Lyapunov');         %Lyapunov seed     
+Az = 20e6;                                                  % Orbit amplitude out of the synodic plane. Play with it!
+Ax = 20e6;                                                  % Orbit amplitude in the synodic plane. Play with it! 
+Az = dimensionalizer(384400e3, 1, 1, Az, 'Position', 0);    % Normalize distances for the E-M system
+Ax = dimensionalizer(384400e3, 1, 1, Ax, 'Position', 0);    % Normalize distances for the E-M system
+Ln = 1;                                                     % Orbits around Li. Play with it! (L1 or L2)
+gamma = L(end,Ln);                                          % Li distance to the second primary
+m = 1;                                                      % Number of orbital periods to compute
+param_halo = [1 Az Ln gamma m];                             % Halo orbit parameters (-1 for southern halo)
+param = [Ax Az 0 0 Ln gamma m];                             % Lyapunov orbit parameters
+lyapunov_seed = object_seed(mu, param, 'Lyapunov');         % Lyapunov seed     
 [halo_seed, haloT] = object_seed(mu, param_halo, 'Halo');   %Halo orbit seed
 
-%Time integration
-Tf = pi;                                                    %Final time
-dt = 1e-3;                                                  %Time step
-tspan = 0:dt:Tf;                                            %Integration time span
+% Time integration
+Tf = pi;                                                    % Final time
+dt = 1e-3;                                                  % Time step
+tspan = 0:dt:Tf;                                            % Integration time span
 
-%Differential correction scheme set up
-maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
-tol = 1e-5;                                                 %Tolerance 
+% Differential correction scheme set up
+maxIter = 20;                                               % Maximum allowed iterations in the differential correction schemes
+tol = 1e-5;                                                 % Tolerance 
 
 %% Main test
 %Orbit computation
@@ -78,7 +78,7 @@ scatter(L(1,Ln), 0, 'k', 'filled');
 text([1-mu+1e-2 L(1,Ln)+0.02], [0 0], {'$M_2$', '$L_2$'});
 hold off
 grid on;
-xlabel('Synodic normalized $x$ coordinate');
-ylabel('Synodic normalized $y$ coordinate');
-zlabel('Synodic normalized $z$ coordinate');
+xlabel('Synodic $x$ coordinate');
+ylabel('Synodic $y$ coordinate');
+zlabel('Synodic $z$ coordinate');
 title('Unstable and stable manifolds of an $L_2$ Lyapunov orbit');

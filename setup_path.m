@@ -9,9 +9,9 @@
 % This scripts provides the function to generate the needed search paths 
 
 function setup_path()
-    %Generate the search paths of the main subfolders of the program
+    % Generate the search paths of the main subfolders of the program
     mainFolder = fileparts(which('setup_path'));
 
- 	%Add paths
+ 	% Add paths
     addpath(genpath(mainFolder), '-end');
 end
