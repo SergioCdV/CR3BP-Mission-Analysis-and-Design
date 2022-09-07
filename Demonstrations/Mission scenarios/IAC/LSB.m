@@ -6,63 +6,61 @@ set_graphics();
 close all
 
 %% Center Manifold Lissajous Shape-based Guidance demonstration for IAC 2022 %% 
-% This script provides an interface to demonstrate the LSB guidance core.
+% This script provides an interface to demonstrate the LSB guidance core
 
-% The relative motion of two spacecraft in the same halo orbit around L1 in the
-% Earth-Moon system is analyzed.
-
-% Units are non-dimensional and solutions are expressed in the Lagrange
-% points reference frame as defined by Howell, 1984.
+% Units are non-dimensional and solutions are expressed in the synodic
+% reference frame as defined by Howell, 1984.
 
 %% Trajectory generation 
-%CR3BP constants 
-mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
-L = libration_points(mu);           %System libration points
-Lem = 384400e3;                     %Mean distance from the Earth to the Moon
-T0 = 28*86400/(2*pi);               %Mean period for the Earth-Moon system
+% CR3BP constants 
+mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
+L = libration_points(mu);           % System libration points
+Lem = 384400e3;                     % Mean distance from the Earth to the Moon
+T0 = 28*86400/(2*pi);               % Mean period for the Earth-Moon system
 
-%Differential corrector set up
-nodes = 10;                         %Number of nodes for the multiple shooting corrector
-maxIter = 20;                       %Maximum number of iterations
-tol = 1e-10;                        %Differential corrector tolerance
+% Differential corrector set up
+nodes = 10;                         % Number of nodes for the multiple shooting corrector
+maxIter = 20;                       % Maximum number of iterations
+tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
-%Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
+% Halo characteristics 
+Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+Ln = 1;                                                             % Orbits around L1
+gamma = L(end,Ln);                                                  % Li distance to the second primary
+m = 1;                                                              % Number of periods to compute
 
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% Compute a halo orbit seed 
+halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
-%Correct the seed and obtain initial conditions for a halo orbit
+% Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%Continuate the first halo orbit to locate the chaser spacecraft
-Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 5;                                                            %Number of orbits to continuate
-method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                                      %Differential corrector method
-direction = 1;                                                      %Direction to continuate (to the Earth)
-setup = [mu maxIter tol direction];                                 %General setup
+% Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
+num = 5;                                                            % Number of orbits to continuate
+method = 'SPC';                                                     % Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                        % Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, target_orbit.Period};                 % Object and characteristics to continuate
+corrector = 'Plane Symmetric';                                      % Differential corrector method
+direction = 1;                                                      % Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                                 % General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
-%Halo characteristics 
-Az = 10e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
+% Halo characteristics 
+Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+Ln = 1;                                                             % Orbits around L1
+gamma = L(end,Ln);                                                  % Li distance to the second primary
+m = 1;                                                              % Number of periods to compute
 
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% Compute a halo orbit seed 
+halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
+
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Setup of the solution method
@@ -79,10 +77,10 @@ initial_state = chaser_orbit.Trajectory(50,1:6);
 target_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-3;     % Maximum acceleration 
+T = 5e-4;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
-% Setup 
+% Setup of the SBOPT routine
 options.order = n; 
 options.basis = basis;
 options.grid = time_distribution; 
@@ -93,14 +91,14 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-GNC.Algorithm = 'SDRE';         % Solver algorithm
+GNC.Algorithm = 'SDRE';                 % Solver algorithm
 GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 GNC.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
 GNC.TOF = pi;                           % Maneuver time
-GNC.SBOPT.setup = options;
+GNC.SBOPT.setup = options;              % SBOPT setup
 
- method = 'Prescribed shape-based'; 
+% method = 'Prescribed shape-based'; 
 % method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
 % method = 'Minimum energy';

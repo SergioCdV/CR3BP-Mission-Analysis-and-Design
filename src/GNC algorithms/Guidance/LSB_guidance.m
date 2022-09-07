@@ -11,11 +11,14 @@
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
-%         - scalar tf, the final time of flight
+%         - scalar L, the ID of the libration point around which the target
+%           orbits
+%         - scalar gamma, the characteristic distance of the libration
+%           point
 %         - vector s0, initial conditions of both the target and the chaser
-%         - scalar epsilon, the manifold displaement factor
-%         - scalar tol, the differential corrector scheme tolerance for the
-%           constrained maneuver
+%         - string method, the solver of the optimal control TVBP
+%         - scalar tf, the final time of flight
+%         - structure GNC, defining the characteristics of the algorithm
 
 % Output: - array S, the rendezvous relative trajectory
 %         - array u, the needed control vector 
@@ -23,16 +26,15 @@
 %         - array lissajous_constants, indicating the evolution in time of
 %           the Lissajous curve parameters
 
-% New versions: 
+% New versions: implement DeCasteljau's algorithm
 
-%% Auxiliary functions 
 function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method, tf, GNC)    
-    %Sanity check on initial conditions dimension 
+    % Sanity check on initial conditions dimension 
     if (size(s0,1) == 1)
         s0 = s0.';
     end
 
-    %Branch the different algorithms 
+    % Branch the different algorithms 
     switch (method)
        case 'Prescribed shape-based'
             [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf);
@@ -45,44 +47,43 @@ function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method
         otherwise 
             error('No valid algorithm has been selected')
     end
-
-    u(2,:) = zeros(1,size(u,2));
 end
 
 %% Auxiliary functions
 % Employ a 3rd order Bézier curve to impose the needed lissajous trajectory
 function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf)
     % Constants of the model
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
 
     % Time span 
-    tspan = 0:1e-3:tf;                                          %Dimensional time span 
-    tau = tspan/tf;                                             %Non-dimensional time span
+    tspan = 0:1e-3:tf;                                          % Dimensional time span 
+    tau = tspan/tf;                                             % Non-dimensional time span
 
     % Initial constants
-    phi0 = atan2(s0(2), -kap*s0(1));
+    phi0 = atan2(s0(2), -kap*s0(1));                            % In-plane initial phase
     lissajous_constants(7,:) = phi0*ones(1,length(tspan));      % In-plane initial phase 
     lissajous_constants(8,:) = (pi/2)*ones(1,length(tspan));    % Out-of-plane initial phase 
 
     % Amplitude computation 
-    initial = -s0(1)/cos(phi0);                                 % Initial conditions
-    initial([2 4]) = [s0(3); s0(6)];
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);
-    final = zeros(4,1);                                         % Rendezvous sufficient conditions
+    initial = -s0(1)/cos(phi0);                                 % Initial conditions on the in-plane amplitude
+    initial([2 4]) = [s0(3); s0(6)];                            % Initial conditions on the amplitudes
+    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial conditions on the in-plane amplitude velocity
+    final = zeros(4,1);                                         % Rendezvous sufficient/necessary conditions
     
-    % Compute the Bézier curve 
-    B = cell(2,1);                  % Polynomial basis           
+    % Compute the Bézier curve polynomial basis 
+    B = cell(2,1);                                                     
     for i = 1:2
         B{i} = [bernstein_basis(3,tau); bernstein_derivative(3,tau,1); bernstein_derivative(3,tau,2)];
     end
 
-    initial(3:4) = tf*initial(3:4);
-    final(3:4) = tf*final(3:4);
+    initial(3:4) = tf*initial(3:4);                             % Non-dimensional initial amplitude velocities
+    final(3:4) = tf*final(3:4);                                 % Non-dimensional final amplitude velocities
                
+    % Control points
     P(:,1) = initial(1:2);
     P(:,2) = initial(1:2)+initial(3:4)/3;
     for i = 1:2
@@ -90,6 +91,7 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
         P(i,4) = final(i);
     end
 
+    % Bézier curve
     for i = 1:size(P,1)
         % State vector fitting
         for j = 1:3
@@ -104,14 +106,15 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
     % Final TOF 
     tf = tspan(end);
 
-    Ax = lissajous_constants(1,:);        % In-plane amplitude
-    Az = lissajous_constants(2,:);        % Out-of-plane amplitude
-    phi = lissajous_constants(7,:);       % In-plane initial phase
-    psi = lissajous_constants(8,:);       % In-plane initial phase
-    dAx = lissajous_constants(3,:);       % First derivative of the in-plane amplitude
-    dAz = lissajous_constants(4,:);       % First derivative of the out-of-plane amplitude
-    ddAx = lissajous_constants(5,:);      % Second derivative of the in-plane amplitude
-    ddAz = lissajous_constants(6,:);      % Second derivative of the out-of-plane amplitude
+    % Rendezvous phase-space trajectory
+    Ax = lissajous_constants(1,:);                                           % In-plane amplitude
+    Az = lissajous_constants(2,:);                                           % Out-of-plane amplitude
+    phi = lissajous_constants(7,:);                                          % In-plane initial phase
+    psi = lissajous_constants(8,:);                                          % In-plane initial phase
+    dAx = lissajous_constants(3,:);                                          % First derivative of the in-plane amplitude
+    dAz = lissajous_constants(4,:);                                          % First derivative of the out-of-plane amplitude
+    ddAx = lissajous_constants(5,:);                                         % Second derivative of the in-plane amplitude
+    ddAz = lissajous_constants(6,:);                                         % Second derivative of the out-of-plane amplitude
     
     S(1,:) = -Ax.*cos(wp*tspan+phi);                                         % X relative coordinate
     S(2,:) = kap*Ax.*sin(wp*tspan+phi);                                      % Y relative coordinate
@@ -121,33 +124,34 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
  
     % Compute the final control law 
-    u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*wp.*sin(wp*tspan+phi); kap*(ddAx.*sin(wp*tspan+phi)+2*dAx*wp.*cos(wp*tspan+phi)); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
+    u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*wp.*sin(wp*tspan+phi); zeros(1,length(tspan)); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
 end
 
 % Numerical solution
 function [S, u, tf, lissajous_constants] = num_lissajous(mu, L, gamma, s0, GNC)
     % Setup 
-    setup = GNC.SBOPT.setup;                                    %Setup of the shape-based optimization
+    setup = GNC.SBOPT.setup;                                    % Setup of the shape-based optimization
 
     % Constants of the model
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
 
     % Initial conditions
-    phi0 = atan2(s0(2), -kap*s0(1));                            % Constant in-plane phase
-    psi0 = pi/2;                                                % Constant out-of-plane phase
+    phi0 = atan2(s0(2), -kap*s0(1));                            % Constant initial in-plane phase
+    psi0 = pi/2;                                                % Constant initial out-of-plane phase
 
     % Amplitude computation 
-    initial = -s0(1)/cos(phi0);                                 % Initial conditions
-    initial([2 4]) = [s0(3); s0(6)];
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);
+    initial = -s0(1)/cos(phi0);                                 % Initial conditions on the in-plane amplitude
+    initial([2 4]) = [s0(3); s0(6)];                            % Initial conditions on the out-of-plane amplitude and velocity
+    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial conditions on the in-plane amplitude velocity
 
+    % Numerical optimization
     [x, ~, u, tf, ~, tau, ~, ~] = mfls_optimization(wp, wv, kap, phi0, psi0, initial, GNC.Tmax, setup); 
 
-    % Compute the final relative trajectory
+    % Rendezvous relative trajectory in phase space
     Ax = x(1,:);                                                             % In-plane amplitude
     Az = x(2,:);                                                             % Out-of-plane amplitude
     phi = repmat(phi0,1,size(x,2));                                          % In-plane initial phase
@@ -169,29 +173,21 @@ end
 % Rendezvous as a dynamical system
 function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, GNC)
     % Constants of the model
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
 
     % Initial conditions
     phi0 = atan2(s0(2), -kap*s0(1));                            % Constant in-plane phase
     psi0 = pi/2;                                                % Constant out-of-plane phase
 
     % Amplitude computation 
-    initial = -s0(1)/cos(phi0);                                 % Initial conditions
-    initial([2 4]) = [s0(3); s0(6)];
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);
-    final = zeros(4,1);                                         % Rendezvous sufficient conditions
-
-    % Restrict the TOF for some control algorithms to avoid singularities 
-%     switch (GNC.Algorithm)
-%         case 'SDRE'
-%             tf(1) = pi/(2*wv);          % Maximum non-singular TOF for the out-of-plane motion
-%             tf(2) = (pi/2-phi0)/wp;     % Maximum non-singular TOF for the in-plane motion
-%             tf = min(tf);               % Avoid any singularity
-%     end
+    initial = -s0(1)/cos(phi0);                                 % Initial conditions on the in-plane amplitude
+    initial([2 4]) = [s0(3); s0(6)];                            % Initial conditions on the out-of-plane amplitude and velocity
+    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial conditions on the in-plane amplitude velocity
+    final = zeros(4,1);                                         % Rendezvous sufficient/necessary conditions
 
     % Initial estimation of the TOF      
     tspan = 0:1e-3:tf; 
@@ -203,7 +199,7 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     % Final TOF 
     tf = t(end); 
 
-    % Compute the final relative trajectory
+    % Rendezvous relative trajectory in phase-space
     Ax = x(:,1).';                                                           % In-plane amplitude
     Az = x(:,2).';                                                           % Out-of-plane amplitude
     phi = repmat(phi0,1,size(x,1));                                          % In-plane initial phase
@@ -229,7 +225,7 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     lissajous_constants(7:8,:) = [phi; psi];
 
     % Compute the final control law
-    u = [u(1,:); kap*x(:,5).'.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); u(3,:)];      % Complete control law
+    u = [u(1,:); zeros(1,length(tspan)); u(3,:)];     
 
     switch (GNC.Algorithm)
         case 'SDRE'
@@ -242,33 +238,33 @@ end
 % Minimum energy solution 
 function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, GNC)
     % Constants of the model
-    cn = legendre_coefficients(mu, L, gamma, 2);                %Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 %Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 %In-plane frequency
-    wv  = sqrt(c2);                                             %Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 %Contraint on the planar amplitude
-    Tmax = GNC.Tmax;                                            %Maximum axial acceleration
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
+    Tmax = GNC.Tmax;                                            % Maximum axial acceleration
 
     % Time span 
-    tspan = 0:1e-3:tf;                                          %Dimensional time span 
-    tau = tspan/tf;                                             %Non-dimensional time span
+    tspan = 0:1e-3:tf;                                          % Dimensional time span 
+    tau = tspan/tf;                                             % Non-dimensional time span
 
     % Initial constants
-    phi0 = atan2(s0(2), -kap*s0(1));
-    lissajous_constants(7,:) = phi0*ones(1,length(tspan));      % In-plane initial phase 
-    lissajous_constants(8,:) = (pi/2)*ones(1,length(tspan));    % Out-of-plane initial phase 
+    phi0 = atan2(s0(2), -kap*s0(1));                            % Initial in-plane phase
+    lissajous_constants(7,:) = phi0*ones(1,length(tspan));      % Initial in-plane phase 
+    lissajous_constants(8,:) = (pi/2)*ones(1,length(tspan));    % Initial out-of-plane phase 
 
     % Amplitude computation 
-    initial = zeros(4,1);                                       % Rendezvous sufficient conditions
-    initial(1) = -s0(1)/cos(phi0);                              % Initial conditions
-    initial([2 4]) = [s0(3); s0(6)];
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);
+    initial = zeros(4,1);                                       % Preallocation of initial conditions
+    initial(1) = -s0(1)/cos(phi0);                              % Initial condition on the in-plane amplitude
+    initial([2 4]) = [s0(3); s0(6)];                            % Initial condition on the out-of-plane amplitude and velocity
+    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial condition on the in-plane amplitude velocity
     
     % Compute the analytical solution
-    initial(3:4) = tf*initial(3:4);
-
-    c1 = -6*initial(1:2)-4*initial(3:4); 
-    c2 = 12*initial(1:2)+6*initial(3:4);
+    initial(3:4) = tf*initial(3:4);                             % Velocity dimensionalizing
+    c1 = -6*initial(1:2)-4*initial(3:4);                        % Constant of motion
+    c2 = 12*initial(1:2)+6*initial(3:4);                        % Constant of motion
+    
     lissajous_constants(1:2,:) = (1/6)*c2.*tau.^3+(1/2)*c1.*tau.^2+initial(3:4)*tau+initial(1:2);
     lissajous_constants(3:4,:) = (1/2)*c2.*tau.^2+c1.*tau+initial(3:4);
     lissajous_constants(5:6,:) = c1+c2*tau;
@@ -277,15 +273,16 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
     lissajous_constants(3:4,:) = lissajous_constants(3:4,:)/tf;
     lissajous_constants(5:6,:) = lissajous_constants(5:6,:)/tf^2;
 
-    Ax = lissajous_constants(1,:);        % In-plane amplitude
-    Az = lissajous_constants(2,:);        % Out-of-plane amplitude
-    phi = lissajous_constants(7,:);       % In-plane initial phase
-    psi = lissajous_constants(8,:);       % In-plane initial phase
-    dAx = lissajous_constants(3,:);       % First derivative of the in-plane amplitude
-    dAz = lissajous_constants(4,:);       % First derivative of the out-of-plane amplitude
-    ddAx = lissajous_constants(5,:);      % Second derivative of the in-plane amplitude
-    ddAz = lissajous_constants(6,:);      % Second derivative of the out-of-plane amplitude
+    Ax = lissajous_constants(1,:);                                           % In-plane amplitude
+    Az = lissajous_constants(2,:);                                           % Out-of-plane amplitude
+    phi = lissajous_constants(7,:);                                          % In-plane initial phase
+    psi = lissajous_constants(8,:);                                          % In-plane initial phase
+    dAx = lissajous_constants(3,:);                                          % First derivative of the in-plane amplitude
+    dAz = lissajous_constants(4,:);                                          % First derivative of the out-of-plane amplitude
+    ddAx = lissajous_constants(5,:);                                         % Second derivative of the in-plane amplitude
+    ddAz = lissajous_constants(6,:);                                         % Second derivative of the out-of-plane amplitude
     
+    % Rendezvous relative trajectory in phase-space
     S(1,:) = -Ax.*cos(wp*tspan+phi);                                         % X relative coordinate
     S(2,:) = kap*Ax.*sin(wp*tspan+phi);                                      % Y relative coordinate
     S(3,:) = Az.*sin(wv*tspan+psi);                                          % Z relative coordinate
@@ -295,16 +292,14 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
  
     % Compute the final control law 
     u = Tmax*[-(ddAx+2*dAx*(wp-kap).*sin(wp*tspan+phi)).*cos(wp*tspan+phi); (ddAz+2*dAz*wv.*cos(wv*tspan+psi)).*sin(wv*tspan+psi)];
-    u = [u(1,:); kap*ddAx.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); u(2,:)];      
+    u = [u(1,:); zeros(1,length(tspan)); u(2,:)];      
 end
 
 % First order form of the amplitude dynamics 
-function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
-    % Initialization
-    u = zeros(2,1); 
-    
+function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)    
     % Constants
-    Tmax = GNC.Tmax;                                    % Maximum thrust
+    Tmax = GNC.Tmax;               % Maximum thrust
+    u = zeros(2,1);                % Preallocation of the control vector
 
     % Compute the control law 
     switch (GNC.Algorithm)
@@ -381,8 +376,8 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 end
 
 % Rendezvous event 
-function [Pos, isterminal, dir] = rendezvous(final, t, s)
+function [Pos, isterminal, dir] = rendezvous(final, ~, s)
     Pos = norm(final-s);        % Distance to the prescribed final state
-    isterminal = 1; 
-    dir = 0; 
+    isterminal = 1;             % Halt the integration
+    dir = 0;                    % Crossing direction of the event
 end
