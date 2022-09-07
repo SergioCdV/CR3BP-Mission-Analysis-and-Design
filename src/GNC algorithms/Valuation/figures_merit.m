@@ -6,7 +6,8 @@
 % Validated: 25/05/21
 
 %% Figures of merit %%
-% This script contains the function to compute the figures of merit of the trajectory error.
+% This script contains the function to compute the figures of merit related
+% to error tracking performance
 
 % Inputs: - vector tspan, the integration time
 %         - array S, the trajectory to evaluate
@@ -16,27 +17,20 @@
 % New versions: 
 
 function [error, merit] = figures_merit(tspan, S)
-    %Preallocation 
-    merit = zeros(4,1);                             %Figures of merit evaluating the rendezvous trajectory
-    error = zeros(length(tspan),1);                 %Error to rendezvous 
-    dumb = zeros(length(tspan),1);                  %Just an auxiliary variable
-    
-    %Error in time 
-    for i = 1:length(tspan)
-        error(i) = norm(S(i,7:12));
-    end
+    % Preallocation 
+    merit = zeros(4,1);                             % Figures of merit evaluating the error performance
 
-    %Compute the error figures of merit 
-    merit(1) = trapz(tspan, error.^2);              %Integral of the square error                             
-    merit(2) = trapz(tspan, abs(error));            %Integral of the absolute value of the error
-    
-    for i = 1:length(tspan)
-        dumb(i) = tspan(i)*error(i)^2;
+    % Dimension sanity check 
+    if (size(S,2) < size(S,1))
+        S = S.';
     end
-    merit(3) = trapz(tspan, dumb);                  %Integral of the time multiplied by the square error    
     
-    for i = 1:length(tspan)
-        dumb(i) = tspan(i)*abs(error(i));
-    end
-    merit(4) = trapz(tspan, dumb);                  %Integral of the time multiplied by the absolute value of the error
+    % Error in time 
+    error = sqrt(dot(S,S,1));
+
+    % Compute the error figures of merit 
+    merit(1,1) = trapz(tspan, error.^2);              % Integral of the Squared Error                             
+    merit(2,1) = trapz(tspan, abs(error));            % Integral of the Absolute value of the Error
+    merit(3,1) = trapz(tspan, tspan.*error.^2);       % Integral of the time multiplied by the square error    
+    merit(4,1) = trapz(tspan, tspan.*abs(error));     % Integral of the time multiplied by the absolute value of the error
 end

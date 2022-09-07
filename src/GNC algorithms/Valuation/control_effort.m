@@ -6,33 +6,29 @@
 % Validated: 25/05/21
 
 %% Control effort %%
-% This script contains the function to compute the control effort (Lp norm) of a given control law.
+% This script contains the function to compute the control effort (Lp norm) of a given control law
 
-% Inputs: - vector tspan, the integration time 
-%         - vector u, the control law to be evaluated 
-%         - boolean discrete_flag, if the control law is discrete
+% Inputs: - vector tspan, the control time span 
+%         - 3xm array  u, the control law to be evaluated
+%         - boolean discrete_flag, to account for impulsive control laws
 
 % Output: - vector effort, containing the main Lp norms of the control law
 
 % New versions: 
 
 function [effort] = control_effort(tspan, u, discrete_flag)
-    %Preallocation 
-    effort = zeros(size(u,1),3);       %Figures of merit evaluating the rendezvous trajectory
+    % Preallocation 
+    effort = zeros(3,1);                          % Figures of merit 
    
     if (discrete_flag)
-        %Error in time 
-        for i = 1:size(u,1)
-            effort(i,1) = sum(u(i,:).^2);           %L2 integral of the control
-            effort(i,2) = sum(abs(u(i,:)));         %L1 integral of the control
-            effort(i,3) = sum(u(i,:));              %Integral of the control
-        end
+        % Control effort in time 
+            effort(1) = sum(sqrt(dot(u,u,1)));                  % L2 integral of the control
+            effort(2) = sum(sum(abs(u),1));                     % L1 integral of the control
+            effort(3) = sum(dot(u,u,1));                        % Integral of the control
     else
-        %Error in time 
-        for i = 1:size(u,1)
-            effort(i,1) = trapz(tspan, u(i,:).^2);                %L2 integral of the control
-            effort(i,2) = trapz(tspan, sum(abs(u(i,:)),1));       %L1 integral of the control
-            effort(i,3) = trapz(tspan, u(i,:));                   %Integral of the control
-        end
+        % Control effort in time 
+            effort(1) = trapz(tspan, sqrt(dot(u,u,1)));         % L2 integral of the control
+            effort(2) = trapz(tspan, sum(abs(u),1));            % L1 integral of the control
+            effort(3) = trapz(tspan, dot(u,u,1));               % Integral of the control
     end
 end
