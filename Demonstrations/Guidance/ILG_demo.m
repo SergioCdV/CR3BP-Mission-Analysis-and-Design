@@ -2,65 +2,62 @@
 % Sergio Cuevas del Valle % 
 % 06/12/21 % 
 
-%% GNC 13: Center Manifold Lissajous Guidance %% 
-% This script provides an interface to test the CML guidance core.
+%% GNC 13: Center Manifold Impulsive Lissajous Guidance %% 
+% This script provides an interface to test the CML guidance core
 
-% The relative motion of two spacecraft in the same halo orbit (closing and RVD phase) around L1 in the
-% Earth-Moon system is analyzed.
-
-% Units are non-dimensional and solutions are expressed in the Lagrange
-% points reference frame as defined by Howell, 1984.
+% Units are non-dimensional and solutions are expressed in the synodic
+% reference frame as defined by Howell, 1984.
 
 %% Set up %%
-%Set up graphics 
+% Set up graphics 
 set_graphics();
 
-%Integration tolerances (ode113)
+% Integration tolerances (ode113)
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
-%Phase space dimension 
+% Phase space dimension 
 n = 6; 
 
-%Time span 
-dt = 1e-3;                          %Time step
-tf = 1;                             %Rendezvous time
-tspan = 0:dt:pi;                    %Integration time span
+% Time span 
+dt = 1e-3;                          % Time step
+tf = 1;                             % Rendezvous time
+tspan = 0:dt:pi;                    % Integration time span
 
-%CR3BP constants 
-mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
-L = libration_points(mu);           %System libration points
-Lem = 384400e3;                     %Mean distance from the Earth to the Moon
+% CR3BP constants 
+mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
+L = libration_points(mu);           % System libration points
+Lem = 384400e3;                     % Mean distance from the Earth to the Moon
 
-%Differential corrector set up
-nodes = 10;                         %Number of nodes for the multiple shooting corrector
-maxIter = 20;                       %Maximum number of iterations
-tol = 1e-10;                        %Differential corrector tolerance
+% Differential corrector set up
+nodes = 10;                         % Number of nodes for the multiple shooting corrector
+maxIter = 20;                       % Maximum number of iterations
+tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
-%Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
+% Halo characteristics 
+Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+Ln = 1;                                                             % Orbits around L1
+gamma = L(end,Ln);                                                  % Li distance to the second primary
+m = 1;                                                              % Number of periods to compute
 
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
+% Compute a halo orbit seed 
+halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
-%Correct the seed and obtain initial conditions for a halo orbit
+% Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%Continuate the first halo orbit to locate the chaser spacecraft
-Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 5;                                                            %Number of orbits to continuate
-method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                                      %Differential corrector method
-direction = 1;                                                      %Direction to continuate (to the Earth)
-setup = [mu maxIter tol direction];                                 %General setup
+% Continuate the first halo orbit to locate the chaser spacecraft
+Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
+num = 5;                                                            % Number of orbits to continuate
+method = 'SPC';                                                     % Type of continuation method (Single-Parameter Continuation)
+algorithm = {'Energy', NaN};                                        % Type of SPC algorithm (on period or on energy)
+object = {'Orbit', halo_seed, target_orbit.Period};                 % Object and characteristics to continuate
+corrector = 'Plane Symmetric';                                      % Differential corrector method
+direction = 1;                                                      % Direction to continuate (to the Earth)
+setup = [mu maxIter tol direction];                                 % General setup
 
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
@@ -78,21 +75,21 @@ setup = [mu maxIter tol direction];                                 %General set
 % %Correct the seed and obtain initial conditions for a halo orbit
 % [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%% Modelling in the synodic frame %%
-r_t0 = target_orbit.Trajectory(100,1:6);                            %Initial target conditions
-r_c0 = chaser_orbit.Trajectory(1,1:6);                              %Initial chaser conditions 
-rho0 = r_c0-r_t0;                                                   %Initial relative conditions
-s0 = [r_t0 rho0].';                                                 %Initial conditions of the target and the relative state
+%% Initial conditions %%
+r_t0 = target_orbit.Trajectory(100,1:6);                          % Initial target conditions
+r_c0 = chaser_orbit.Trajectory(1,1:6);                            % Initial chaser conditions 
+rho0 = r_c0-r_t0;                                                 % Initial relative conditions
+s0 = [r_t0 rho0].';                                               % Initial conditions of the target and the relative state
 
-%Integration of the model
+% Integration of the model
 [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
 Sn = S;                
 
-%Reconstructed chaser motion 
-Sr = S(:,1:6)+S(:,7:12);                                          %Reconstructed chaser motion via Encke method
+% Reconstructed chaser motion 
+Sr = S(:,1:6)+S(:,7:12);                                          % Reconstructed chaser motion via Encke method
 
 %% Generate the guidance trajectory
-%Guidance trajectory
+% Guidance trajectory
 Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit.Period);
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
@@ -107,13 +104,13 @@ for i = 1:size(Str,1)
     St(i,:) = St(i,:)+Str(i,1:6)*A.';
 end
 
-%Integration of the natural quasi-periodic model
+% Integration of the natural quasi-periodic model
 tspan = 0:dt:2*tf;
 %[~, S0] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, S0(1,1:2*6), options);
 S0 = S0(:,1:6)+S0(:,7:12);      
 
 %% Results 
-%Plot results 
+% Orbit plotting 
 figure(1) 
 view(3) 
 hold on
@@ -129,7 +126,7 @@ grid on;
 legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'Quasi-periodic guess')
 title('Guidance trajectory between periodic orbits');
 
-%Configuration space evolution
+% Configuration space evolution
 figure(3)
 subplot(1,2,1)
 hold on
@@ -154,7 +151,7 @@ grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 title('Velocity in time');
 
-%Rendezvous animation 
+% Rendezvous animation 
 if (false)
     figure(5) 
     view(3) 

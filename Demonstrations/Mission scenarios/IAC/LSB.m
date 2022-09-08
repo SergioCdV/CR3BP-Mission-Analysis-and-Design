@@ -68,7 +68,7 @@ time_distribution = 'Chebyshev';      % Distribution of time intervals
 basis = 'Chebyshev';                  % Polynomial basis to be use
 n = [15 15];                          % Polynomial order in the state vector expansion
 m = 600;                              % Number of sampling points
-cost_function = 'Minimum energy';       % Cost function to be minimized
+cost_function = 'Minimum energy';     % Cost function to be minimized
 
 % Chaser's initial Cartesian state vector
 initial_state = chaser_orbit.Trajectory(50,1:6); 

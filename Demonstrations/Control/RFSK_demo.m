@@ -1,8 +1,8 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 27/08/22 % 
+% 27/11/21 % 
 
-%% Relative Floquet Stationkeeping demonstration for IAC 2022 %% 
+%% GNC 3: Relative Floquet Stationkeeping demonstration %% 
 % This script provides an interface to test the RFSK strategies for optimal long term stationkeeping
 
 % Units are non-dimensional and solutions are expressed in the synodic
