@@ -40,7 +40,7 @@ tol = 1e-10;                        %Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 %Halo characteristics 
-Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
+Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -56,7 +56,7 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %% Homoclinic connection
 %Manifold definition
 Branch = ['L' 'R'];             %Directions to propagate the manifolds
-TOF = tf;                       %Time of flight
+TOF = pi;                       %Time of flight
 rho = 30;                       %Manifold fibers to compute 
  
 %Computation flags

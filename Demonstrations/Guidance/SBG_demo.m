@@ -5,7 +5,7 @@
 set_graphics(); 
 close all
 
-%% Center Manifold Shape-based Optimization Guidance demonstration for IAC 2022 %% 
+%% GNC 16: Center Manifold Shape-based Optimization Guidance %% 
 % This script provides an interface to demonstrate the CML guidance core
 
 % Units are non-dimensional and solutions are expressed in the synodic

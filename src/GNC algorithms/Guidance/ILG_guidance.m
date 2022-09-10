@@ -54,25 +54,21 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     else
         SM = eye(m);                                            % No scaling needed
     end
-
-    % Integration of the relative chaser trajectory 
-    s0c = [s0(1:m)*SM.' s0(m+1:end)-s0(1:m)*SM.'];              % Initial relative chaser conditions
-
-    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0c, options);
-    sd = Sn(1,m+1:end).';
-
-    % Compute the initial center manifold state
+    
+    % Initial conditions 
+    sd = s0(m+1:2*m).'-SM*s0(1:m).';                            % Initial affine Lissajous phase-space vector
+    s0 = [s0(1:m) s0(m+1:end)-s0(1:m)];                         % Initial relative chaser conditions
     Phi = reshape(eye(m), [1 m^2]);                             % Initial monodromy matrix
-    s0 = [s0(1:m) zeros(1,m) Phi];                              % Initial rendezvous conditions 
+    s0 = [s0 Phi];                                              % Complete initial conditions
 
+    % Center manifold constraints
     if (constrain.Flag)
-        T = constrain.Period;                                      % Synodic period of the relative orbit
-
+        T = constrain.Period;                                   % Synodic period of the relative orbit
         [~, Sref] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), 0:dt:T, s0, options);
     
-        Monodromy = reshape(Sref(end,2*m+1:end), [m m]);            % Monodromy matrix
-        [E, Lambda] = eig(Monodromy);                               % Eigenspectrum of the center manifold
-        Ec = E(:,1)/Lambda(1,1);                                    % Unstable Floquet vector
+        Monodromy = reshape(Sref(end,2*m+1:end), [m m]);        % Monodromy matrix
+        [E, Lambda] = eig(Monodromy);                           % Eigenspectrum of the center manifold
+        Ec = E(:,1)/Lambda(1,1);                                % Unstable Floquet vector
     end
                       
     % Compute the initial Lissajous trajectory seed
@@ -87,12 +83,11 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     s0(9) = Az*sin(psi);                                            % Z relative coordinate
     s0(10) = wp*Ax*sin(phi);                                        % Vx relative velocity
     s0(11) = kap*wp*Ax*cos(phi);                                    % Vy relative velocity
-    s0(12) = wv*Az*cos(psi);                                        % Vz relative velocity
+    s0(12) = wv*Az*cos(psi);                                    % Vz relative velocity
 
     % Lissajous curve guess
     tspan2 = 0:dt:2*tspan(end);
-
-    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, s0c(1:6), options);
+    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, s0(1:6), options);
 
     r(1,:) = -Ax*cos(wp*tspan2+phi);         % X relative coordinate
     r(2,:) = kap*Ax*sin(wp*tspan2+phi);      % Y relative coordinate
@@ -105,6 +100,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
 
     % Initial rendezvous guess
     [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    Sn = Saux;
 
     % Differential corrector setup 
     iter = 1;                                % Initial iteration
@@ -113,8 +109,6 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
 
     while ((GoOn) && (iter < maxIter))
         % Error analysis 
-        dS = Saux(end,7:9).';                           % Error to position rendezvous
-
         if (constrain.Flag)
             V = [zeros(3,1); Saux(1,10:12).'-sd(4:6)];  % Initial velocity impulse
             dv = dot(V,Ec)-norm(Ec)*norm(V);            % Initial impulse constraint along the center manifold
@@ -122,7 +116,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
             dv = [];                                    % Null initial impulse constraint along the center manifold      
         end
 
-        error = [dS; Saux(1,7:9).'-sd(1:3); dv]; 
+        error = [Saux(end,7:9).'; Saux(1,7:9).'-sd(1:3); dv]; 
 
         % Sensitivity analysis 
         STM = reshape(Saux(end,2*m+1:end), [m m]);                      % State Transition Matrix
@@ -135,14 +129,14 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
         end
  
         % Newton-Rhapson update
-        ds = -pinv(C)*error;                   % Update step
-        s0(7:12) = s0(7:12)+ds(1:m).';         % New initial conditions
+        ds = -pinv(C)*error;                  % Update step
+        s0(7:12) = s0(7:12)+ds(1:m).';        % New initial conditions
 
         % Re-integration of the trajectory
         [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 
         % Convergence analysis
-        if (norm(error(1:end-1)) < tol)
+        if (norm(error) < tol)
             GoOn = false; 
         else
             iter = iter + 1; 

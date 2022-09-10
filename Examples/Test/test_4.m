@@ -22,11 +22,11 @@ options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      % Integration tolera
 mu = 0.0121505856;                                          % Reduced gravitational parameter of the system (Earth-Moon)
 Lem = 384400e3;                                             % Characteristic distance of the system (Earth-Moon)
 L = libration_points(mu);                                   % System libration points
-Az = 20e5;                                                  % Orbit amplitude out of the synodic plane. Play with it!
+Az = 45e6;                                                  % Orbit amplitude out of the synodic plane. Play with it!
 Ax = 20e6;                                                  % Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
 Ax = dimensionalizer(Lem, 1, 1, Ax, 'Position', 0);         % Normalize distances for the E-M system
-Ln = 2;                                                     % Orbits around Li. Play with it! (L1 or L2)
+Ln = 1;                                                     % Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          % Li distance to the second primary
 m = 1;                                                      % Number of periods to compute
 param = [1 Az Ln gamma m];                                  % Halo orbit parameters (-1 for southern halo)
@@ -36,7 +36,7 @@ dt = 1e-3;                                                  % Time step to integ
 maxIter = 20;                                               % Maximum allowed iterations in the differential correction schemes
 tol = 1e-10;                                                % Differential correction tolerance 
 Bif_tol = 1e-2;                                             % Bifucartion tolerance on the stability index
-num = 70;                                                   % Number of orbits to continuate
+num = 50;                                                   % Number of orbits to continuate
 direction = 1;                                              % Direction to continuate (to the Earth)
    
 %% Functions
@@ -92,15 +92,15 @@ hold on
 for i = 1:num
   tspan = 0:dt:Results_energy.Period(i);
   [~, S] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, Results_energy.Seeds(i,:), options);
-  plot3(S(:,1), S(:,2), S(:,3), 'b', 'Linewidth', 0.01);
+  plot3(S(:,1), S(:,2), S(:,3), 'b', 'Linewidth', 0.9);
 end
-scatter(L(1,Ln), L(2,Ln), 'k', 'filled')
-text(L(1,Ln)+1e-3, L(2,Ln), '$L_1$');
+plot(L(1,Ln), L(2,Ln), '+k')
+text(L(1,Ln)+2e-3, L(2,Ln), '$L_1$');
 hold off
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
-title('$L_{1}$ halo family');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
+% title('$L_{1}$ halo family');
 grid on;
 
 % %Plot results

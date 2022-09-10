@@ -46,7 +46,7 @@ m = 1;                                                              % Number of 
 halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
-%Correct the seed and obtain initial conditions for a halo orbit
+% Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 % Continuate the first halo orbit to locate the chaser spacecraft
@@ -62,15 +62,15 @@ setup = [mu maxIter tol direction];                                 % General se
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
 % Halo characteristics 
-% Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
-% Ln = 1;                                                             % Orbits around L1
-% gamma = L(end,Ln);                                                  % Li distance to the second primary
-% m = 1;                                                              % Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
+Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+Ln = 1;                                                             % Orbits around L1
+gamma = L(end,Ln);                                                  % Li distance to the second primary
+m = 1;                                                              % Number of periods to compute
+
+% Compute a halo seed 
+halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
@@ -96,7 +96,7 @@ constraint.Period = Tsyn;
 % Final transfer time span
 tspan = 0:dt:tf;                 
 
-[Str, dVilg, ilg_state, S0] = ILG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
+[Str, dVilg, ilg_state, S0, SM] = ILG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
 Str(end,10:12) = zeros(1,3);
 
 % Error and control valuation 
@@ -111,8 +111,11 @@ effort(:,1) = control_effort(tspan, dVilg, true);
 effort(:,2) = control_effort(tspan, dVtiss, true);
 
 % Final absolute trajectories
-S0 = S0(:,1:6)+S0(:,7:12);          % Natural quasi-periodic model    
-St = Str(:,1:n)+Str(:,n+1:2*n);     % Transfer trajectory
+St = Str(:,1:n);
+for i = 1:size(Str,1)
+    S0(i,:) = S0(:,1:n)*SM.'+S0(i,n+1:2*n);       % Natural quasi-periodic model 
+    St(i,:) = Str(i,1:n)*SM.'+Str(i,n+1:2*n);     % Transfer trajectory
+end
 
 %% Results 
 % Orbit plotting 

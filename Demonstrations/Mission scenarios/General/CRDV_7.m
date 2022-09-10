@@ -2,8 +2,18 @@
 % Date: 27/08/22
 
 %% Set up
-set_graphics(); 
+set_graphics();
+clear
 close all
+
+%% Center Manifold Shape-based Optimization Guidance demonstration for IAC 2022 %% 
+% This script provides an interface to demonstrate the CML guidance core.
+
+% The relative motion of two spacecraft in the same halo orbit around L1 in the
+% Earth-Moon system is analyzed.
+
+% Units are non-dimensional and solutions are expressed in the Lagrange
+% points reference frame as defined by Howell, 1984.
 
 %% Trajectory generation 
 %CR3BP constants 
@@ -18,7 +28,7 @@ maxIter = 20;                       %Maximum number of iterations
 tol = 1e-10;                        %Differential corrector tolerance
 
 %Halo characteristics 
-Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
+Az = 40e6;                                                           %Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
 Ln = 1;                                                             %Orbits around L1
 gamma = L(end,Ln);                                                  %Li distance to the second primary
@@ -31,37 +41,14 @@ halo_param = [1 Az Ln gamma m];                                     %Northern ha
 %Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
-%Continuate the first halo orbit to locate the chaser spacecraft
-Bif_tol = 1e-2;                                                     %Bifucartion tolerance on the stability index
-num = 5;                                                            %Number of orbits to continuate
-method = 'SPC';                                                     %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                        %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};                 %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                                      %Differential corrector method
-direction = 1;                                                      %Direction to continuate (to the Earth)
-setup = [mu maxIter tol direction];                                 %General setup
-
-[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     %State vector of a butterfly orbit
-
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
-
-%Halo characteristics 
-% Az = 20e6;                                                          %Orbit amplitude out of the synodic plane. 
-% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-% Ln = 2;                                                             %Orbits around L1
-% gamma = L(end,Ln);                                                  %Li distance to the second primary
-% m = 1;                                                              %Number of periods to compute
-% 
-% %Compute a halo seed 
-% halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          %Generate a halo orbit seed
-% 
-% %Correct the seed and obtain initial conditions for a halo orbit
-% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+%Earth's chaser orbit 
+theta = deg2rad(270:1e-3:270+360); 
+p = dimensionalizer(Lem, 28*3600, 1, 42e6, 'Position', 0);
+chaser_orbit.Trajectory(:,1:3) = p * [cos(theta.') sin(theta.') zeros(length(theta),1)] + repmat([-mu 0 0], length(theta), 1);
+chaser_orbit.Trajectory(:,4:6) = sqrt(3.98e6/7000)/Lem*(28*3600)/(2*pi) * [-sin(theta).' cos(theta).' zeros(length(theta),1)];
+chaser_orbit.Period = 5000/(28*3600)*2*pi;
 
 %% Setup of the solution method
-animations = 0;                         % Set to 1 to generate the gif
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
@@ -74,11 +61,17 @@ system.mu = mu;
 system.Time = T0; 
 system.Distance = Lem; 
 
+% Chaser's initial Cartesian state vector
+initial_state = chaser_orbit.Trajectory(1,1:6); 
+target_state = target_orbit.Trajectory(1,1:6); 
+
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 1;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
+%options.manifold.constraint = 'Unstable';
+options.manifold = chaser_orbit.Period*target_orbit.Period/abs(chaser_orbit.Period-target_orbit.Period);
 options.STM = false; 
 options.order = n; 
 options.basis = basis;
@@ -90,21 +83,23 @@ options.resultsFlag = true;
 options.animations = false;  
 
 %% Results
-% Chaser state evolution setup
+% Target state evolution setup
 dt = 1e-3;                                              % Time step
-tspan = (0:dt:chaser_orbit.Period).';                   % Integration time for the original chaser orbit
-chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
+tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
 
-% Compute the relative orbit 
-Tr = max(chaser_orbit.Period, target_orbit.Period);
-rho0 = [chaser_orbit.Trajectory(1,1:6) target_orbit.Trajectory(1,1:6)-chaser_orbit.Trajectory(1,1:6)];
-tspan = 0:dt:Tr;
-[~, Sr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, rho0, options);
+% Absolute rendezvous optimization parameters
+target.Center = 2;                                      % Multi-revolutions center for the absolute vectorfield
+target.Final = target_state;                            % Final state vector
+
+% Relative rendezvous optimization parameters
+target.Field = 'Relative';                              % Vectorfield to be used (relative or absolute dynamics)
+target.Trajectory = [tspan target_orbit.Trajectory];    % Target evolution
 
 % Simple solution    
 tic
-[C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, K, T, options);
+[Sr, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
 toc 
+C = Sr(1:6,:)+Sr(7:12,:);
 
 % Average results 
 iter = 0; 
@@ -112,17 +107,17 @@ time = zeros(1,iter);
 options.resultsFlag = false; 
 for i = 1:iter
     tic 
-    [C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory, chaser, K, T, options);
+    [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(system, initial_state, target, K, T, options);
     time(i) = toc;
 end
 
 time = mean(time);
 
+% Analysis of the STM 
+d = zeros(1,size(C,2));         % STM determinant
+alpha = zeros(6,size(C,2));
+
 if (options.STM)
-    % Analysis of the STM 
-    d = zeros(1,size(C,2));         % STM determinant
-    alpha = zeros(6,size(C,2));
-    
     for i = 1:size(C,2)
         STM = reshape(C(end-35:end,i),[6 6]); 
         d(i) = det(STM);
@@ -131,6 +126,10 @@ if (options.STM)
         alpha(:,i) = V^(-1)*C(1:6,i);
     end
 end
+
+% Perfomance evaluation 
+[error, merit] = figures_merit(tf*tau, Sr.'); 
+effort = control_effort(tf*tau, u*Lem/T0^2, false);
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
@@ -144,21 +143,21 @@ manifold_ID = 'U';           % Unstable manifold (U or S)
 manifold_branch = 'R';       % Left branch of the manifold (L or R)
 UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, chaser_orbit.Trajectory, rho, tspan);
 
-%% Plots
+%% Plots 
 figure_orbits = figure;
 view(3)
 hold on
-plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
-plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.5);                         % Target's orbit
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.5, ...
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
-plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1);                                                                                                 % Trasfer orbit
+plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.5);                                                                                                 % Trasfer orbit
 grid on; 
-xlabel('Synodic $x$ coordinate')
-ylabel('Synodic $y$ coordinate')
-zlabel('Synodic $z$ coordinate')
-legend('Reference target orbit', 'Chaser orbit', 'Guidance transfer orbit', 'AutoUpdate', 'off')
-plot3(C(1,1),C(2,1),C(3,1),'*r');                                                                                                               % Initial conditions
-plot3(C(1,end),C(2,end),C(3,end),'*r');                                                                                                         % Final conditions
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')
+legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
+plot3(C(1,1),C(2,1),C(3,1),'*k');                                                                                                               % Initial conditions
+plot3(C(1,end),C(2,end),C(3,end),'*k');                                                                                                         % Final conditions
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
@@ -180,7 +179,7 @@ hold on
 plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
 plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
 yline(T, '--k')
-xlabel('Flight time')
+xlabel('$t$')
 ylabel('$\mathbf{a}$')
 legend('$a$','$a_x$','$a_y$','$a_z$')
 grid on;
@@ -203,14 +202,3 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
-
-if (options.STM)
-    figure
-    hold on
-    plot(tau, alpha(1,:)); 
-    hold off 
-    grid on;
-    xlabel('Time')
-    ylabel('$\alpha_s$')
-    title('Stable state component')
-end

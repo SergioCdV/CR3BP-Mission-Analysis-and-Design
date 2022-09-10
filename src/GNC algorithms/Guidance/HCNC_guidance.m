@@ -103,11 +103,9 @@ function [Sg, dV] = HCNC_guidance(mu, Branch, rho, L, target_orbit, TOF, long_re
             end
             hold off
             grid on; 
-            title('Globalization of the unstable and stable manifolds');
-            xlabel('Synodic $x$ coordinate')
-            ylabel('Synodic $y$ coordinate')
-            zlabel('Synodic $z$ coordinate')
-            legend('Periodic orbit', 'Unstable manifold', 'Stable manifold', 'Location', 'northeast');
+            xlabel('$x$')
+            ylabel('$y$')
+            zlabel('$z$')
         end
 
         %Plot the map and select the initial conditions 

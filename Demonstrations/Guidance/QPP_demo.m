@@ -2,7 +2,7 @@
 % Sergio Cuevas del Valle % 
 % 25/08/22 % 
 
-%% Center Manifold Quasi-Periodic Phasing %% 
+%% GNC 15: Center Manifold Quasi-Periodic Phasing %% 
 % This script provides an interface to demonstrate the QPP guidance core
 
 % Units are non-dimensional and solutions are expressed in the synodic

@@ -122,14 +122,14 @@ end
 figure(1) 
 view(3) 
 hold on
-plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'y', 'Linewidth', 0.1); 
-plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3), 'r', 'Linewidth', 0.1); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.1); 
+plot3(S_c(:,1), S_c(:,2), S_c(:,3), 'y', 'Linewidth', 0.9); 
+plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3), 'r', 'Linewidth', 0.9); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.9); 
 hold off
-legend('True trajectory', 'Newtonian trajectory', 'Encke trajectory', 'Location', 'northeast'); 
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+legend('True trajectory', 'Newton', 'Encke', 'Location', 'northeast'); 
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
 title('Reconstruction of the chaser trajectory');
 
@@ -139,10 +139,10 @@ plot(t, log(ep), 'b');
 plot(t, log(epn), 'r');
 hold off
 grid on
-xlabel('Nondimensional epoch'); 
+xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
-title('Absolute phase space error to the true dynamics')
-legend('Encke formulation', 'Newtonian formulation');
+% title('Absolute phase space error to the true dynamics')
+legend('Encke', 'Newton');
 
 %Relative orbit plots
 if (false)

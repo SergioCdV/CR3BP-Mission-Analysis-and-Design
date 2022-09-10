@@ -70,9 +70,9 @@ end
 % Configuration space iso-curves
 figure(1)
 contour(X,Y,U,rho); 
-xlabel('Synodic $x$ coordinate'); 
-ylabel('Synodic $y$ coordinate');
-title('Pseudo-potential function $\tilde{U}$ isocurves');
+xlabel('$x$'); 
+ylabel('$y$');
+% title('Pseudo-potential function $\tilde{U}$ isocurves');
 grid on 
 colorbar
 
@@ -89,7 +89,9 @@ plot(L(1,5), L(2,5), '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text([L(1,1)-0.2, L(1,2:end)+0.05], L(2,:), labels);
 hold off
-xlabel('Synodic $x$ coordinate'); 
-ylabel('Synodic $y$ coordinate');
-title('Equilibrium solutions in the CR3BP');
+xlabel('$x$'); 
+ylabel('$y$');
+% title('Equilibrium solutions in the CR3BP');
+title('')
 grid on 
+colorbar off; 
