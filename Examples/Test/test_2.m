@@ -21,14 +21,14 @@ set_graphics();         % Set graphical environment
 mu = 0.0121505856;                                          % Reduced gravitational parameter of the system (Earth-Moon)
 Lem = 384400e3;                                             % Characteristic distance of the system (Earth-Moon)
 L = libration_points(mu);                                   % System libration points
-Az = 20e5;                                                  % Orbit amplitude out of the synodic plane. Play with it!
-Ax = 20e6;                                                  % Orbit amplitude in the synodic plane. Play with it! 
+Az = 30e6;                                                  % Orbit amplitude out of the synodic plane. Play with it!
+Ax = 30e6;                                                  % Orbit amplitude in the synodic plane. Play with it! 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
 Ax = dimensionalizer(Lem, 1, 1, Ax, 'Position', 0);         % Normalize distances for the E-M system
 Ln = 2;                                                     % Orbits around Li. Play with it! (L1 or L2)
 gamma = L(end,Ln);                                          % Li distance to the second primary
 m = 1;                                                      % Number of periods to compute
-param_halo = [1 Az Ln gamma m];                             % Halo orbit parameters (-1 for southern halo)
+param_halo = [-1 Az Ln gamma m];                           % Halo orbit parameters (-1 for southern halo)
 param_lyap = [Ax Az 0 0 Ln gamma m];                        % Lyapunov orbit parameters
 
 % Correction parameters 
@@ -132,3 +132,50 @@ ylabel('Synodic $y$ coordinate');
 zlabel('Synodic $z$ coordinate');
 title('Quasi-periodic motion at Earth-Moon $L_1$');
 grid on;
+
+%%
+% Manifolds computation
+rho = 10;                    % Number of manifold fibers to compute
+
+manifold_ID = 'S';           % Stable manifold (U or S)
+manifold_branch = 'L';       % Left branch of the manifold (L or R)
+
+StableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, halo_orbit.Trajectory, rho, 0:dt:pi);
+
+manifold_ID = 'U';           % Unstable manifold (U or S)
+manifold_branch = 'L';       % Left branch of the manifold (L or R)
+
+UnstableManifold = invariant_manifold(mu, Ln, manifold_ID, manifold_branch, halo_orbit.Trajectory, rho, 0:dt:pi);
+
+figure
+view(3)
+potential_plot(mu, 2);
+hold on
+plot3(vertical_orbit.Trajectory(:,1), vertical_orbit.Trajectory(:,2), vertical_orbit.Trajectory(:,3));
+plot3(halo_orbit.Trajectory(:,1), halo_orbit.Trajectory(:,2), halo_orbit.Trajectory(:,3));
+for i = 1:size(StableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
+    u = plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
+    u.Color(4) = 0.1;
+end
+
+for i = 1:size(UnstableManifold.Trajectory,1)
+    ManifoldAux = shiftdim(UnstableManifold.Trajectory(i,:,:));
+    u = plot3(ManifoldAux(1:UnstableManifold.ArcLength(i),1), ManifoldAux(1:UnstableManifold.ArcLength(i),2), ManifoldAux(1:UnstableManifold.ArcLength(i),3), 'r');
+    u.Color(4) = 0.1;
+end
+plot(L(1,1), L(2,1), '+k');
+plot(L(1,2), L(2,2), '+k');
+plot(L(1,3), L(2,3), '+k');
+plot(L(1,4), L(2,4), '+k');
+plot(L(1,5), L(2,5), '+k');
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+text([L(1,1)-0.2, L(1,2:end)+0.05], L(2,:), labels);
+hold off
+xlabel('$x$'); 
+ylabel('$y$');
+% title('Equilibrium solutions in the CR3BP');
+title('')
+grid off
+axis off
+colorbar off; 

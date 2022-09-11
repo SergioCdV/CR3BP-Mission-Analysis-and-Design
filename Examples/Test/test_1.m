@@ -79,7 +79,6 @@ colorbar
 % Equilibrium solutions and phase-space topology
 figure(2)
 potential_plot(mu, 2);
-figure(2)
 hold on
 plot(L(1,1), L(2,1), '+k');
 plot(L(1,2), L(2,2), '+k');

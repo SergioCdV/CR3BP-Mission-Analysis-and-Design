@@ -91,32 +91,65 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-GNC.Algorithm = 'SDRE';                 % Solver algorithm
-GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
-GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
-GNC.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
-GNC.TOF = pi;                           % Maneuver time
-GNC.SBOPT.setup = options;              % SBOPT setup
+Solver.Algorithm = 'SDRE';                 % Solver algorithm
+Solver.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
+Solver.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
+Solver.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
+Solver.TOF = 1.5*pi;                           % Maneuver time
+Solver.SBOPT.setup = options;              % SBOPT setup
 
 % method = 'Prescribed shape-based'; 
 % method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
-% method = 'Minimum energy';
+ method = 'Minimum energy';
 
-% Relative solution    
+% Relative guidance solution    
 tic
-[Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, GNC.TOF, GNC);  
+[Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, Solver.TOF, Solver);  
 toc 
 
-% Absolute chase trajectory
+% Tracking performance
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 tau = linspace(0,tf,size(Sr,2));
-[~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tau, target_state, options);
-C = Sc.'+Sr;
+
+order = 15;
+[Cp, Cv, Cg, Ci] = CTR_guidance(order, tau, Sr.');
+
+GNC.Algorithms.Guidance = 'CTR';               	    % Guidance algorithm
+GNC.Algorithms.Navigation = '';                     % Navigation algorithm
+GNC.Algorithms.Control = 'SMC';                     % Control algorithm
+GNC.Guidance.Dimension = 9;                         % Dimension of the guidance law
+GNC.Control.Dimension = 3;                          % Dimension of the control law
+GNC.System.mu = mu;                                 % System reduced gravitational parameters
+GNC.System.Libration = [Ln gamma];                  % Libration point ID
+
+GNC.Control.SMC.Parameters = [1.000000000000000 10*0.432562054680836 0.070603623964497 1e-3*0.099843662546135];
+
+% model = 'RLM';
+% GNC.Algorithms.Control = 'SDRE';                    % Control algorithm
+% GNC.Control.SDRE.Model = model;                     % SDRE model
+% GNC.Control.SDRE.Q = 2*eye(9);                      % Penalty on the state error
+% GNC.Control.SDRE.M = eye(3);                        % Penalty on the control effort
+
+GNC.Guidance.CTR.Order = order;                     % Order of the approximation
+GNC.Guidance.CTR.TOF = tf;                          % Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     	% Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;         % Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg;     % Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.IntegralCoefficients = Ci;         % Coefficients of the Chebyshev approximation
+
+GNC.Navigation.NoiseVariance = 0; 
+
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tau, [target_state initial_state-target_state 0 0 0], options);
+C = Sc(:,1:6).'+Sc(:,7:12).';
+
+% True control law
+[~, ~, ut] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end), tau);  
 
 % Valuation 
 [error, merit] = figures_merit(tau, [zeros(size(Sr,2), 6) Sr.']);        % Error performance indices 
-effort = control_effort(tau, u, false);                                  % Control effort indices
+effort(:,1) = control_effort(tau, u, false);                             % Control effort indices
+effort(:,2) = control_effort(tau, ut, false);                            % Control effort indices
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute

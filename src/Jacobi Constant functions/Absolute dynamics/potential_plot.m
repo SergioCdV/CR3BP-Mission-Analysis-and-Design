@@ -52,10 +52,10 @@ function potential_plot(mu, dim)
     else
         rho = -3.5:5e-2:-2.5;                       % Number of isocurves
         contour(X,Y,U,rho);                         % Isoplot
-        scatter(R(1,1), R(2,1), 'k', 'filled');
-        scatter(R(1,2), R(2,2), 'k', 'filled');
+        plot(R(1,1), R(2,1), '+k');
+        plot(R(1,2), R(2,2), '+k');
         labels = {'$M_1$', '$M_2$'};
-        text(R(1,:), R(2,:)+0.1, labels);
+        text(R(1,:), R(2,:)+0.1, [2e-2 2e-2], labels);
         hold off
         grid on;
         colorbar
