@@ -25,7 +25,7 @@ tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 % Halo characteristics 
-Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -101,7 +101,7 @@ Solver.SBOPT.setup = options;              % SBOPT setup
 % method = 'Prescribed shape-based'; 
 % method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
- method = 'Minimum energy';
+% method = 'Minimum energy';
 
 % Relative guidance solution    
 tic
@@ -112,7 +112,7 @@ toc
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
 tau = linspace(0,tf,size(Sr,2));
 
-order = 15;
+order = 50;
 [Cp, Cv, Cg, Ci] = CTR_guidance(order, tau, Sr.');
 
 GNC.Algorithms.Guidance = 'CTR';               	    % Guidance algorithm
@@ -123,7 +123,9 @@ GNC.Control.Dimension = 3;                          % Dimension of the control l
 GNC.System.mu = mu;                                 % System reduced gravitational parameters
 GNC.System.Libration = [Ln gamma];                  % Libration point ID
 
-GNC.Control.SMC.Parameters = [1.000000000000000 10*0.432562054680836 0.070603623964497 1e-3*0.099843662546135];
+GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135];
+
+GNC.Tmax = T*(T0^2/Lem);
 
 % model = 'RLM';
 % GNC.Algorithms.Control = 'SDRE';                    % Control algorithm
@@ -140,7 +142,7 @@ GNC.Guidance.CTR.IntegralCoefficients = Ci;         % Coefficients of the Chebys
 
 GNC.Navigation.NoiseVariance = 0; 
 
-[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tau, [target_state initial_state-target_state 0 0 0], options);
+[~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tau, [target_state initial_state-target_state], options);
 C = Sc(:,1:6).'+Sc(:,7:12).';
 
 % True control law

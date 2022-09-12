@@ -124,7 +124,7 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
  
     % Compute the final control law 
-    u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*wp.*sin(wp*tspan+phi); zeros(1,length(tspan)); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
+    u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
 end
 
 % Numerical solution
@@ -229,10 +229,12 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
 
     switch (GNC.Algorithm)
         case 'SDRE'
-            u = u + zeros(size(u));
         otherwise
             u([1 3],:) = (u([1 3],:)+[2*dAx*(wp-kap).*sin(wp*tspan+phi); 2*dAz*wv.*cos(wv*tspan+psi)]).*[-cos(wp*tspan+phi); sin(wv*tspan+psi)];
     end
+
+    % Y axis control 
+    u(2,:) = x(:,5)*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
 end
 
 % Minimum energy solution 
@@ -292,7 +294,8 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
  
     % Compute the final control law 
     u = Tmax*[-(ddAx+2*dAx*(wp-kap).*sin(wp*tspan+phi)).*cos(wp*tspan+phi); (ddAz+2*dAz*wv.*cos(wv*tspan+psi)).*sin(wv*tspan+psi)];
-    u = [u(1,:); zeros(1,length(tspan)); u(2,:)];      
+    u = [u(1,:); zeros(1,length(tspan)); u(2,:)];   
+    u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
 end
 
 % First order form of the amplitude dynamics 
@@ -363,8 +366,8 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
     end
 
     % Control input saturation 
-    if (norm(u) > sqrt(2)*Tmax)
-        u = sign(u)*Tmax;
+    if (norm(u) > Tmax)
+        u = Tmax*u/norm(u);
     end
 
     if (isnan(norm(u)))

@@ -32,4 +32,14 @@ function [Sg, Sn, u] = GNC_handler(GNC, St, S, t, varargin)
     else
         [Sg, Sn, u] = GNCc_handler(GNC, St, S, t);      %Chaser GNC handler
     end
+
+    if (isfield(GNC, 'Tmax'))
+        Tmax = GNC.Tmax; 
+        dV = sqrt(dot(u,u,1));
+        for i = 1:length(dV)
+            if (dV(i) > Tmax)
+                u(:,i) = Tmax * u(:,i)/norm(u(:,i));
+            end
+        end
+    end
 end
