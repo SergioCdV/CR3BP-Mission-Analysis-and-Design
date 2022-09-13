@@ -64,8 +64,8 @@ setup = [mu maxIter tol direction];                         %General setup
 
 %% Modelling in the synodic frame %% 
 figure(1) 
-view(3) 
 hold on
+view([50 20]) 
 for i = 1:num
     %Compute the chaser's orbit
     [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(i,:), maxIter, tol);
@@ -81,9 +81,56 @@ for i = 1:num
     plot3(S(:,7), S(:,8), S(:,9), 'b', 'Linewidth', 0.5); 
 end
 hold off
-xlabel('$x$');
-ylabel('$y$');
-zlabel('$z$');
+xlabel('$\chi$');
+ylabel('$\eta$');
+zlabel('$\xi$');
 grid on;
-axis('equal')
+%axis('equal')
 % title('Family of relative periodic halo orbits');
+%%
+% Rendezvous animation 
+if (true)
+    dh = 100;
+    W = figure;
+    set(W, 'color', 'white');
+    filename = 'relative_motion.gif';
+    view([50 20]) 
+    hold on
+    for i = 1:num
+        % Compute the chaser's orbit
+        [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(i,:), maxIter, tol);
+        tspan = 0:dt:2*chaser_orbit.Period;                         % Integration time span
+         
+        r_t0 = halo_orbit.Trajectory(1,1:6);                        % Initial target conditions
+        r_c0 = chaser_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
+        rho0 = r_c0-r_t0;                                           % Initial relative conditions
+        s0 = [r_t0 rho0];                                           % Initial conditions of the target and the relative state
+    
+        % Integration of the model
+        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+        plot3(S(:,7), S(:,8), S(:,9), 'b', 'Linewidth', 0.5); 
+    end
+
+    xlabel('$\chi$');
+    ylabel('$\eta$');
+    zlabel('$\xi$');
+    grid on;
+
+    for i = 1:dh:size(S,1)
+
+        J = scatter3(S(i,7), S(i,8), S(i,9), 30, 'b', 'filled');
+
+        drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
+    end
+    hold off
+end

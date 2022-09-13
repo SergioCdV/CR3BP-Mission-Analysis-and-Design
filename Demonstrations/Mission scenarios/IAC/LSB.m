@@ -2,7 +2,10 @@
 % Date: 27/08/22
 
 %% Set up
-set_graphics(); 
+% Set the graphic environment
+set_graphics();
+
+clear
 close all
 
 %% Center Manifold Lissajous Shape-based Guidance demonstration for IAC 2022 %% 
@@ -25,7 +28,7 @@ tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 % Halo characteristics 
-Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 20e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -51,7 +54,7 @@ setup = [mu maxIter tol direction];                                 % General se
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
 % Halo characteristics 
-Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 10e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -77,7 +80,7 @@ initial_state = chaser_orbit.Trajectory(50,1:6);
 target_state = target_orbit.Trajectory(1000,1:6); 
 
 % Spacecraft propulsion parameters 
-T = 5e-4;     % Maximum acceleration 
+T = 3.5e-3;   % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup of the SBOPT routine
@@ -98,15 +101,21 @@ Solver.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
 Solver.TOF = 1.5*pi;                           % Maneuver time
 Solver.SBOPT.setup = options;              % SBOPT setup
 
-% method = 'Prescribed shape-based'; 
+method = 'Prescribed shape-based'; 
 % method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
 % method = 'Minimum energy';
 
 % Relative guidance solution    
-tic
-[Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, Solver.TOF, Solver);  
-toc 
+iter = 25; 
+time = zeros(1,length(iter));
+for i = 1:iter
+    tic
+    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, Solver.TOF, Solver);  
+    time(i) = toc; 
+end
+
+time = mean(time); 
 
 % Tracking performance
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
@@ -180,7 +189,7 @@ hold on
 plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
 plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
       'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
-plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.3);                                                                                               % Trasfer orbit
+plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.1);                                                                                               % Trasfer orbit
 grid on; 
 xlabel('$x$')
 ylabel('$y$')
@@ -190,7 +199,7 @@ plot3(C(1,1),C(2,1),C(3,1),'*k');                                               
 plot3(C(1,end),C(2,end),C(3,end),'*k');                                                                                                         % Final conditions
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
-text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
+text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-3, labels{Ln});
 % for i = 1:size(StableManifold.Trajectory,1)
 %     ManifoldAux = shiftdim(StableManifold.Trajectory(i,:,:));
 %     S = plot3(ManifoldAux(1:StableManifold.ArcLength(i),1), ManifoldAux(1:StableManifold.ArcLength(i),2), ManifoldAux(1:StableManifold.ArcLength(i),3), 'g');
@@ -232,3 +241,46 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
+
+%%
+% Rendezvous animation
+if (true)
+    dh = 250;
+    W = figure;
+    set(W, 'color', 'white');
+    filename = 'LSB.gif';
+    view([130 20]) 
+    hold on
+    plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
+    plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+          'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
+    plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.3);                                                                                               % Trasfer orbit
+    legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
+
+    plot3(L(1,Ln), L(2,Ln), 0, '+k');
+    labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+    text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-3, labels{Ln});
+
+    xlabel('$x$');
+    ylabel('$y$');
+    zlabel('$z$');
+    grid on;
+
+    for i = 1:floor(size(C,2)/50):size(C,2)
+
+        J = scatter3(C(1,i), C(2,i), C(3,i), 30, 'k', 'filled');
+
+        drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
+    end
+    hold off
+end

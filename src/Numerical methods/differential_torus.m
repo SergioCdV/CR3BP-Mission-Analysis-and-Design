@@ -30,7 +30,7 @@ function [S, state] = differential_torus(algorithm, mu, seed, tol)
         case 'Single shooting energy'
             L = libration_points(mu);
             L0 = [L(1:3,1).' zeros(1,3)];
-            [S, state] = differential_rtorus(mu, seed.Period, [L0 seed.Trajectory(1,1:6)-L0], tol);
+            [S, state] = ssenergy_scheme(mu, seed.Period, [L0 seed.Trajectory(1,1:6)-L0], tol);
         otherwise
             error('No valid option was selected');
     end

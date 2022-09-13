@@ -1,7 +1,7 @@
 %% Autonomous RVD and docking in the CR3BP  %%
 % Date: 27/08/22
 
-%% Shapebased Halor Orbit Raising demonstration for IAC 2022 %% 
+%% Shapebased Halo Orbit Raising demonstration for IAC 2022 %% 
 % This script provides an interface to demonstrate the HRSB guidance core
 
 % Units are non-dimensional and solutions are expressed in the synodic
@@ -9,6 +9,7 @@
 
 %% Set up
 set_graphics(); 
+clear
 close all
 
 %% Trajectory generation 
@@ -24,7 +25,7 @@ maxIter = 20;                       % Maximum number of iterations
 tol = 1e-10;                        % Differential corrector tolerance
 
 % Halo characteristics 
-Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 20e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -50,7 +51,7 @@ setup = [mu maxIter tol direction];                                 % General se
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
 % Halo characteristics 
-Az = 15e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 10e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -76,7 +77,7 @@ system.Time = T0;
 system.Distance = Lem; 
 
 % Spacecraft propulsion parameters 
-T = 5e-2;     % Maximum acceleration 
+T = 1e-3;     % Maximum acceleration 
 K = 0;        % Initial input revolutions 
 
 % Setup 
@@ -97,7 +98,7 @@ tspan = (0:dt:chaser_orbit.Period).';                   % Integration time for t
 chaser.Trajectory = [tspan chaser_orbit.Trajectory];    % Chaser evolution
 
 % Simple solution    
-theta = linspace(0,2*pi,2);
+theta = linspace(0,2*pi,10);
 dV = zeros(size(theta));
 
 options.nodes = 100; 
@@ -115,13 +116,16 @@ tic
 toc 
 C = Sr(1:6,:)+Sr(7:12,:);
 
+[error, merit] = figures_merit(tf*tau, Sr(7:12,:));
+effort = control_effort(tf*tau, u, false);
+
 % Average results 
 iter = 0; 
 time = zeros(1,iter);
 options.resultsFlag = false; 
 for i = 1:iter
     tic 
-    [C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory, chaser, K, T, options);
+    [C, dV, u, tf, tfapp, tau, exitflag, output] = hrsb_optimization(system, target_orbit.Trajectory(:,1:6), chaser, theta(index(1)), K, T, options);
     time(i) = toc;
 end
 
@@ -214,3 +218,45 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
+
+if (true)
+    dh = 250;
+    W = figure;
+    set(W, 'color', 'white');
+  
+    filename = 'HRSB.gif';
+    view([140 30]) 
+    hold on
+    plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
+    plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+          'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
+    plot3(C(1,:),C(2,:),C(3,:),'r','LineWidth', 1.1);                                                                                               % Trasfer orbit
+    legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
+
+    plot3(L(1,Ln), L(2,Ln), 0, '+k');
+    labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+    text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
+
+    xlabel('$x$');
+    ylabel('$y$');
+    zlabel('$z$');
+    grid on;
+
+    for i = 1:floor(size(C,2)/50):size(C,2)
+
+        J = scatter3(C(1,i), C(2,i), C(3,i), 30, 'r', 'filled');
+
+        drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
+    end
+    hold off
+end

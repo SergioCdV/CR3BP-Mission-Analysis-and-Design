@@ -57,7 +57,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     
     % Initial conditions 
     sd = s0(m+1:2*m).'-SM*s0(1:m).';                            % Initial affine Lissajous phase-space vector
-    s0 = [s0(1:m) s0(m+1:end)-s0(1:m)];                         % Initial relative chaser conditions
+    s0 = [s0(1:m) s0(m+1:2*m)-s0(1:m)];                         % Initial relative chaser conditions
     Phi = reshape(eye(m), [1 m^2]);                             % Initial monodromy matrix
     s0 = [s0 Phi];                                              % Complete initial conditions
 
@@ -83,7 +83,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     s0(9) = Az*sin(psi);                                            % Z relative coordinate
     s0(10) = wp*Ax*sin(phi);                                        % Vx relative velocity
     s0(11) = kap*wp*Ax*cos(phi);                                    % Vy relative velocity
-    s0(12) = wv*Az*cos(psi);                                    % Vz relative velocity
+    s0(12) = wv*Az*cos(psi);                                        % Vz relative velocity
 
     % Lissajous curve guess
     tspan2 = 0:dt:2*tspan(end);
@@ -148,6 +148,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     dV(:,2) = Saux(end,10:12)-Sn(end,10:12);     % Final impulse
 
     S = Saux;                                    % Final trajectory
+    S(end,10:12) = zeros(1,3);                   % Final null relative velocity
     state.State = ~GoOn;                         % Final convergence flag 
     state.Iter = iter;                           % Final iteration 
     state.Error = norm(error);                   % Final error

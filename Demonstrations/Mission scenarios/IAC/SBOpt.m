@@ -142,8 +142,8 @@ if (options.STM)
 end
 
 % Perfomance evaluation 
-[error, merit] = figures_merit(tf*tau, Sr.'); 
-effort = control_effort(tf*tau, u*Lem/T0^2, false);
+[error, merit] = figures_merit(tf*tau, Sr(7:12,:).'); 
+effort = control_effort(tf*tau, u, false);
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
@@ -196,7 +196,7 @@ plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
 plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
 yline(T, '--k')
 xlabel('$t$')
-ylabel('$\mathbf{a}$')
+ylabel('$\mathbf{a}$ [m/$s^2$]')
 legend('$a$','$a_x$','$a_y$','$a_z$')
 grid on;
 xlim([0 1])
@@ -218,3 +218,47 @@ grid on;
 xlabel('Time')
 ylabel('$\phi$')
 title('Thrust out-of-plane angle')
+
+%%
+% Rendezvous animation
+if (true)
+    dh = 250;
+    W = figure;
+    set(W, 'color', 'white');
+  
+    filename = 'SBOPT.gif';
+    view([210 40]) 
+    hold on
+    plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 0.9);                         % Target's orbit
+    plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3), '-ob', 'LineWidth', 0.9, ...
+          'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10)));                                                                  % Charser's initial orbit
+    plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth', 1.3);                                                                                               % Trasfer orbit
+    legend('Target orbit', 'Initial orbit', 'Transfer orbit', 'AutoUpdate', 'off')
+
+    plot3(L(1,Ln), L(2,Ln), 0, '+k');
+    labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+    text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
+
+    xlabel('$x$');
+    ylabel('$y$');
+    zlabel('$z$');
+    grid on;
+
+    for i = 1:floor(size(C,2)/50):size(C,2)
+
+        J = scatter3(C(1,i), C(2,i), C(3,i), 30, 'k', 'filled');
+
+        drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
+    end
+    hold off
+end

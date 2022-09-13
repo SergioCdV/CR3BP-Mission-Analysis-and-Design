@@ -69,11 +69,15 @@ dtheta = 2*pi/target_orbit.Period*(index*dt);   % Initial phase difference
 
 % Phasing torus
 eps = 1e-5; 
+tic
 [Str, state(1), Tref] = QPP_guidance(mu, target_orbit.Period, dtheta, k, [r_t0 r_c0], eps, tol);
+toc
 
 % ILG transfer 
 constraint.Flag = false;
+tic
 [~, dV, state(2)] = ILG_guidance(mu, Ln, gamma, 1, constraint, [r_t0 r_c0], tol);
+toc
 
 % Periodicity check 
 extra = floor(mod(k*Str.Period,target_orbit.Period)/target_orbit.Period*size(target_orbit.Trajectory,1));
@@ -92,19 +96,46 @@ dV0 = norm(Str.Trajectory(1,4:6)+Str.Trajectory(1,10:12)-r_c0(4:6));
 dVf = norm(target_orbit.Trajectory(end,4:6)-Str.Trajectory(end,4:6)-Str.Trajectory(end,10:12));
 
 %% Results 
-% Orbit plotting
-figure(1) 
+[Str, state] = differential_rtorus(mu, target_orbit.Period, [[L(1:3,Ln).' zeros(1,3)], target_orbit.Trajectory(1,1:6)], 1e-4, 1e-10);
+
+%%
+figure 
 view(3) 
 hold on
-T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 1);
-
-% Phasing orbit 
-phasing_orbit.Period = Str.Period;
-for i = 1:size(Str.Trajectory,1)
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 1);
+for i = 1:size(Str.Trajectory,1)-1
     % Integration of the quasi-periodic trajectory
     tspan = 0:dt:Str.Period;
     [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
     S = St(:,1:6)+St(:,7:12);
+    guidance = plot3(S(:,1), S(:,2), S(:,3), 'r');
+    guidance.Color(4) = 0.4; 
+    legend('Target orbit', 'Quasi-periodic tori', 'AutoUpdate', 'off')
+end  
+plot3(L(1,Ln), L(2,Ln), 0, '+k');
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
+hold off
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
+axis off
+
+% Orbit plotting
+figure
+view(3) 
+hold on
+T = plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 1);
+ST = []; 
+
+% Phasing orbit 
+phasing_orbit.Period = Str.Period;
+for i = 1:size(Str.Trajectory,1)-1
+    % Integration of the quasi-periodic trajectory
+    tspan = 0:dt:Str.Period;
+    [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
+    S = St(:,1:6)+St(:,7:12);
+    ST = [ST; S];
     guidance = plot3(S(:,1), S(:,2), S(:,3), ':r');
     guidance.Color(4) = 0.4; 
     legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
@@ -127,3 +158,53 @@ xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
+
+%%
+% Rendezvous animation
+if (true)
+    dh = 50;
+    W = figure;
+    set(W, 'color', 'white');
+    filename = 'QPP.gif';
+    view([-50 30]) 
+    hold on
+    plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'b', 'LineWidth', 1);
+    for i = 1:size(Str.Trajectory,1)-1
+        % Integration of the quasi-periodic trajectory
+        tspan = 0:dt:Str.Period;
+        [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, Str.Trajectory(i,:), options);
+        S = St(:,1:6)+St(:,7:12);
+        guidance = plot3(S(:,1), S(:,2), S(:,3), ':r');
+        guidance.Color(4) = 0.4; 
+        legend('Target orbit', 'Chaser quasi-periodic orbit', 'AutoUpdate', 'off')
+    end  
+
+    plot3(L(1,Ln), L(2,Ln), 0, '+k');
+    labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+    text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-3, labels{Ln});
+
+    xlabel('$x$');
+    ylabel('$y$');
+    zlabel('$z$');
+    grid on;
+
+    for i = 1:floor(size(ST,1)/100):size(ST,1)
+
+        J = scatter3(ST(i,1), ST(i,2), ST(i,3), 30, 'r', 'filled');
+        V = scatter3(target_orbit.Trajectory(i,1), target_orbit.Trajectory(i,2), target_orbit.Trajectory(i,3), 30, 'b', 'filled');
+
+        drawnow;
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
+        delete(V)
+    end
+    hold off
+end

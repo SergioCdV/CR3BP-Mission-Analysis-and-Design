@@ -9,10 +9,13 @@
 % reference frame as defined by Howell, 1984.
 
 %% Set up %%
-%Set up graphics 
+clear; 
+close all;
+
+% Set up graphics 
 set_graphics();
 
-%Integration tolerances (ode113)
+% Integration tolerances (ode113)
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
 
 %% Contants and initial data %% 
@@ -21,7 +24,7 @@ n = 6;
 
 % Time span 
 dt = 1e-3;                          % Time step
-tf = 1;                             % Rendezvous time
+tf = 0.5;                           % Rendezvous time
 tspan = 0:dt:pi;                    % Integration time span
 
 % CR3BP constants 
@@ -36,7 +39,7 @@ tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 % Halo characteristics 
-Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 20e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -62,7 +65,7 @@ setup = [mu maxIter tol direction];                                 % General se
 [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 
 % Halo characteristics 
-Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 10e5;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -96,85 +99,125 @@ constraint.Period = Tsyn;
 % Final transfer time span
 tspan = 0:dt:tf;                 
 
-[Str, dVilg, ilg_state, S0, SM] = ILG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
-Str(end,10:12) = zeros(1,3);
+iter = 25; 
+time = zeros(2,iter);
+for i = 1:iter
+    tic
+    [Str, dVilg, ilg_state, S0, SM] = ILG_guidance(mu, Ln, gamma, tf, constraint, [r_t0 r_c0], tol);
+    time(1,i) = toc;
+end
 
 % Error and control valuation 
 [error(:,1), merit(:,1)] = figures_merit(tspan, Str(:,7:12));
 effort(:,1) = control_effort(tspan, dVilg, true);
 
 % Comparison against the TISS controller
-[Str2, dVtiss, tiss_state] = TISS_control(mu, tf, [r_t0 r_c0-r_t0].', tol, 'Position', true); 
+for i = 1:iter
+    tic
+    [Str2, dVtiss, tiss_state] = TISS_control(mu, tf, [r_t0 r_c0-r_t0].', tol, 'Position', true); 
+    time(2,i) = toc;
+end
+
+time = mean(time,2);
 
 % Error and control valuation 
 [error(:,2), merit(:,2)] = figures_merit(tspan, Str2(:,7:12));
 effort(:,2) = control_effort(tspan, dVtiss, true);
 
 % Final absolute trajectories
+S0 = S0(:,1:n)+S0(:,n+1:2*n);       % Natural quasi-periodic model 
+
 St = Str(:,1:n);
 for i = 1:size(Str,1)
-    S0(i,:) = S0(:,1:n)*SM.'+S0(i,n+1:2*n);       % Natural quasi-periodic model 
-    St(i,:) = Str(i,1:n)*SM.'+Str(i,n+1:2*n);     % Transfer trajectory
+    St(i,1:n) = Str(i,1:n)*SM.'+Str(i,n+1:2*n);     % Transfer trajectory
 end
 
 %% Results 
 % Orbit plotting 
-figure(1) 
+figure
 view(3) 
 hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b'); 
-plot3(Sr(:,1), Sr(:,2), Sr(:,3), 'r'); 
-plot3(St(:,1), St(:,2), St(:,3), 'k'); 
-plot3(S0(:,1), S0(:,2), S0(:,3), 'g'); 
+plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'LineWidth', 0.9); 
+plot3(Sr(:,1), Sr(:,2), Sr(:,3), '-ob', 'LineWidth', 0.9, ...
+      'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10))); 
+plot3(St(:,1), St(:,2), St(:,3), 'k', 'LineWidth', 1.5); 
+plot3(S0(:,1), S0(:,2), S0(:,3), 'r'); 
+legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'Quasi-periodic guess', 'AutoUpdate', 'off')
+plot3(L(1,Ln), L(2,Ln), 0, '+k');
+labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-3, labels{Ln});
 hold off
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
-legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'Quasi-periodic guess')
-title('Guidance trajectory between periodic orbits');
+% title('Guidance trajectory between periodic orbits');
 
 % Configuration space evolution
-figure(3)
+figure
 subplot(1,2,1)
 hold on
 plot(tspan(1:size(Str,1)), Str(:,7)); 
 plot(tspan(1:size(Str,1)), Str(:,8)); 
 plot(tspan(1:size(Str,1)), Str(:,9)); 
 hold off
-xlabel('Nondimensional epoch');
-ylabel('Configuration coordinates');
+xlabel('t');
+ylabel('$\mathbf{\rho}$');
 grid on;
 legend('$x$', '$y$', '$z$');
-title('Position in time');
+% title('Position in time');
 subplot(1,2,2)
 hold on
 plot(tspan(1:size(Str,1)), Str(:,10)); 
 plot(tspan(1:size(Str,1)), Str(:,11)); 
 plot(tspan(1:size(Str,1)), Str(:,12)); 
 hold off
-xlabel('Nondimensional epoch');
-ylabel('Velocity coordinates');
+xlabel('$t$');
+ylabel('$\dot{\mathbf{\rho}}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Velocity in time');
+% title('Velocity in time');
 
-% Rendezvous animation 
-if (false)
-    figure(5) 
-    view(3) 
-    grid on;
+%%
+% Rendezvous animation
+if (true)
+    dh = 50;
+    W = figure;
+    set(W, 'color', 'white');
+    filename = 'ILG.gif';
+    view([165 10]) 
     hold on
-    plot3(Sc(1:index,1), Sc(1:index,2), Sc(1:index,3), 'k-.'); 
-    xlabel('Synodic x coordinate');
-    ylabel('Synodic y coordinate');
-    zlabel('Synodic z coordinate');
-    title('Rendezvous simulation');
-    for i = 1:size(Sc,1)
-        T = scatter3(Sc(i,1), Sc(i,2), Sc(i,3), 30, 'b'); 
+    plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b', 'LineWidth', 0.9); 
+    plot3(Sr(:,1), Sr(:,2), Sr(:,3), '-ob', 'LineWidth', 0.9, ...
+          'MarkerIndices', floor(linspace(1,size(chaser_orbit.Trajectory,1),10))); 
+    plot3(St(:,1), St(:,2), St(:,3), 'k', 'LineWidth', 1.5); 
+    plot3(S0(:,1), S0(:,2), S0(:,3), 'r'); 
+    legend('Reference target orbit', 'Chaser orbit', 'Guidance orbit', 'Quasi-periodic guess', 'AutoUpdate', 'off', 'Location', 'southeast')
+
+    plot3(L(1,Ln), L(2,Ln), 0, '+k');
+    labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
+    text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-3, labels{Ln});
+
+    xlabel('$x$');
+    ylabel('$y$');
+    zlabel('$z$');
+    grid on;
+
+    for i = 1:dh:size(St,1)
+
+        J = scatter3(St(i,1), St(i,2), St(i,3), 30, 'k', 'filled');
+
         drawnow;
-        delete(T); 
-        delete(V);
+        frame = getframe(W);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256); 
+        if (i == 1) 
+            imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 1e-3); 
+        else 
+            imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 1e-3); 
+        end 
+
+        delete(J)
     end
     hold off
 end

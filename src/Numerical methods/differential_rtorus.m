@@ -95,7 +95,7 @@ function [S, state] = one_torus(mu, T, s0, epsilon, tol)
     iter = 1;                                              %Initial iteration
 
     %Initial constants and parameters
-    nodes = 21;                                            %Number of points on the invariant curve
+    nodes = 51;                                            %Number of points on the invariant curve
     theta = 2*pi*(0:(nodes-1))/nodes;                      %Parametrization of the invariant curve
     Monodromy = reshape(Sn(end,2*m+1:end), [m m]);         %Initial monodromy matrix
     [W, lambda] = eig(Monodromy);                          %Eigenspectrum of the monodromy matrix
