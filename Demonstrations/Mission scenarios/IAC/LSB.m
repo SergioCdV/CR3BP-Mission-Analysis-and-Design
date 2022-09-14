@@ -94,20 +94,20 @@ options.animations = false;
 
 %% Results
 % Setup of the solution 
-Solver.Algorithm = 'SDRE';                 % Solver algorithm
+Solver.Algorithm = 'Minimum time';                 % Solver algorithm
 Solver.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 Solver.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 Solver.Tmax = T/sqrt(2)*(T0^2/Lem);        % Constrained acceleration
-Solver.TOF = 1.5*pi;                           % Maneuver time
+Solver.TOF = 1.5*pi;                       % Maneuver time
 Solver.SBOPT.setup = options;              % SBOPT setup
 
-method = 'Prescribed shape-based'; 
-% method = 'Dynamics shape-based';
+% method = 'Prescribed shape-based'; 
+ method = 'Dynamics shape-based';
 % method = 'Numerical shape-based';
 % method = 'Minimum energy';
 
 % Relative guidance solution    
-iter = 25; 
+iter = 5; 
 time = zeros(1,length(iter));
 for i = 1:iter
     tic
@@ -158,9 +158,9 @@ C = Sc(:,1:6).'+Sc(:,7:12).';
 [~, ~, ut] = GNC_handler(GNC, Sc(:,1:6), Sc(:,7:end), tau);  
 
 % Valuation 
-[error, merit] = figures_merit(tau, [zeros(size(Sr,2), 6) Sr.']);        % Error performance indices 
-effort(:,1) = control_effort(tau, u, false);                             % Control effort indices
-effort(:,2) = control_effort(tau, ut, false);                            % Control effort indices
+[error, merit] = figures_merit(tau, Sr.');        % Error performance indices 
+effort(:,1) = control_effort(tau, u, false);      % Control effort indices
+effort(:,2) = control_effort(tau, ut, false);     % Control effort indices
 
 %% Manifolds computation
 rho = 1;                     % Number of manifold fibers to compute
@@ -244,7 +244,7 @@ title('Thrust out-of-plane angle')
 
 %%
 % Rendezvous animation
-if (true)
+if (false)
     dh = 250;
     W = figure;
     set(W, 'color', 'white');

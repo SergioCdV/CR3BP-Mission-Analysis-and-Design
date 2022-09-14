@@ -234,7 +234,7 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     end
 
     % Y axis control 
-    u(2,:) = x(:,5)*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
+    u(2,:) = x(:,5).'*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
 end
 
 % Minimum energy solution 
@@ -312,7 +312,7 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
             R = GNC.LQR.ControlMatrix;                          % Control effort weight matrix
 
             % Compute the amplitude vector field 
-            Alpha = [2*(wp-kap)*tan(wp*t+phi0) 0; 0 -2*wv/tan(wv*t+psi0)];   % Acceleration dynamics
+            Alpha = [-2*(wp-kap)*tan(wp*t+phi0) 0; 0 -2*wv/tan(wv*t+psi0)];  % Acceleration dynamics
             Theta = [-1/cos(wp*t+phi0) 0; 0 1/sin(wv*t+psi0)];               % Control input acceleration matrixç
 
             % In-plane motion
