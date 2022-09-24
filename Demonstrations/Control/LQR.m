@@ -1,4 +1,3 @@
-
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
 % 01/04/21 % 
