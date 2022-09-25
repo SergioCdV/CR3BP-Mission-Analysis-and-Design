@@ -22,7 +22,7 @@ n = 6;
 
 % Time span 
 dt = 1e-3;                          % Time step
-tf = 2*pi;                          % Rendezvous time
+tf = pi;                          % Rendezvous time
 tspan = 0:dt:tf;                    % Integration time span
 tspann = 0:dt:2*pi;                 % Integration time span
 
@@ -97,14 +97,13 @@ GNC.System.Libration = [Ln gamma];              % Libration point ID
 
 GNC.Control.LQR.Model = model;                  % LQR model
 GNC.Control.SDRE.Model = model;                 % SDRE model
-GNC.Control.LQR.Q = 2*eye(9);                   % Penalty on the state error
-GNC.Control.LQR.M = eye(3);                     % Penalty on the control effort
+GNC.Control.LQR.Q = 1e1*eye(9);                   % Penalty on the state error
+GNC.Control.LQR.M = 1e2*eye(3);                     % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);      % Penalty on the control effort
-GNC.Control.SDRE.Q = 2*eye(9);                  % Penalty on the state error
-GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
+GNC.Control.SDRE.Q = 1e1*eye(9);                % Penalty on the state error
+GNC.Control.SDRE.M = 1e2*eye(3);                % Penalty on the control effort
 
-%% GNC: SDRE/LQR control law
-%Initial conditions 
+% iLQR control law 
 int = zeros(1,3);                               % Integral of the relative position
 slqr0 = [Sn(1,:) int];                          % Initial conditions
 
