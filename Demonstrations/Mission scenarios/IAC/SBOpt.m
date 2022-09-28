@@ -24,9 +24,9 @@ maxIter = 20;                       % Maximum number of iterations
 tol = 1e-10;                        % Differential corrector tolerance
 
 % Halo characteristics 
-Az = 30e6;                                                          %  Orbit amplitude out of the synodic plane. 
+Az = 30e6;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
-Ln = 2;                                                             % Orbits around L1
+Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
 m = 1;                                                              % Number of periods to compute
 
@@ -35,7 +35,11 @@ halo_param = [1 Az Ln gamma m];                                     % Northern h
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
 % Correct the seed and obtain initial conditions for a halo orbit
-[target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+[target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+
+% Target state evolution setup
+dt = 1e-3;                                              % Time step
+tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
 
 %Continuate the first halo orbit to locate the chaser spacecraft
 Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
@@ -62,12 +66,20 @@ halo_param = [-1 Az Ln gamma m];                                    % Northern h
 
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
+omega = [0 -1 0; 1 0 0; 0 0 0];
+
+theta = (-pi/2:1e-3:7/4*pi).'; 
+r = [-mu 0 0]+dimensionalizer(Lem,T0,Lem/T0,42e6,'Position',false)*[cos(theta) sin(theta) zeros(length(theta),1)];
+v = sqrt(3.98e6/42e6)/(Lem/T0)*[-sin(theta) cos(theta) zeros(length(theta),1)]-r*omega.';
+
+chaser_orbit.Trajectory = [r v];
+
 %% Setup of the solution method
 time_distribution = 'Chebyshev';        % Distribution of time intervals
 basis = 'Chebyshev';                    % Polynomial basis to be use
 dynamics = 'Euler';                     % Dynamics parametrization to be used
-n = [10 10 10];                         % Polynomial order in the state vector expansion
-m = 300;                                % Number of sampling points
+n = [7 7 7];                         % Polynomial order in the state vector expansion
+m = 100;                                % Number of sampling points
 cost_function = 'Minimum energy';       % Cost function to be minimized
 
 % System data 
@@ -81,7 +93,7 @@ target_state = target_orbit.Trajectory(1,1:6);
 
 % Spacecraft propulsion parameters 
 T = 1e-3;     % Maximum acceleration 
-K = 1;        % Initial input revolutions 
+K = 0;        % Initial input revolutions 
 
 % Setup 
 %options.manifold.constraint = 'Unstable';
@@ -97,10 +109,6 @@ options.resultsFlag = true;
 options.animations = false;  
 
 %% Results
-% Target state evolution setup
-dt = 1e-3;                                              % Time step
-tspan = (0:dt:target_orbit.Period).';                   % Integration time for the target orbit
-
 % Absolute rendezvous optimization parameters
 target.Center = 2;                                      % Multi-revolitions center for the absolute vectorfield
 target.Final = target_state;                            % Final state vector
@@ -221,7 +229,7 @@ title('Thrust out-of-plane angle')
 
 %%
 % Rendezvous animation
-if (true)
+if (false)
     dh = 250;
     W = figure;
     set(W, 'color', 'white');

@@ -38,7 +38,7 @@ tol = 1e-10;                        % Differential corrector tolerance
 
 %% Initial conditions and halo orbit computation %%
 % Halo characteristics 
-Az = 50e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 10e6;                                                          % Orbit amplitude out of the synodic plane. 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
 Ln = 1;                                                             % Orbits around L1
 gamma = L(end,Ln);                                                  % Li distance to the second primary
@@ -66,8 +66,8 @@ setup = [mu maxIter tol direction];                                 % General se
 
 %% natural motion %%
 index = fix(tf/dt);                                         % Rendezvous point
-r_t0 = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
+r_t0 = target_orbit.Trajectory(500,1:6);                    % Initial target conditions
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           % Initial relative conditions
 s0 = [r_t0 rho0].';                                         % Initial conditions of the target and the relative state
 
@@ -97,11 +97,11 @@ GNC.System.Libration = [Ln gamma];              % Libration point ID
 
 GNC.Control.LQR.Model = model;                  % LQR model
 GNC.Control.SDRE.Model = model;                 % SDRE model
-GNC.Control.LQR.Q = 1e1*eye(9);                   % Penalty on the state error
-GNC.Control.LQR.M = 1e2*eye(3);                     % Penalty on the control effort
+GNC.Control.LQR.Q = 1*eye(9);                   % Penalty on the state error
+GNC.Control.LQR.M = 0.9*eye(3);                     % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);      % Penalty on the control effort
-GNC.Control.SDRE.Q = 1e1*eye(9);                % Penalty on the state error
-GNC.Control.SDRE.M = 1e2*eye(3);                % Penalty on the control effort
+GNC.Control.SDRE.Q = 1e0*eye(9);                % Penalty on the state error
+GNC.Control.SDRE.M = 1*eye(3);                % Penalty on the control effort
 
 % iLQR control law 
 int = zeros(1,3);                               % Integral of the relative position
