@@ -17,19 +17,7 @@
 
 % Outpus: - vector Pn, containing the evaluated Chebyshev polynomials 
 
-order = 100; 
-tau = flip(cos((0:order)*pi/order));
-
-x0 = [1000 -3]; 
-
-t = (1/2)*(tau+1);
-[t,x1] = ode45(@(t,x)([-2*t*x(1); -x(2)]), t, x0, odeset('RelTol',2.25E-14, 'AbsTol', 1e-22));
-
-
-dynamics = @(tau,x)([-x(:,1).*(1/2*(tau+1)) -x(:,2)]);
-[tau, x, state] = MCPI_IVP(tau, repmat(x0,order+1,1), dynamics, order, 1e-22);
-
-function [tau, x, state] = MCPI_IVP(tau, x0, dynamics, order, tol)
+function [tau, x, state] = MCPI(tspan, tau, x0, dynamics, order, tol)
     % Set up of the method 
     GoOn = true;                            % Convergence boolean
     iter = 1;                               % Initial iteration
@@ -50,6 +38,9 @@ function [tau, x, state] = MCPI_IVP(tau, x0, dynamics, order, tol)
 
     R = (1/2)./(1:N-1);                     % Approximation weights for the dynamics
     R = diag([1 R]);                        % Approximation weights for the dynamics
+
+    omega(1) = (tspan(2)-tspan(1))/2; 
+    omega(2) = (tspan(2)+tspan(1))/2; 
 
     % Chebyshev polynomials difference
     S = zeros(N,N);
@@ -73,7 +64,7 @@ function [tau, x, state] = MCPI_IVP(tau, x0, dynamics, order, tol)
     % Main loop
     while (GoOn && iter < maxIter)
         % Evaluate the dynamics 
-        g = dynamics(tau.',x0); 
+        g = omega(1)*dynamics(omega(1)*tau+omega(2),x0); 
 
         % Compute the beta coefficients
         chi(1,:) = 2*x0(1,:);
@@ -98,4 +89,6 @@ function [tau, x, state] = MCPI_IVP(tau, x0, dynamics, order, tol)
     state.State = ~GoOn; 
     state.Iterations = iter; 
     state.Error = error; 
+
+    tau = omega(1)*tau+omega(2);
 end
