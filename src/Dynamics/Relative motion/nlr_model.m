@@ -41,7 +41,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         s_t = s(1:m+m^2);                                         % State of the target
         s_r = s(m+m^2+1:end);                                     % State of the relative particle
     else
-        s_t = s(1:6);                                             % State of the target
+        s_t = s(1:m);                                             % State of the target
         s_r = s(7:end);                                           % State of the relative particle  
     end
 

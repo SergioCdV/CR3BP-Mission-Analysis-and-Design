@@ -35,11 +35,12 @@
 % Full nonlinear relative motion equations via Encke's method
 function [drho] = vnlr_model(mu, u, t, s)
     % Constants of the system 
+    m = 6;                        % Phase space dimension
     mu_r(1) = 1-mu;               % Reduced gravitational parameter of the first primary 
     mu_r(2) = mu;                 % Reduced gravitational parameter of the second primary 
 
     s_t = s(1:6,:);               % Target state
-    s_r = s(7:12,:);              % Chaser relative state
+    s_r = s(7:end,:);             % Chaser relative state
         
     % Synodic position of the primaries 
     R(:,1) = [-mu; 0; 0];                                   % Synodic position of the first primary
@@ -77,6 +78,18 @@ function [drho] = vnlr_model(mu, u, t, s)
     drho = [dst;
             dv; 
             f+u];                                               % Inertial acceleration field 
+
+    if (size(s_r,1) == m+m^2)
+        dphi = zeros(m^2,size(s_r,2));                          % STM preallocation
+        for i = 1:size(s_r,2)
+            Phi = reshape(s_r(7:end,i), [m m]);                 % State Transition Matrix
+            J = rel_jacobian(mu, [s_t(:,i); s_r(1:3,i)]);       % Relative Jacobian matrix
+            aux = J*Phi;                                        % New State Transition Matrix
+            dphi(:,i) = reshape(aux, [m^2 1]);                  % First linear variational vector field
+        end
+        drho = [drho; dphi];                                    % Complete relative dynamics vector field
+    end
+
 end
 
 function [ds] = to_be_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, varargin)
