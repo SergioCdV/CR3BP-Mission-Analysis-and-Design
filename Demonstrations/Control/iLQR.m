@@ -99,25 +99,28 @@ GNC.Control.LQR.Model = model;                  % LQR model
 GNC.Control.SDRE.Model = model;                 % SDRE model
 GNC.Control.iLQR.Mode = 'Continuous';             % iLQR solver
 
-GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-3*eye(3)];                   % Penalty on the state error
-
-GNC.Control.LQR.M = 1e-3*eye(3);                % Penalty on the control effort
-GNC.Control.LQR.Reference = Sn(index,1:3);      % Penalty on the control effort
-GNC.Control.SDRE.Q = 1e0*eye(9);                % Penalty on the state error
-GNC.Control.SDRE.M = 1e2*eye(3);                % Penalty on the control effort
+GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-3*eye(3)];    % Penalty on the state error
+GNC.Control.LQR.Q = blkdiag(eye(3), 1e-4*eye(6));
+GNC.Control.LQR.M = 1e-3*eye(3);                                % Penalty on the control effort
+GNC.Control.LQR.Reference = Sn(index,1:3);                      % Penalty on the control effort
 
 % iLQR control law 
-int = zeros(1,3);                               % Integral of the relative position
-slqr0 = [Sn(1,:)];                   % Initial conditions
+int = zeros(1,3);                                               % Integral of the relative position
+s0 = [Sn(1,:) int];                                             % Initial conditions
 
 % Compute the trajectory
-[tspan, St, u, state] = iLQR_control(mu, 1.5, slqr0, GNC); 
+[tspan, St, u, state] = iLQR_control(mu, 1.5, s0, GNC); 
 
 % Error in time 
 [e, merit] = figures_merit(tspan, St(:,7:12));
 
 % Control integrals
-energy = control_effort(tspan, u, false);
+switch (GNC.Control.iLQR.Mode)
+    case 'Discrete'
+        energy = control_effort(tspan, u, true);
+    case 'Continuous'
+        energy = control_effort(tspan, u, false);
+end
 
 %% Results %% 
 %Plot results 

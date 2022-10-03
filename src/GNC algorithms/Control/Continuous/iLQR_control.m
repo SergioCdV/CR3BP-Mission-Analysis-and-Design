@@ -33,49 +33,49 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     n = 6;                        % Dimension of the state vector
     tol = 1e-10;                  % Convergence tolerance
 
-    b = [zeros(3); eye(3)];       % Control input matrix
-    A = [zeros(n,n)];             % PID-structured Jacobian matrix
-
     % Controller definition
-    mode = GNC.Control.iLQR.Mode;     % Control options
-    Q = GNC.Control.LQR.Q;            % Penalty matrix on the state error
-    R = GNC.Control.LQR.M;            % Penalty matrix on the control effort
+    mode = GNC.Control.iLQR.Mode; % Control options
+    Q = GNC.Control.LQR.Q;        % Penalty matrix on the state error
+    R = GNC.Control.LQR.M;        % Penalty matrix on the control effort
+
+    m = size(Q,1);                % Dimension of the possibly augmented problem
+
+    % Discrete dynamics definition 
+    b = zeros(m,3);               % Control input matrix
+    b(4:6,:) = eye(3);            % Control input matrix
+    A = zeros(m);                 % PID-structured Jacobian matrix
 
     % Generate the initial LQR/SDRE guess 
-    s0 = [s0 reshape(eye(n), [1 n^2])];                                                                   % Variational initial conditions
-    dt = 1e-2;                                                                                            % Nondimensional time step
-    tspan = 0:dt:tf;                                                                                      % Integration time span
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);                                                % Integration tolerances
+    s0 = [s0 reshape(eye(m), [1 m^2])];                            % Variational initial conditions
+    dt = 1e-2;                                                     % Nondimensional time step
+    tspan = 0:dt:tf;                                               % Integration time span
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);         % Integration tolerances
 
     switch (mode)
         case 'Discrete'
             [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);  % Initial guess for the state trajectory
             u = zeros(3,size(Sc,1));                                                                      % Initial guess for the control law
-            Q = Q(1:n,1:n);                                                                               % State penalty weight matrix
+
         case 'Continuous'
             N = length(tspan); 
             tau = flip(cos((0:N)*pi/N));
-            tspan = (tspan(end)-tspan(1))/2*tau+(tspan(end)+tspan(1))/2;
-            [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);  % Initial guess for the state trajectory
-            u = zeros(3,size(Sc,1));                                                                      % Initial guess for the control law
-            Q = Q(1:n,1:n);                                                                               % State penalty weight matrix
+            tspan = (tspan(end)-tspan(1))/2*tau+(tspan(end)+tspan(1))/2; 
+            [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s, GNC), tspan, s0, options);  % Initial guess for the state trajectory
+            [~, ~, u] = GNC_handler(GNC, Sc(:,1:n), Sc(:,n+1:n+m), tspan);                                     % Initial guess for the control law
 
-% 
-%             [tspan, Sc] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);  % Initial guess for the state trajectory
-%             u = GNC_handler(GNC, Sc(:,1:n), Sc(n+1:2*n+3), tspan);                                            % Initial guess for the control law
         otherwise 
             error('No valid iLQR mode was selected');
     end
 
     V = 0; 
     for i = 1:length(tspan)
-        V = V+0.5*Sc(i,n+1:end-n^2)*Q*Sc(i,n+1:end-n^2).'+0.5*u(:,i).'*R*u(:,i);
+        V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
     end
 
     % Preallocation 
     du = zeros(size(b,2),size(Sc,1));                   % Update to the control law 
-    ds = zeros(n,size(Sc,1));                           % Update to the rendezvous trajectory
-    v = zeros(n,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
+    ds = zeros(m,size(Sc,1));                           % Update to the rendezvous trajectory
+    v = zeros(m,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
 
     K = zeros(size(u,1),size(ds,1)*size(Sc,1));         % LQR gain
     Ku = zeros(size(u,1),size(u,1)*size(Sc,1));         % Feedback gain
@@ -87,29 +87,29 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     iter = 1;                               % Initial iteration 
 
     % Boundary conditions 
-    ds(:,1) = zeros(n,1);                   % Initial update
+    ds(:,1) = zeros(m,1);                   % Initial update
 
     while (GoOn && iter < maxIter)
         % Boundary conditions
-        S = Q;                                  % Penalty weight matrix final conditions
-        v(:,end) = Q*Sc(end,n+1:end-n^2).';     % Final feedforward term
+        S = Q;                              % Penalty weight matrix final conditions
+        v(:,end) = Q*Sc(end,n+1:n+m).';     % Final feedforward term
 
         for i = size(Sc,1)-1:-1:1
             % Linearization 
             if (i > 1)
-                Phi0 = reshape(Sc(i-1,end-n^2+1:end), [n n]);   % STM from 0 to k-1
+                Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);   % STM from 0 to k-1
             else
-                Phi0 = eye(n);                                  % STM from 0 to k-1
+                Phi0 = eye(m);                              % STM from 0 to k-1
             end
-            Phi = reshape(Sc(i,end-n^2+1:end), [n n]);          % STM from 0 to k
-            A(1:n,1:n) = Phi*Phi0^(-1);                         % Relative dynamics linear model
+            Phi = reshape(Sc(i,n+m+1:end), [m m]);          % STM from 0 to k
+            A(1:m,1:m) = Phi*Phi0^(-1);                     % Relative dynamics linear model
 
             switch (mode)
                 case 'Discrete'
-                    B = A*b;                                    % Control input matrix
+                    B = A*b;                                                        % Control input matrix
                 case 'Continuous'
-                    Phi2 = reshape(Sc(i+1,end-n^2+1:end), [n n]);  
-                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;              % Control input matrix
+                    Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
+                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
             end
 
             % Controller gains
@@ -119,25 +119,25 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
 
             % Backward pass recursion
             S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
-            v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:end-n^2).';
+            v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
         end
 
         for i = 1:size(Sc,1)-1
             % Linearization 
             if (i > 1)
-                Phi0 = reshape(Sc(i-1,end-n^2+1:end), [n n]);   % STM from 0 to k-1
+                Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);     % STM from 0 to k-1
             else
-                Phi0 = eye(n);                                  % STM from 0 to k-1
+                Phi0 = eye(m);                                % STM from 0 to k-1
             end
-            Phi = reshape(Sc(i,end-n^2+1:end), [n n]);          % STM from 0 to k
-            A(1:n,1:n) = Phi*Phi0^(-1);                         % Relative dynamics linear model
+            Phi = reshape(Sc(i,n+m+1:end), [m m]);            % STM from 0 to k
+            A(1:m,1:m) = Phi*Phi0^(-1);                                             % Relative dynamics linear model
 
             switch (mode)
                 case 'Discrete'
-                    B = A*b;                                    % Control input matrix
+                    B = A*b;                                                        % Control input matrix
                 case 'Continuous'
-                    Phi2 = reshape(Sc(i+1,end-n^2+1:end), [n n]);  
-                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;              % Control input matrix
+                    Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
+                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
             end
 
             % Backward pass
@@ -151,9 +151,12 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
         switch (mode)
             case 'Discrete'
                 for i = 1:size(Sc,1)-1
-                    [~,s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], Sc(i,:)+[zeros(1,9) u(:,i).' zeros(1, n^2)], options);
+                    U = zeros(1,n+m+m^2); 
+                    U(n+4:n+6) = u(:,i).';
+                    [~,s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], Sc(i,:)+U, options);
                     Sc(i+1,:) = s(end,:);
                 end
+
             case 'Continuous'
                 dynamics = @(t,s)(vnlr_model(mu, u, t.', s.').');
                 [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-12);
@@ -161,7 +164,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
 
         Vp = 0; 
         for i = 1:length(tspan)
-            Vp = Vp+0.5*Sc(i,n+1:end-n^2)*Q*Sc(i,n+1:end-n^2).'+0.5*u(:,i).'*R*u(:,i);
+            Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
         end
 
         % Convergence check 
