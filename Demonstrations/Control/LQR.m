@@ -91,7 +91,7 @@ model = 'RLM';
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                   %Guidance algorithm
 GNC.Algorithms.Navigation = '';                 %Navigation algorithm
-GNC.Algorithms.Control = 'SDRE';                %Control algorithm
+GNC.Algorithms.Control = 'LQR';                %Control algorithm
 
 GNC.Navigation.NoiseVariance = 0; 
 

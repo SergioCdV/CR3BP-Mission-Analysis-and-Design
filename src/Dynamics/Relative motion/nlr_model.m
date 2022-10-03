@@ -61,7 +61,8 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         GNC = [];                                                 % Empty GNC structure
         ds_t = cr3bp_equations(mu, direction, flagVar, t, s_t);   % Target equations of motion
     end
-    s_t = s_t(1:6);                                               % Eliminate the variational state
+    s_t = s_t(1:m);                                               % Eliminate the variational state
+
     
     % Equations of motion of the relative state 
     switch (method_ID)
@@ -81,49 +82,24 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         otherwise
             error('No valid model was chosen');
     end
+
+    % Augmented integral state dynamics
+    if (mod(length(s_r), 9) == 0)
+        m = 9;                                      % Augmented phase space dimension
+        drho = [drho; s_r(7:9)];                    % Integrate the relative position for the PID controller
+    end
     
     % GNC handler 
-    if (~isempty(GNC))        
-        % Integrate the relative position for the PID controller
-        switch (GNC.Algorithms.Control)
-            case 'TISS'
-                error('No valid control algorithm was selected for integration purposes')
-            case 'MISS'
-                error('No valid control algorithm was selected for integration purposes')
-            case 'TITA'
-                error('No valid control algorithm was selected for integration purposes')
-            case 'MPC'
-                error('No valid control algorithm was selected for integration purposes')
-            case 'APF'
-                error('No valid control algorithm was selected for integration purposes')
-            case 'SDRE'
-                drho = [drho; s_r(7:9)];
-            case 'LQR'
-                drho = [drho; s_r(7:9)];
-            case 'HDRE'
-                drho = [drho; s_r(7:9)];
-            case 'SMC'
-            case 'RFSK'
-            case 'MFSK'
-            case 'PFSK'
-            case 'TAHO'
-            case 'iLQR'
-            otherwise
-                error('No valid control algorithm was selected');
-        end
-        
+    if (~isempty(GNC))
         % GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t);         % Compute the control law
-        drho(4:6) = drho(4:6)+u;                                    % Add the control vector       
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:m).', t);         % Compute the control law
+        drho(4:6) = drho(4:6)+u;                                         % Add the control vector       
     end
     
     % Relative variational equations
     if (relFlagVar)
-        Phi = reshape(s_r(7:end), [m m]);               % State Transition Matrix
-        J = rel_jacobian(mu, [s_t; s_r(1:3)]);          % Relative Jacobian matrix
-        dphi = J*Phi;                                   % New State Transition Matrix
-        dphi = reshape(dphi, [m^2 1]);                  % First linear variational vector field
-        drho = [drho; dphi];                            % Complete relative dynamics vector field
+        dphi = var_equations(mu, t, s);      % Linear variational equations
+        drho = [drho; dphi];                 % Complete relative dynamics vector field
     end
     
     % Vector field 

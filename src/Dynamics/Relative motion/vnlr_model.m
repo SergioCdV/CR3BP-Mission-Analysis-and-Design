@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 10/03/21
-% File: fulrel_motion.m 
+% Date: 03/10/22
+% File: vnlr_model.m 
 % Issue: 0 
 % Validated: 
 
@@ -35,12 +35,12 @@
 % Full nonlinear relative motion equations via Encke's method
 function [drho] = vnlr_model(mu, u, t, s)
     % Constants of the system 
-    m = 6;                        % Phase space dimension
+    n = 6;                        % Phase space dimension
     mu_r(1) = 1-mu;               % Reduced gravitational parameter of the first primary 
     mu_r(2) = mu;                 % Reduced gravitational parameter of the second primary 
 
-    s_t = s(1:6,:);               % Target state
-    s_r = s(7:end,:);             % Chaser relative state
+    s_t = s(1:n,:);               % Target state
+    s_r = s(n+1:end,:);           % Chaser relative state
         
     % Synodic position of the primaries 
     R(:,1) = [-mu; 0; 0];                                   % Synodic position of the first primary
@@ -73,23 +73,21 @@ function [drho] = vnlr_model(mu, u, t, s)
     omega = [2*s_r(5,:)+s_r(1,:); -2*s_r(4,:)+s_r(2,:); zeros(1,size(s_r,2))];
     
     % Final vectorfield
-    dv = s_r(4:6,:);                                            % Inertial velocity field
-    f = gamma(1:3,:)+gamma(4:6,:)+omega;                        % Forces field
+    dv = s_r(4:6,:);                              % Inertial velocity field
+    f = gamma(1:3,:)+gamma(4:6,:)+omega;          % Forces field
     drho = [dst;
             dv; 
-            f+u];                                               % Inertial acceleration field 
+            f+u];                                 % Inertial acceleration field 
 
-    if (size(s_r,1) == m+m^2)
-        dphi = zeros(m^2,size(s_r,2));                          % STM preallocation
-        for i = 1:size(s_r,2)
-            Phi = reshape(s_r(7:end,i), [m m]);                 % State Transition Matrix
-            J = rel_jacobian(mu, [s_t(:,i); s_r(1:3,i)]);       % Relative Jacobian matrix
-            aux = J*Phi;                                        % New State Transition Matrix
-            dphi(:,i) = reshape(aux, [m^2 1]);                  % First linear variational vector field
-        end
-        drho = [drho; dphi];                                    % Complete relative dynamics vector field
+    if (mod(size(s,1)-n,n+n/2) == 0)
+        n = n + n/2;                              % Augmented phase space dimension
+        drho = [drho; s_r(1:3,:)];                % Augmented dynamics
     end
 
+    if (size(s_r,1) == n+n^2)
+        dphi = var_equations(mu, t, s);
+        drho = [drho; dphi];
+    end
 end
 
 function [ds] = to_be_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, varargin)
