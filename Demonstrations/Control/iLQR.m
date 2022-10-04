@@ -97,11 +97,11 @@ GNC.System.Libration = [Ln gamma];              % Libration point ID
 
 GNC.Control.LQR.Model = model;                  % LQR model
 GNC.Control.SDRE.Model = model;                 % SDRE model
-GNC.Control.iLQR.Mode = 'Continuous';             % iLQR solver
+GNC.Control.iLQR.Mode = 'Discrete';             % iLQR solver
 
 GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-3*eye(3)];    % Penalty on the state error
 GNC.Control.LQR.Q = blkdiag(eye(3), 1e-4*eye(6));
-GNC.Control.LQR.M = 1e-3*eye(3);                                % Penalty on the control effort
+GNC.Control.LQR.M = 1e-0*eye(3);                                % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);                      % Penalty on the control effort
 
 % iLQR control law 

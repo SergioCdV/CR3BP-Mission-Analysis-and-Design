@@ -31,7 +31,7 @@
 function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     % Constants of the model 
     n = 6;                        % Dimension of the state vector
-    tol = 1e-10;                  % Convergence tolerance
+    tol = [1e-4 1e-8];            % Convergence tolerance
 
     % Controller definition
     mode = GNC.Control.iLQR.Mode; % Control options
@@ -67,9 +67,23 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
             error('No valid iLQR mode was selected');
     end
 
+    % Constraints initialization
+    lambda = 0; 
+    C = sqrt(dot(u,u,1))-0.01;
+    C(:,C < 0) = zeros(1,size(C(:,C < 0),2));
+    C(:,C > 0) = lambda*C(:,C > 0).^2;
     V = 0; 
-    for i = 1:length(tspan)
-        V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
+
+    % Initial cost function evaluation
+    switch (mode)
+        case 'Discrete'
+            for i = 1:length(tspan)
+                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i)+C(i);
+            end
+        case 'Continuous'           
+            for i = 1:length(tspan)
+                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i)+C(i);
+            end
     end
 
     % Preallocation 
@@ -82,103 +96,133 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     Kv = zeros(size(u,1),size(v,1)*size(Sc,1));         % Feeforward gain
     
     % iLQR iterative loop 
-    GoOn = true;                            % Convergence boolean 
+    GoOn(1) = true;                         % Outer loop convergence boolean 
+    GoOn(2) = true;                         % Inner loop convergence boolean 
     maxIter = 100;                          % Maximum number of iterations
-    iter = 1;                               % Initial iteration 
+    iter(1) = 1;                            % Outer loop initial iteration 
+    iter(2) = 1;                            % Inner loop initial iteration 
 
     % Boundary conditions 
     ds(:,1) = zeros(m,1);                   % Initial update
 
-    while (GoOn && iter < maxIter)
-        % Boundary conditions
-        S = Q;                              % Penalty weight matrix final conditions
-        v(:,end) = Q*Sc(end,n+1:n+m).';     % Final feedforward term
+    while (GoOn(1) && iter(1) < maxIter)
+        % Inner LQR loop
+        GoOn(2) = true;                     % Convergence boolean reset
+        iter(2) = 1;                        % Iterations reset
 
-        for i = size(Sc,1)-1:-1:1
-            % Linearization 
-            if (i > 1)
-                Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);   % STM from 0 to k-1
-            else
-                Phi0 = eye(m);                              % STM from 0 to k-1
-            end
-            Phi = reshape(Sc(i,n+m+1:end), [m m]);          % STM from 0 to k
-            A(1:m,1:m) = Phi*Phi0^(-1);                     % Relative dynamics linear model
-
-            switch (mode)
-                case 'Discrete'
-                    B = A*b;                                                        % Control input matrix
-                case 'Continuous'
-                    Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
-                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
-            end
-
-            % Controller gains
-            K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
-            Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
-            Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
-
-            % Backward pass recursion
-            S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
-            v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
-        end
-
-        for i = 1:size(Sc,1)-1
-            % Linearization 
-            if (i > 1)
-                Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);     % STM from 0 to k-1
-            else
-                Phi0 = eye(m);                                % STM from 0 to k-1
-            end
-            Phi = reshape(Sc(i,n+m+1:end), [m m]);            % STM from 0 to k
-            A(1:m,1:m) = Phi*Phi0^(-1);                                             % Relative dynamics linear model
-
-            switch (mode)
-                case 'Discrete'
-                    B = A*b;                                                        % Control input matrix
-                case 'Continuous'
-                    Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
-                    B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
-            end
-
-            % Backward pass
-            du(:,i) = -(K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+Ku(:,1+size(u,1)*(i-1):size(u,1)*i)*u(:,i)+Kv(:,1+size(v,1)*(i-1):size(v,1)*i)*v(:,i+1));
-            ds(:,i+1) = A*ds(:,i)+B*du(:,i);
-        end
-
-        % Forward pass        
-        u = u+du;
-        
-        switch (mode)
-            case 'Discrete'
-                for i = 1:size(Sc,1)-1
-                    U = zeros(1,n+m+m^2); 
-                    U(n+4:n+6) = u(:,i).';
-                    [~,s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], Sc(i,:)+U, options);
-                    Sc(i+1,:) = s(end,:);
+        while (GoOn(2) && iter(2) < maxIter)
+            % Boundary conditions
+            S = Q;                              % Penalty weight matrix final conditions
+            v(:,end) = Q*Sc(end,n+1:n+m).';     % Final feedforward term
+    
+            for i = size(Sc,1)-1:-1:1
+                % Linearization 
+                if (i > 1)
+                    Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);   % STM from 0 to k-1
+                else
+                    Phi0 = eye(m);                              % STM from 0 to k-1
                 end
+                Phi = reshape(Sc(i,n+m+1:end), [m m]);          % STM from 0 to k
+                A(1:m,1:m) = Phi*Phi0^(-1);                     % Relative dynamics linear model
+    
+                switch (mode)
+                    case 'Discrete'
+                        B = A*b;                                                        % Control input matrix
+                    case 'Continuous'
+                        Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
+                        B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
+                end
+    
+                % Controller gains
+                K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
+                Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
+                Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
+    
+                % Backward pass recursion
+                S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
+                v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
+            end
+    
+            for i = 1:size(Sc,1)-1
+                % Linearization 
+                if (i > 1)
+                    Phi0 = reshape(Sc(i-1,n+m+1:end), [m m]);     % STM from 0 to k-1
+                else
+                    Phi0 = eye(m);                                % STM from 0 to k-1
+                end
+                Phi = reshape(Sc(i,n+m+1:end), [m m]);            % STM from 0 to k
+                A(1:m,1:m) = Phi*Phi0^(-1);                                             % Relative dynamics linear model
+    
+                switch (mode)
+                    case 'Discrete'
+                        B = A*b;                                                        % Control input matrix
+                    case 'Continuous'
+                        Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
+                        B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
+                end
+    
+                % Backward pass
+                du(:,i) = -(K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+Ku(:,1+size(u,1)*(i-1):size(u,1)*i)*u(:,i)+Kv(:,1+size(v,1)*(i-1):size(v,1)*i)*v(:,i+1));
+                ds(:,i+1) = A*ds(:,i)+B*du(:,i);
+            end
+    
+            % Forward pass        
+            u = u+du;
+            
+            switch (mode)
+                case 'Discrete'
+                    for i = 1:size(Sc,1)-1
+                        U = zeros(1,n+m+m^2); 
+                        U(n+4:n+6) = u(:,i).';
+                        [~,s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 dt], Sc(i,:)+U, options);
+                        Sc(i+1,:) = s(end,:);
+                    end
+    
+                case 'Continuous'
+                    dynamics = @(t,s)(vnlr_model(mu, u, t.', s.').');
+                    [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-12);
+            end
+    
+            % Constraints penalty evaluations
+            C = sqrt(dot(u,u,1))-0.01;
+            C(:,C < 0) = zeros(1,size(C(:,C < 0),2));
+            C(:,C > 0) = lambda*C(:,C > 0).^2;
 
-            case 'Continuous'
-                dynamics = @(t,s)(vnlr_model(mu, u, t.', s.').');
-                [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-12);
+            % Cost function evaluation
+            Vp = 0; 
+            switch (mode)
+                case 'Discrete'
+                    for i = 1:length(tspan)
+                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i)+C(i);
+                    end
+                case 'Continuous'           
+                    for i = 1:length(tspan)
+                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i)+C(i);
+                    end
+            end
+    
+            % Convergence check 
+            dV = abs(Vp-V);
+            if (dV < tol(2)) 
+                GoOn(2) = false;
+            else
+                iter(2) = iter(2)+1; 
+                V = Vp;
+            end
         end
 
-        Vp = 0; 
-        for i = 1:length(tspan)
-            Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
-        end
-
-        % Convergence check 
-        dV = abs(Vp-V);
-        if (dV < tol) 
-            GoOn = false;
+        % Augmented Langrangian update 
+        GoOn(1) = false; 
+        if (max(abs(C)) < tol(1))
+            GoOn(1) = false; 
         else
-            iter = iter+1; 
-            V = Vp;
+            iter(1) = iter(1)+1;
+            lambda = 1.1*lambda; 
         end
     end
 
     % Final output
-    state.State = ~GoOn;
+    state.State = ~GoOn(1) && ~GoOn(2);
     state.Iterations = iter; 
     state.Error = dV;
 end
