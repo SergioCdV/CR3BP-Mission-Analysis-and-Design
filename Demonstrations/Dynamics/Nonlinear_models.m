@@ -81,21 +81,21 @@ S_rcn = Sn(:,1:6)+Sn(:,7:12);                               % Reconstructed chas
 error_n = S_c-S_rcn;                                        % Error via the full nonlinear model
 
 % Integration through MCPI
-N = length(tspan)-1;                                                % Degree of approximation
-tf = tspan(end);                                                    % Final integration time
-t0 = tspan(1);                                                      % Initial integration time
-tau = flip(cos((0:N)*pi/N));                                        % Integration Chebyshev nodes
-dynamics = @(t,s)(vnlr_model(mu, zeros(3,N+1), t.', s.').');        % Vectorized dynamics 
-
-[tspan2, Sr, state] = MCPI([t0 tf], tau, repmat(s0,N+1,1), dynamics, N, 1e-12);
-[~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, r_c0, options);
-
-S_rc = Sr(:,1:6)+Sr(:,7:12);                                % Reconstructed chaser motion via MCPI method
-error_m = S_c-S_rc;                                         % Error via MCPI
+% N = length(tspan)-1;                                                % Degree of approximation
+% tf = tspan(end);                                                    % Final integration time
+% t0 = tspan(1);                                                      % Initial integration time
+% tau = flip(cos((0:N)*pi/N));                                        % Integration Chebyshev nodes
+% dynamics = @(t,s)(vnlr_model(mu, zeros(3,N+1), t.', s.').');        % Vectorized dynamics 
+% 
+% [tspan2, Sr, state] = MCPI([t0 tf], tau, repmat(s0,N+1,1), dynamics, N, 1e-12);
+% [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, r_c0, options);
+% 
+% S_rc = Sr(:,1:6)+Sr(:,7:12);                                % Reconstructed chaser motion via MCPI method
+% error_m = S_c-S_rc;                                         % Error via MCPI
 
 e(:,1) = sqrt(dot(error, error, 2));                        % State error (L2 norm) via Encke's method
 e(:,2) = sqrt(dot(error_n, error_n, 2));                    % State error (L2 norm) via Newtonian formulation
-e(:,3) = sqrt(dot(error_m, error_m, 2));                    % State error (L2 norm) via MCPI
+% e(:,3) = sqrt(dot(error_m, error_m, 2));                    % State error (L2 norm) via MCPI
 
 %% Results in the inertial frame %% 
 % Preallocation 
@@ -143,14 +143,14 @@ figure
 hold on
 plot(t, log(e(:,1)), 'b'); 
 plot(t, log(e(:,2)), 'r');
-plot(tspan, log(e(:,3)), 'k');
+% plot(tspan, log(e(:,3)), 'k');
 hold off
 grid on
 xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
-legend('Encke', 'Newton', 'MCPI');
+legend('Encke', 'Newton');
 
-%Relative orbit plots
+% Relative orbit plots
 if (false)
     figure(4) 
     plot3(inertial(:,1), inertial(:,2), inertial(:,3)); 

@@ -67,24 +67,24 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
             error('No valid iLQR mode was selected');
     end
 
-    % Constraints initialization
-    lambda = 0; 
-    C = sqrt(dot(u,u,1))-0.01;
-    C(:,C < 0) = zeros(1,size(C(:,C < 0),2));
-    C(:,C > 0) = lambda*C(:,C > 0).^2;
-    V = 0; 
-
     % Initial cost function evaluation
+    V = 0;
     switch (mode)
         case 'Discrete'
             for i = 1:length(tspan)
-                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i)+C(i);
+                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
             end
         case 'Continuous'           
             for i = 1:length(tspan)
-                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i)+C(i);
+                V = V+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i);
             end
     end
+
+    % Inequality penalty evaluations
+    rho = 1e-3; 
+    lambda = zeros(1,size(u,2));
+    C = sqrt(dot(u,u,1))-0.01;
+    V = V+dot(lambda,C)+0.5*rho*dot(C,C);
 
     % Preallocation 
     du = zeros(size(b,2),size(Sc,1));                   % Update to the control law 
@@ -129,8 +129,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                     case 'Discrete'
                         B = A*b;                                                        % Control input matrix
                     case 'Continuous'
-                        Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
-                        B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
+                        B = (dt/2)*(eye(m)+A)*b;                              % Control input matrix
                 end
     
                 % Controller gains
@@ -156,10 +155,9 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                 switch (mode)
                     case 'Discrete'
                         B = A*b;                                                        % Control input matrix
-                    case 'Continuous'
-                        Phi2 = reshape(Sc(i+1,n+m+1:end), [m m]);  
-                        B = dt*(Phi2+Phi)/2*Phi0^(-1)*b;                                % Control input matrix
-                end
+                    case 'Continuous' 
+                        B = (dt/2)*(eye(m)+A)*b;                                        % Control input matrix
+                end    
     
                 % Backward pass
                 du(:,i) = -(K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+Ku(:,1+size(u,1)*(i-1):size(u,1)*i)*u(:,i)+Kv(:,1+size(v,1)*(i-1):size(v,1)*i)*v(:,i+1));
@@ -168,6 +166,8 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     
             % Forward pass        
             u = u+du;
+
+            % APF
             
             switch (mode)
                 case 'Discrete'
@@ -183,17 +183,12 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                     [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-12);
             end
     
-            % Constraints penalty evaluations
-            C = sqrt(dot(u,u,1))-0.01;
-            C(:,C < 0) = zeros(1,size(C(:,C < 0),2));
-            C(:,C > 0) = lambda*C(:,C > 0).^2;
-
             % Cost function evaluation
             Vp = 0; 
             switch (mode)
                 case 'Discrete'
                     for i = 1:length(tspan)
-                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i)+C(i);
+                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*u(:,i).'*R*u(:,i);
                     end
                 case 'Continuous'           
                     for i = 1:length(tspan)
@@ -201,6 +196,10 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                     end
             end
     
+            % Inequality penalty evaluations
+            C = sqrt(dot(u,u,1))-0.01;
+            Vp = Vp+dot(lambda,C)+0.5*rho*dot(C,C);
+
             % Convergence check 
             dV = abs(Vp-V);
             if (dV < tol(2)) 
@@ -213,11 +212,13 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
 
         % Augmented Langrangian update 
         GoOn(1) = false; 
-        if (max(abs(C)) < tol(1))
+        max(C)
+        if (max(C) < tol(1))
             GoOn(1) = false; 
         else
             iter(1) = iter(1)+1;
-            lambda = 1.1*lambda; 
+            lambda = max(0, lambda + rho .* C);
+            rho = 2*rho;
         end
     end
 
