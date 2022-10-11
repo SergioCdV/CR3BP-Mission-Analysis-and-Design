@@ -28,10 +28,9 @@
 
 % New versions: 
 
-function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
+function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
     % Constants of the model 
     n = 6;                        % Dimension of the state vector
-    tol = [1e-4 1e-8];            % Convergence tolerance
 
     % Controller definition
     mode = GNC.Control.iLQR.Mode; % Control options
@@ -81,7 +80,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     end
 
     % Inequality penalty evaluations
-    rho = 1e-3; 
+    rho = 0; 
     lambda = zeros(1,size(u,2));
     C = sqrt(dot(u,u,1))-0.01;
     V = V+dot(lambda,C)+0.5*rho*dot(C,C);
@@ -90,6 +89,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
     du = zeros(size(b,2),size(Sc,1));                   % Update to the control law 
     ds = zeros(m,size(Sc,1));                           % Update to the rendezvous trajectory
     v = zeros(m,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
+    d = zeros(3,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
 
     K = zeros(size(u,1),size(ds,1)*size(Sc,1));         % LQR gain
     Ku = zeros(size(u,1),size(u,1)*size(Sc,1));         % Feedback gain
@@ -133,13 +133,33 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                 end
     
                 % Controller gains
-                K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
-                Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
-                Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
+%                 K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
+%                 Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
+%                 Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
+
+                lx = Q*Sc(i,n+1:n+m).';
+                lu = R*u(:,i);
+                lxx = Q;
+                luu = R;
+                lux = zeros(size(u,1),m);
+
+                Qx = lx+A.'*v(:,i+1);
+                Qu = lu+B.'*v(:,i+1);
+                Qxx = lxx+A.'*S*A;
+                Quu = luu+B.'*S*B;
+                Qux = lux+B.'*S*A;
+
+                Quur = Quu;
+
+                d(:,i) = -Quur^(-1)*Qu;
+                K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = -Quur^(-1)*Qux;
     
                 % Backward pass recursion
-                S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
-                v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
+                S = Qxx+K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*(Quu*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)+Qux)+Qux.'*K(:,1+size(ds,1)*(i-1):size(ds,1)*i);
+
+                v(:,i) = Qx+K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*(Quu*d(:,i)+Qu)+Qux.'*d(:,i);
+                % S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
+                % v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
             end
     
             for i = 1:size(Sc,1)-1
@@ -160,7 +180,8 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                 end    
     
                 % Backward pass
-                du(:,i) = -(K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+Ku(:,1+size(u,1)*(i-1):size(u,1)*i)*u(:,i)+Kv(:,1+size(v,1)*(i-1):size(v,1)*i)*v(:,i+1));
+                % du(:,i) = -(K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+Ku(:,1+size(u,1)*(i-1):size(u,1)*i)*u(:,i)+Kv(:,1+size(v,1)*(i-1):size(v,1)*i)*v(:,i+1));
+                du(:,i) = K(:,1+size(ds,1)*(i-1):size(ds,1)*i)*ds(:,i)+d(:,i);
                 ds(:,i+1) = A*ds(:,i)+B*du(:,i);
             end
     
@@ -192,7 +213,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC)
                     end
                 case 'Continuous'           
                     for i = 1:length(tspan)
-                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i)+C(i);
+                        Vp = Vp+0.5*Sc(i,n+1:n+m)*Q*Sc(i,n+1:n+m).'+0.5*dt*u(:,i).'*R*u(:,i);
                     end
             end
     

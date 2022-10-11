@@ -97,11 +97,11 @@ GNC.System.Libration = [Ln gamma];              % Libration point ID
 
 GNC.Control.LQR.Model = model;                  % LQR model
 GNC.Control.SDRE.Model = model;                 % SDRE model
-GNC.Control.iLQR.Mode = 'Continuous';             % iLQR solver
+GNC.Control.iLQR.Mode = 'Discrete';             % iLQR solver
 
 GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-3*eye(3)];    % Penalty on the state error
 GNC.Control.LQR.Q = blkdiag(eye(3), 1e-4*eye(6));
-GNC.Control.LQR.M = 1e-4*eye(3);                                % Penalty on the control effort
+GNC.Control.LQR.M = 1e-1*eye(3);                                % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);                      % Penalty on the control effort
 
 % iLQR control law 
@@ -109,8 +109,9 @@ int = zeros(1,3);                                               % Integral of th
 s0 = [Sn(1,:) int];                                             % Initial conditions
 
 % Compute the trajectory
+tol = [1e-4 1e-6];            % Convergence tolerance
 obstacle = [0 0 1e-3 1e-4];
-[tspan, St, u, state] = iLQR_control(mu, 1, s0, GNC); 
+[tspan, St, u, state] = iLQR_control(mu, 1, s0, GNC, tol); 
 
 % Error in time 
 [e, merit] = figures_merit(tspan, St(:,7:12));
