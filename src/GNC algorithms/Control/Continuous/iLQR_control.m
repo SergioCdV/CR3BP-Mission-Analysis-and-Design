@@ -28,7 +28,7 @@
 
 % New versions: 
 
-function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
+function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, tol)
     % Constants of the model 
     n = 6;                        % Dimension of the state vector
 
@@ -79,11 +79,12 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
             end
     end
 
-    % Inequality penalty evaluations
-    rho = 0; 
-    lambda = zeros(1,size(u,2));
-    C = sqrt(dot(u,u,1))-0.01;
-    V = V+dot(lambda,C)+0.5*rho*dot(C,C);
+    % Inequality penalty evaluations 
+    lambda = 0*ones(1,size(u,2));
+    C = sqrt(dot(u,u,1))-umax;
+    rho = 1;
+    I = rho*diag(C > 0);
+    V = V+dot(lambda,C)+0.5*C*I*C.';
 
     % Preallocation 
     du = zeros(size(b,2),size(Sc,1));                   % Update to the control law 
@@ -137,6 +138,12 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
 %                 Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
 %                 Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
 
+                if (norm(u(:,i)) ~= 0)
+                    cu = u(:,i)/norm(u(:,i));
+                else
+                    cu = u(:,i);
+                end
+
                 lx = Q*Sc(i,n+1:n+m).';
                 lu = R*u(:,i);
                 lxx = Q;
@@ -144,9 +151,9 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
                 lux = zeros(size(u,1),m);
 
                 Qx = lx+A.'*v(:,i+1);
-                Qu = lu+B.'*v(:,i+1);
+                Qu = lu+B.'*v(:,i+1) + cu*(lambda(:,i) + I(i,i)*C(:,i).');
                 Qxx = lxx+A.'*S*A;
-                Quu = luu+B.'*S*B;
+                Quu = luu+B.'*S*B + cu*I(i,i)*cu.';
                 Qux = lux+B.'*S*A;
 
                 Quur = Quu;
@@ -218,8 +225,9 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
             end
     
             % Inequality penalty evaluations
-            C = sqrt(dot(u,u,1))-0.01;
-            Vp = Vp+dot(lambda,C)+0.5*rho*dot(C,C);
+            C = sqrt(dot(u,u,1))-umax;
+            I = rho*diag(C > 0);
+            Vp = Vp+dot(lambda,C)+0.5*C*I*C.';
 
             % Convergence check 
             dV = abs(Vp-V);
@@ -232,7 +240,6 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, tol)
         end
 
         % Augmented Langrangian update 
-        GoOn(1) = false; 
         max(C)
         if (max(C) < tol(1))
             GoOn(1) = false; 
