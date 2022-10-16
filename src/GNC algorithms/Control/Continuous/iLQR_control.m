@@ -28,7 +28,7 @@
 
 % New versions: 
 
-function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, tol)
+function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
     % Constants of the model 
     n = 6;                        % Dimension of the state vector
 
@@ -46,7 +46,6 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, tol)
 
     % Generate the initial LQR/SDRE guess 
     s0 = [s0 reshape(eye(m), [1 m^2])];                            % Variational initial conditions
-    dt = 1e-2;                                                     % Nondimensional time step
     tspan = 0:dt:tf;                                               % Integration time span
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);         % Integration tolerances
 

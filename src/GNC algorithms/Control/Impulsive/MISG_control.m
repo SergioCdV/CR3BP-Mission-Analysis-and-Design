@@ -179,7 +179,7 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
                     sol(1:3) = sol(1:3)+ds;
 
                     % Convergence analysis 
-                    if (norm(ds) < tol(1))
+                    if (norm(ds) < tol(2))
                         GoOn(2) = false;
                     else
                         iter(2) = iter(2)+1;
@@ -198,10 +198,9 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
                 S = S(1:end-1,:);
         
                 % Convergence analysis 
-                if (norm(dV-sol(1:m/2*size(S,1))) < tol(2))
+                if (norm(epsilon) < tol(1))
                     GoOn(1) = false;                          % Stop the method
                 else
-                    dV = sol(1:m/2*size(S,1));                % Converged impulse sequence
                     iter(1) = iter(1)+1;                      % Update the iterations
                 end
             end
@@ -214,7 +213,7 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
             Sc = S;                                           % Control trajectory 
             state.State = ~GoOn(1);                           % Convergence boolean
             state.Iterations = iter;                          % Number of required iterations
-            state.Error = norm(epsilon);                      % Final error
+            state.Error = norm(S(end,7:9));                   % Final error
 
         otherwise
             error('No valid method was chosen');

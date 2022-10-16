@@ -155,7 +155,7 @@ function [cost] = costfunc(impulses,u)
     u = reshape(u, [3 impulses]);
     
     %Cost function 
-    cost = sum(sqrt(dot(u,u,2)));
+    cost = sum(sqrt(dot(u,u,1)));
 end
 
 %Nonlinear constraints
