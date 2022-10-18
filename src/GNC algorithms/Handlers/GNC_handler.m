@@ -22,15 +22,15 @@
 %           law requirements
 
 function [Sg, Sn, u] = GNC_handler(GNC, St, S, t, varargin)
-    %Branch between a chaser and a target spacecraft 
+    % Branch between a chaser and a target spacecraft 
     if(~isempty(varargin))
         if (varargin{1})
-            [Sg, Sn, u] = GNCt_handler(GNC, S, t);      %Target GNC handler
+            [Sg, Sn, u] = GNCt_handler(GNC, S, t);      % Target GNC handler
         else
             error('No valid GNC handler was selected');
         end
     else
-        [Sg, Sn, u] = GNCc_handler(GNC, St, S, t);      %Chaser GNC handler
+        [Sg, Sn, u] = GNCc_handler(GNC, St, S, t);      % Chaser GNC handler
     end
 
     if (isfield(GNC, 'Tmax'))

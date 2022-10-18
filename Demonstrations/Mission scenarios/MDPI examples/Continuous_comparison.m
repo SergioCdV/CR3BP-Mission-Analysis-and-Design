@@ -34,7 +34,8 @@ tf = 2*pi;                          % Rendezvous time
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           % System libration points
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-T = 28*3600;                        % Characteritic period of the Earth-Moon system
+T = 28*86400;                       % Characteritic period of the Earth-Moon system
+Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
 
 % Differential corrector set up
 nodes = 10;                         % Number of nodes for the multiple shooting corrector
@@ -42,7 +43,7 @@ maxIter = 20;                       % Maximum number of iterations
 tol = 1e-10;                        % Differential corrector tolerance
 
 %% Halo orbit computation %%
-%Halo characteristics 
+% Halo characteristics 
 Az = 10e6;                                                  % Orbit amplitude out of the synodic plane
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
 Ln = 1;                                                     % Orbits around L1
@@ -75,7 +76,6 @@ S_rc = S(:,1:6)+S(:,7:12);                                  % Reconstructed chas
 GNC.Algorithms.Guidance = '';                   % Guidance algorithm
 GNC.Algorithms.Navigation = '';                 % Navigation algorithm
 GNC.Algorithms.Control = 'LQR';                 % Control algorithm
-model = 'RLM';
 
 GNC.Guidance.Dimension = 9;                     % Dimension of the guidance law
 GNC.Control.Dimension = 3;                      % Dimension of the control law
@@ -84,11 +84,12 @@ GNC.Navigation.NoiseVariance = 0;               % Noise variance
 GNC.System.mu = mu;                             % Systems's reduced gravitational parameter
 GNC.System.Libration = [Ln gamma];              % Libration point ID
 
-GNC.Control.LQR.Model = model;                  % LQR model
-GNC.Control.SDRE.Model = model;                 % SDRE model
+GNC.Control.LQR.Model = 'SLLM';                 % LQR model
 GNC.Control.LQR.Q = 2*eye(9);                   % Penalty on the state error
 GNC.Control.LQR.M = eye(3);                     % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);      % Reference operting point
+
+GNC.Control.SDRE.Model = 'RLM';                 % SDRE model
 GNC.Control.SDRE.Q = 2*eye(9);                  % Penalty on the state error
 GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
 
@@ -97,7 +98,7 @@ int = zeros(1,3);                               % Integral of the relative posit
 s0 = [s0.' int];                                % Initial conditions
 
 % Compute the LQR trajectory
-iter = 25; 
+iter = 1; 
 time = zeros(1,iter);
 for i = 1:iter
     tic
@@ -120,7 +121,7 @@ GNC.Algorithms.Control = 'SDRE';                % Control algorithm
 % Compute the trajectory
 for i = 1:iter
     tic
-    [~, St_lqr] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
+    [~, St_sdre] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
     time(i) = toc; 
 end
 Time(2) = mean(time); 
@@ -138,10 +139,10 @@ effort_sdre = control_effort(tspan, u_sdre, false);
 GNC.Algorithms.Control = 'LQR';                 % Control algorithm
 GNC.Control.iLQR.Mode = 'Continuous';           % iLQR solver
 
-GNC.Control.LQR.Q = blkdiag(eye(3), 1e-4*eye(6));               % Penalty on the state error
-GNC.Control.LQR.M = 1e-1*eye(3);                                % Penalty on the control effort
+GNC.Control.LQR.Q = 3e1*blkdiag(eye(3), 1e-6*eye(6));             % Penalty on the state error
+GNC.Control.LQR.M = 1e-1*eye(3);                                     % Penalty on the control effort
 
-Tmax = 1e-1 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
+Tmax = 1e-4 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
 tol = [1e-4 1e-5];                                              % Convergence tolerance
 
 % Compute the trajectory
@@ -149,7 +150,7 @@ iter = 1;
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u_ilqr, state] = iLQR_control(mu, tf, s0, GNC, Tmax, 1e-2, tol);
+    [tspan_ilqr, St_ilqr, u_ilqr, state] = iLQR_control(mu, 1.8, s0, GNC, Tmax, 1e-3, tol);
     time(i) = toc; 
 end
 Time(3) = mean(time);

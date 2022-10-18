@@ -207,7 +207,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
     
                 case 'Continuous'
                     dynamics = @(t,s)(vnlr_model(mu, u, t.', s.').');
-                    [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-12);
+                    [~, Sc, state] = MCPI([tspan(1) tspan(end)], tau, Sc, dynamics, N, 1e-10);
             end
     
             % Cost function evaluation
@@ -229,7 +229,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
             Vp = Vp+dot(lambda,C)+0.5*C*I*C.';
 
             % Convergence check 
-            dV = abs(Vp-V);
+            dV = abs(Vp-V)
             if (dV < tol(2)) 
                 GoOn(2) = false;
             else
