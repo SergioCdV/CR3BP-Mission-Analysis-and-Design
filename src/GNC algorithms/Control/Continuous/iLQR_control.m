@@ -91,9 +91,9 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
     v = zeros(m,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
     d = zeros(3,size(Sc,1));                            % Feedforward term to the rendezvous trajectory
 
-    K = zeros(size(u,1),size(ds,1)*size(Sc,1));         % LQR gain
-    Ku = zeros(size(u,1),size(u,1)*size(Sc,1));         % Feedback gain
-    Kv = zeros(size(u,1),size(v,1)*size(Sc,1));         % Feeforward gain
+%     K = zeros(size(u,1),size(ds,1)*size(Sc,1));         % LQR gain
+%     Ku = zeros(size(u,1),size(u,1)*size(Sc,1));         % Feedback gain
+%     Kv = zeros(size(u,1),size(v,1)*size(Sc,1));         % Feeforward gain
     
     % iLQR iterative loop 
     GoOn(1) = true;                         % Outer loop convergence boolean 
@@ -132,11 +132,6 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
                         B = (dt/2)*(eye(m)+A)*b;                              % Control input matrix
                 end
     
-                % Controller gains
-%                 K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
-%                 Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
-%                 Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
-
                 if (norm(u(:,i)) ~= 0)
                     cu = u(:,i)/norm(u(:,i));
                 else
@@ -162,10 +157,15 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
     
                 % Backward pass recursion
                 S = Qxx+K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*(Quu*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)+Qux)+Qux.'*K(:,1+size(ds,1)*(i-1):size(ds,1)*i);
-
                 v(:,i) = Qx+K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*(Quu*d(:,i)+Qu)+Qux.'*d(:,i);
-                % S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
-                % v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
+
+                % Controller gains
+%                 K(:,1+size(ds,1)*(i-1):size(ds,1)*i) = (B.'*S*B+R)^(-1)*B.'*S*A;
+%                 Kv(:,1+size(v,1)*(i-1):size(v,1)*i) = (B.'*S*B+R)^(-1)*B.';
+%                 Ku(:,1+size(u,1)*(i-1):size(u,1)*i) = (B.'*S*B+R)^(-1)*R;
+% 
+%                 S = A.'*S*(A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i))+Q; 
+%                 v(:,i) = (A-B*K(:,1+size(ds,1)*(i-1):size(ds,1)*i)).'*v(:,i+1)-K(:,1+size(ds,1)*(i-1):size(ds,1)*i).'*R*u(:,i)+Q*Sc(i,n+1:n+m).';
             end
     
             for i = 1:size(Sc,1)-1
@@ -229,7 +229,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
             Vp = Vp+dot(lambda,C)+0.5*C*I*C.';
 
             % Convergence check 
-            dV = abs(Vp-V)
+            dV = abs(Vp-V);
             if (dV < tol(2)) 
                 GoOn(2) = false;
             else
@@ -239,7 +239,6 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
         end
 
         % Augmented Langrangian update 
-        max(C)
         if (max(C) < tol(1))
             GoOn(1) = false; 
         else

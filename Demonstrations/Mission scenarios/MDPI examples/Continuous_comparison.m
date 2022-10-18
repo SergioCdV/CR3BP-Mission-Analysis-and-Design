@@ -139,10 +139,10 @@ effort_sdre = control_effort(tspan, u_sdre, false);
 GNC.Algorithms.Control = 'LQR';                 % Control algorithm
 GNC.Control.iLQR.Mode = 'Continuous';           % iLQR solver
 
-GNC.Control.LQR.Q = 3e1*blkdiag(eye(3), 1e-6*eye(6));             % Penalty on the state error
-GNC.Control.LQR.M = 1e-1*eye(3);                                     % Penalty on the control effort
+GNC.Control.LQR.Q = 1e3*blkdiag(eye(3), 1e-6*eye(6));           % Penalty on the state error
+GNC.Control.LQR.M = eye(3);                                     % Penalty on the control effort
 
-Tmax = 1e-4 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
+Tmax = 1e-3 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
 tol = [1e-4 1e-5];                                              % Convergence tolerance
 
 % Compute the trajectory
@@ -150,7 +150,7 @@ iter = 1;
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u_ilqr, state] = iLQR_control(mu, 1.8, s0, GNC, Tmax, 1e-3, tol);
+    [tspan_ilqr, St_ilqr, u_ilqr, ~] = iLQR_control(mu, 2, s0, GNC, Tmax, 1e-2, tol);
     time(i) = toc; 
 end
 Time(3) = mean(time);
@@ -166,8 +166,8 @@ effort_ilqr = control_effort(tspan_ilqr, u_ilqr, false);
 figure(1) 
 view(3) 
 hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3)); 
-plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+plot3(Sn(1:2000,1), Sn(1:2000,2), Sn(1:2000,3)); 
+% plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target orbit', 'Initial orbit'); 
 xlabel('$x$');
@@ -199,9 +199,11 @@ grid on;
 figure(5)
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'r', 'Linewidth', 0.1); 
-r = plot3(St_smc(:,7)+St_smc(:,1), St_smc(:,8)+St_smc(:,2), St_smc(:,9)+St_smc(:,3), 'b', 'Linewidth', 0.1); 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
+annotation('arrow', [0.25 0.30], [0.75 0.78])
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'k*', 'Linewidth', 0.1, 'MarkerIndices', 1:500:size(S_rc,1)); 
+r = plot3(St_ilqr(:,7)+St_ilqr(:,1), St_ilqr(:,8)+St_ilqr(:,2), St_ilqr(:,9)+St_ilqr(:,3), 'b', 'Linewidth', 1); 
+g = plot3(St_lqr(:,7)+St_lqr(:,1), St_lqr(:,8)+St_lqr(:,2), St_lqr(:,9)+St_lqr(:,3), 'r', 'Linewidth', 1); 
+% t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 hold off
 text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_1$');
@@ -209,9 +211,22 @@ xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
-legend('Target orbit', 'Rendezvous arc', 'Location', 'northeast');
+legend('Target orbit', 'AL-iLQR', 'LQR', 'Location', 'southwest');
+% axis('equal')
 
-plotTripleEvolution(tspan_ilqr, tspan, St_ilqr, St_sdre, St_lqr);
+figure
+colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
+hold on
+plot(tspan(:,1:2000), sqrt(dot(u_lqr(:,1:2000), u_lqr(:,1:2000),1)) * (4*pi^2*Lem/T^2) * 1e3, 'Color', colors(1,:));
+plot(tspan(:,1:2000), sqrt(dot(u_lqr(:,1:2000), u_sdre(:,1:2000),1)) * (4*pi^2*Lem/T^2) * 1e3, 'Color', colors(2,:));
+plot(tspan_ilqr, sqrt(dot(u_ilqr,u_ilqr,1)) * (4*pi^2*Lem/T^2) * 1e3, 'Color', colors(3,:));
+hold off
+grid on;
+xlabel('$t$');
+ylabel('$||\mathbf{u}||$');
+legend('LQR', 'SDRE', 'AL-iLQR')
+%%
+plotTripleEvolution(tspan_ilqr, tspan, St_lqr, St_sdre, St_ilqr);
 
 %Rendezvous animation 
 if (false)
@@ -237,10 +252,7 @@ end
 
 %% Auxiliary functions 
 %Function to plot the three relative state evolutions in the same figure 
-function plotTripleEvolution(tspan_ilqr, tspan, St_ilqr, St_lqr, St_sdre)
-    %Assemble the three of them in a single array 
-    St = [St_ilqr(:,1:12); St_lqr(:,1:12); St_sdre(:,1:12)]; 
-
+function plotTripleEvolution(tspan_ilqr, tspan, St_lqr, St_sdre, St_ilqr)
     %Line format array 
     lines = {'-' '-' '-.'};
 
@@ -252,34 +264,38 @@ function plotTripleEvolution(tspan_ilqr, tspan, St_ilqr, St_lqr, St_sdre)
     markers_size = [6, 5, 6];
     
     figure
-    for i = 1:3
+    subplot(1,2,1)
+    hold on
+    for i = 1:2
         %Configuration space evolution
-        subplot(1,2,1)
-        hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
-        hold off
+        plot(tspan(1:4000), St_lqr(1:4000,6+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
     end
-    legend('$\dot{x}$', '$\dot{y}$');
-    xlabel('Nondimensional epoch');
-    ylabel('Relative configuration coordinates');
+    legend('$x$', '$y$', 'AutoUpdate', 'off');
+    for i = 1:2
+        plot(tspan(1:4000), St_sdre(1:4000,6+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
+        plot(tspan_ilqr, St_ilqr(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_ilqr)); 
+    end
+    hold off 
+    xlabel('$t$');
+    ylabel('$\mathbf{\rho}$');
     grid on;
-    title('Relative position in time');
     ax = gca;
     ax.YAxis.Exponent = 0;
 
-    for i = 1:3
-        subplot(1,2,2)
-        hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:800:length(tspan)); 
-        hold off
+    subplot(1,2,2)
+    hold on
+    for i = 1:2
+        plot(tspan(1:4000), St_lqr(1:4000,9+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:800:length(tspan(1:4000)));  
     end
-    legend('$\dot{x}$', '$\dot{y}$');
-    xlabel('Nondimensional epoch');
-    ylabel('Relative velocity coordinates');
+    legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');
+    for i = 1:2
+        plot(tspan(1:4000), St_sdre(1:4000,9+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
+        plot(tspan_ilqr, St_ilqr(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_ilqr));        
+    end
+    hold off; 
+    xlabel('$t$');
+    ylabel('$\dot{\mathbf{\rho}}$');
     grid on;
-    title('Relative velocity in time');
     ax = gca;
     ax.YAxis.Exponent = 0;
 end
