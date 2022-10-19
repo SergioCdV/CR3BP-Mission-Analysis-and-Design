@@ -56,11 +56,39 @@ halo_param = [-1 Az Ln gamma m];                            % Northern halo para
 
 % Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Planar', mu, halo_seed, maxIter, tol);
+chaser_orbit = target_orbit;
+
+% % Halo characteristics 
+% Az = 20140e3;                                                       % Orbit amplitude out of the synodic plane 
+% Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+% Ln = 2;                                                             % Orbits around L2
+% gamma = L(end,Ln);                                                  % Li distance to the second primary
+% m = 1;                                                              % Number of periods to compute
+% 
+% % Compute the halo orbit seed 
+% halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+% [halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate the halo orbit seed
+% 
+% % Correct the seed and obtain initial conditions for a halo orbit
+% [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+% 
+% % Continuate the first halo orbit to locate the chaser spacecraft
+% Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
+% num = 5;                                                            % Number of orbits to continuate
+% method = 'SPC';                                                     % Type of continuation method (Single-Parameter Continuation)
+% algorithm = {'Energy', NaN};                                        % Type of SPC algorithm (on period or on energy)
+% object = {'Orbit', halo_seed, target_orbit.Period};                 % Object and characteristics to continuate
+% corrector = 'Plane Symmetric';                                      % Differential corrector method
+% direction = 1;                                                      % Direction to continuate (to the Earth)
+% setup = [mu maxIter tol direction];                                 % General setup
+% 
+% [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+% [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Natural motion %%
 index = fix(tf/dt);                                         % Rendezvous point
 r_t0 = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
-r_c0 = target_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
+r_c0 = chaser_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           % Initial relative conditions
 s0 = [r_t0 rho0].';                                         % Initial conditions of the target and the relative state
 
@@ -142,7 +170,7 @@ GNC.Control.iLQR.Mode = 'Continuous';           % iLQR solver
 GNC.Control.LQR.Q = 1e3*blkdiag(eye(3), 1e-6*eye(6));           % Penalty on the state error
 GNC.Control.LQR.M = eye(3);                                     % Penalty on the control effort
 
-Tmax = 1e-3 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
+Tmax = 5e-3 / (4*pi^2*Lem/T^2);                                 % Maximum available acceleration
 tol = [1e-4 1e-5];                                              % Convergence tolerance
 
 % Compute the trajectory
@@ -167,7 +195,7 @@ figure(1)
 view(3) 
 hold on
 plot3(Sn(1:2000,1), Sn(1:2000,2), Sn(1:2000,3)); 
-% plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
+plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3)); 
 hold off
 legend('Target orbit', 'Initial orbit'); 
 xlabel('$x$');
@@ -199,19 +227,18 @@ grid on;
 figure(5)
 view(3) 
 hold on
-annotation('arrow', [0.25 0.30], [0.75 0.78])
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'k*', 'Linewidth', 0.1, 'MarkerIndices', 1:500:size(S_rc,1)); 
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'k', 'Linewidth', 0.1);
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'k-*', 'Linewidth', 0.1, 'MarkerIndices', 1:500:size(S_rc,1)); 
 r = plot3(St_ilqr(:,7)+St_ilqr(:,1), St_ilqr(:,8)+St_ilqr(:,2), St_ilqr(:,9)+St_ilqr(:,3), 'b', 'Linewidth', 1); 
 g = plot3(St_lqr(:,7)+St_lqr(:,1), St_lqr(:,8)+St_lqr(:,2), St_lqr(:,9)+St_lqr(:,3), 'r', 'Linewidth', 1); 
-% t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.1);
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 hold off
-text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_1$');
+text(L(1,Ln)+1e-3, L(2,Ln), 0, '$L_2$');
 xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
-legend('Target orbit', 'AL-iLQR', 'LQR', 'Location', 'southwest');
+legend('Target orbit', 'Initial orbit', 'AL-iLQR', 'LQR', 'Location', 'southwest');
 % axis('equal')
 
 figure
@@ -225,8 +252,8 @@ grid on;
 xlabel('$t$');
 ylabel('$||\mathbf{u}||$');
 legend('LQR', 'SDRE', 'AL-iLQR')
-%%
-plotTripleEvolution(tspan_ilqr, tspan, St_lqr, St_sdre, St_ilqr);
+
+plotTripleEvolution(tspan_ilqr, tspan, St_sdre, St_sdre, St_ilqr);
 
 %Rendezvous animation 
 if (false)
@@ -266,12 +293,12 @@ function plotTripleEvolution(tspan_ilqr, tspan, St_lqr, St_sdre, St_ilqr)
     figure
     subplot(1,2,1)
     hold on
-    for i = 1:2
+    for i = 1:3
         %Configuration space evolution
         plot(tspan(1:4000), St_lqr(1:4000,6+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
     end
-    legend('$x$', '$y$', 'AutoUpdate', 'off');
-    for i = 1:2
+    legend('$x$', '$y$', '$z$', 'AutoUpdate', 'off');
+    for i = 1:3
         plot(tspan(1:4000), St_sdre(1:4000,6+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
         plot(tspan_ilqr, St_ilqr(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_ilqr)); 
     end
@@ -284,11 +311,11 @@ function plotTripleEvolution(tspan_ilqr, tspan, St_lqr, St_sdre, St_ilqr)
 
     subplot(1,2,2)
     hold on
-    for i = 1:2
+    for i = 1:3
         plot(tspan(1:4000), St_lqr(1:4000,9+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:800:length(tspan(1:4000)));  
     end
-    legend('$\dot{x}$', '$\dot{y}$', 'AutoUpdate', 'off');
-    for i = 1:2
+    legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
+    for i = 1:3
         plot(tspan(1:4000), St_sdre(1:4000,9+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:800:length(tspan(1:4000)));    
         plot(tspan_ilqr, St_ilqr(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_ilqr));        
     end
