@@ -32,12 +32,51 @@ function [commands] = OPTI_guidance(cost_function, Tmin, Tmax, tspan, St, core, 
             commands = nopt_core(cost_function, Tmin, Tmax, tspan, St, method); 
         case 'Linear'
             commands = lopt_core(cost_function, Tmin, Tmax, St); 
+        case 'Corrector'
+            commands = corrector_core(cost_function, Tmin, Tmax, tspan, St);
         otherwise
             error('No valid solver was chosen')
     end
 end
 
 %% Auxiliary functions
+%Differential corrector core 
+function [commands] = corrector_core(cost_function, Tmin, Tmax, tspan, trajectory)
+    % Differential corrector setup 
+    GoOn = true; 
+    iter = 1; 
+    maxIter = 100; 
+    tol = 1e-5; 
+
+    mu = 0.0121505;
+
+    % Integration tolerances (ode113)
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+
+    dV = zeros(3,size(trajectory,1));
+
+    while (GoOn && iter < maxIter)
+        % Backward pass 
+        [commands] = lopt_core(cost_function, Tmin, Tmax, trajectory); 
+
+        % Forward pass 
+        for i = 1:length(tspan)-1
+            s0 = trajectory(i,:); 
+            s0(10:12) = s0(10:12)+commands(:,i).';
+           [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 tspan(2)-tspan(1)], s0, options);
+           trajectory(i+1,:) = aux(end,:);
+        end
+
+        e = max(sqrt(dot(dV-commands,dV-commands,1)))
+        if (e < tol)
+            GoOn = false; 
+        else
+            dV = commands;
+            iter = iter+1; 
+        end
+    end
+end
+
 %Nonlinear optimization core function
 function [commands] = nopt_core(cost_function, Tmin, Tmax, tspan, trajectory, method)
     %Constants

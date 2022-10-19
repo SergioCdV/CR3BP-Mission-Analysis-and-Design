@@ -79,7 +79,7 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
             Sc = s;                                           % Control trajectory 
             state.State = true;                               % Convergence boolean
             state.Iterations = length(tspan);                 % Number of required iterations
-            state.Error = norm(epsilon);                      % Final error
+            state.Error = norm(s(end,7:12));                  % Final error
 
         case 'Numerical'
             % Differential corrector set up

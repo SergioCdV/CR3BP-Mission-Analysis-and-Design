@@ -28,7 +28,7 @@
 
 % New versions: 
 
-function [Sg, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method)
+function [tspan, Sg, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method)
     %Constants 
     m = 6;                                  %Phase space dimension
     
@@ -46,7 +46,7 @@ function [Sg, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, c
     Phi = eye(m);                           %Initial STM
     Phi = reshape(Phi, [m^2 1]);            %Reshape the initial STM
     s0 = [s0; Phi];                         %Complete initial conditions
-    dt = 1e-3;                              %Time step
+    dt = 1e-2;                              %Time step
     tspan = 0:dt:TOF;                       %Integration time span
     time_horizon = length(tspan)-1;         %Full MPC scheme
     

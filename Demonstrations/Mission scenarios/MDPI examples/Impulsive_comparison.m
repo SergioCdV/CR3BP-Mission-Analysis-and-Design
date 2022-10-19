@@ -31,7 +31,7 @@ tf = 0.6;                           % Allowed time of flight
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           % System libration points
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-Tc = 28*3600;                       % Characteristic time of the Earth-Moon system
+Tc = 28*86400;                      % Characteristic time of the Earth-Moon system
 Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
 
 % Differential corrector set up
@@ -86,7 +86,7 @@ tspan = 0:dt:tf;                        % Manoeuvre integration time span
 tol = 1e-10;                            % Differential corrector tolerance
 
 % Controller scheme
-iter = 25; 
+iter = 1; 
 time = zeros(1,iter);
 for i = 1:iter
     tic
@@ -152,69 +152,68 @@ effort_misg = control_effort(tspan_misg, dV, true);
 [e_misg, merit_misg] = figures_merit(tspan_misg, St_misg(:,7:12));
 
 %% GNC: MPC multi impulsive rendezvous %%
-%Set up of the optimization
-method = 'NPL';                               %Method to solve the problem
-core = 'Linear';                              %Number of impulses
-TOF = tf;                                     %Time of flight
-cost_function = 'Position';                   %Target a position rendezvous
+% Set up of the optimization
+method = 'NPL';                               % Method to solve the problem
+core = 'Linear';                              % Number of impulses
+TOF = tf;                                     % Time of flight
+cost_function = 'Position';                   % Target a position rendezvous
 
-%Thruster characteristics 
-Tmin = -1e-3;                                 %Minimum thrust capability (in velocity impulse)
-Tmax = 1e-3;                                  %Maximum thrust capability (in velocity impulse)
+% Thruster characteristics 
+Tmin = -1e-3;                                 % Minimum thrust capability (in velocity impulse)
+Tmax = 1e-3;                                  % Maximum thrust capability (in velocity impulse)
 
-%Main computation 
-tspan = 0:dt:TOF; 
+% Main computation 
+iter = 1; 
 time = zeros(1,iter);
+for i = 1:1
+    tic
+    [tspan_mpc, St_mpc, dV, state{4}] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+    time(i) = toc;
+end
+Time(4) = mean(time);
+%%
+tspan_mpc = 0:1e-2:TOF;
+[~, Sopt] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, [s0 reshape(eye(6), [1 6^2])], options);
+iter = 1; 
 for i = 1:iter
     tic
-    [St_mpc, dV, state{1}] = MPC_control(mu, cost_function, Tmin, Tmax, TOF, s0, core, method);
+    [dV] = OPTI_guidance(cost_function, Tmin, Tmax, tspan, Sopt, 'Corrector', cost_function);
     time(i) = toc;
 end
 Time(4) = mean(time);
 
-%Control integrals
-effort_mpc = control_effort(tspan, dV, true) * Vc;
+for i = 1:length(tspan_mpc)-1
+    s0opt = Sopt(i,:); 
+    s0opt(10:12) = s0opt(10:12)+dV(:,i).';
+   [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 tspan_mpc(2)-tspan_mpc(1)], s0opt, options);
+   Sopt(i+1,:) = aux(end,:);
+end
 
-%Error in time 
-[e_mpc, merit_mpc] = figures_merit(tspan, St_mpc);
+% Control integrals
+effort_mpc = control_effort(tspan_mpc, dV, true);
+
+% Error in time 
+[e_mpc, merit_mpc] = figures_merit(tspan_mpc, St_mpc(:,7:12));
 
 %% GNC: discrete iLQR
-index = fix(tf/dt);                                         % Rendezvous point
-model = 'RLM';
-GNC.Algorithms.Guidance = '';                   % Guidance algorithm
-GNC.Algorithms.Navigation = '';                 % Navigation algorithm
-GNC.Algorithms.Control = 'LQR';                 % Control algorithm
+GNC.Control.iLQR.Mode = 'Discrete';                                 % iLQR solver
 
-GNC.Navigation.NoiseVariance = 0; 
-
-GNC.Guidance.Dimension = 9;                     % Dimension of the guidance law
-GNC.Control.Dimension = 3;                      % Dimension of the control law
-
-GNC.System.mu = mu;                                             % Systems's reduced gravitational parameter
-GNC.System.Libration = [Ln gamma];                              % Libration point ID
-
-GNC.Control.LQR.Model = model;                                  % LQR model
-GNC.Control.SDRE.Model = model;                                 % SDRE model
-GNC.Control.iLQR.Mode = 'Discrete';                             % iLQR solver
-
-GNC.Control.LQR.Q = 2e2*[eye(3) zeros(3); zeros(3) 1e-2*eye(3)];    % Penalty on the state error
-GNC.Control.LQR.Q = 2e2*blkdiag(eye(3), 1e-4*eye(6));
-GNC.Control.LQR.M = 5e3*eye(3);                                     % Penalty on the control effort
-GNC.Control.LQR.Reference = Sn(index,1:3);                      % Penalty on the control effort
+GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-6*eye(3)];    % Penalty on the state error
+% GNC.Control.LQR.Q = blkdiag(eye(3), 1e-4*eye(6));
+GNC.Control.LQR.M = eye(3);                                         % Penalty on the control effort
 
 % iLQR control law 
-int = zeros(1,3);                                               % Integral of the relative position
-s0 = [Sn(1,:) int];                                             % Initial conditions
+int = zeros(1,3);                  % Integral of the relative position
+s0 = [Sn(1,:)];                    % Initial conditions
 
 % Compute the trajectory
-tol = [1e-3 1e-5];                                              % Convergence tolerance
+tol = [1e-4 1e-5];                 % Convergence tolerance
 
 % Controller
-iter = 1;
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, tf, s0, GNC, 1e-1, tol);    
+    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, pi, s0, GNC, 5e-2, 5e-2, tol);    
     time(i) = toc;
 end
 Time(5) = mean(time);
