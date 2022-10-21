@@ -31,7 +31,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     noise = GNC.Navigation.NoiseVariance; 
     Sn = S;
     if (noise ~= 0)
-        Sn(1:6) = S(1:6)-2*noise*ones(1,6)+noise*rand(1,6);
+        Sn(1:6) = S(1:6)+noise*normrnd(0,1,1,6);
     end
     
     %Guidance module 
@@ -203,10 +203,11 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             
             %Controller parameters 
             parameters = GNC.Control.SMC.Parameters;        %Parameters of the controller
+            model = 'Encke';                                %Dynamics vector field approximation model
             Stotal = [St(:,1:6) S(:,1:6)];                  %Complete phase space vector
             
             %Control law
-            u = SMC_control(mu, Sg, Stotal, parameters);
+            u = SMC_control(mu, Sg, Stotal, parameters, model);
             
         case 'MPC'
             %System characteristics 

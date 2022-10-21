@@ -18,7 +18,7 @@
 
 % New versions: 
 
-function [u] = SMC_control(mu, Sg, Sn, parameters)
+function [u] = SMC_control(mu, Sg, Sn, parameters, model)
     %SMC parameters 
     lambda = parameters(1);                             %General loop gain
     epsi = parameters(2);                               %Reachability condition gain
@@ -40,7 +40,7 @@ function [u] = SMC_control(mu, Sg, Sn, parameters)
         %Torque computation
         s = dv+lambda*dr;                               %Sliding surface
 
-        f = nlr_model(mu, true, false, false, 'Encke', 0, Sn(i,:).');               %Relative CR3BP 
+        f = nlr_model(mu, true, false, false, model, 0, Sn(i,:).');               %Relative CR3BP 
         
         %Final control law
         ds = epsi*(norm(s)^(alpha)*saturation(s, delta).'+s);                      %Reachability condition function
