@@ -28,7 +28,7 @@
 
 % New versions: 
 
-function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
+function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, LOS_constraint, tol)
     % Constants of the model 
     n = 6;                        % Dimension of the state vector
 
@@ -79,11 +79,18 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
     end
 
     % Inequality penalty evaluations 
-    lambda = 0*ones(1,size(u,2));
-    C = sqrt(dot(u,u,1))-umax;
-    rho = 1;
-    I = rho*diag(C > 0);
-    V = V+dot(lambda,C)+0.5*C*I*C.';
+    p = repmat([1,1,1],size(Sc,1),1);%Sc(:,4:6)./sqrt(dot(Sc(:,4:6),Sc(:,4:6),2));
+    beta = deg2rad(25);
+    l = -dot(Sc(:,7:9),p,2)+sqrt(dot(Sc(:,7:9),Sc(:,7:9),2)).*sqrt(dot(p,p,2))*cos(beta);
+    C = [sqrt(dot(u,u,1))-umax; ( (sqrt(dot(Sc(:,7:9),Sc(:,7:9),2)) < 1e-4 & LOS_constraint ).*l).'];
+
+    lambda = 0*ones(size(C,1),size(Sc,1));
+    rho = [1; 1];
+    I = [rho(1)*(C(1,:) > 0); rho(2)*(C(2,:) > 0)];
+    V = V+sum(dot(lambda,C,1));
+    for i = 1:size(Sc,1)
+        V = V + 0.5*C(:,i).'*diag(I(:,i))*C(:,i);
+    end
 
     % Preallocation 
     du = zeros(size(b,2),size(Sc,1));                   % Update to the control law 
@@ -112,8 +119,16 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
 
         while (GoOn(2) && iter(2) < maxIter)
             % Boundary conditions
-            S = Q;                              % Penalty weight matrix final conditions
-            v(:,end) = Q*Sc(end,n+1:n+m).';     % Final feedforward term
+            if (norm(u(:,end)) ~= 0)
+                cu = [u(:,end).'/norm(u(:,end)); zeros(1,3)];
+            else
+                cu = [u(:,end).'; zeros(1,n/2)];
+            end
+
+            cx = [zeros(1,m); +cos(beta)*norm(p(end,:))*Sc(end,7:9)/norm(Sc(end,7:9))-p(end,:) zeros(1,m-3)];
+
+            S = Q + cx.'*diag(I(:,end))*cx;                                                    % Penalty weight matrix final conditions
+            v(:,end) = Q*Sc(end,n+1:n+m).'+cx.'*(lambda(:,end)+diag(I(:,end))*C(:,end));       % Final feedforward term
     
             for i = size(Sc,1)-1:-1:1
                 % Linearization 
@@ -133,10 +148,12 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
                 end
     
                 if (norm(u(:,i)) ~= 0)
-                    cu = u(:,i)/norm(u(:,i));
+                    cu = [u(:,i).'/norm(u(:,i)); zeros(1,3)];
                 else
-                    cu = u(:,i);
+                    cu = [u(:,i).'; zeros(1,3)];
                 end
+
+                cx = [zeros(1,m); +cos(beta)*Sc(i,7:9)/norm(Sc(i,7:9))-p(i,:) zeros(1,m-3)];
 
                 lx = Q*Sc(i,n+1:n+m).';
                 lu = R*u(:,i);
@@ -144,11 +161,11 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
                 luu = R;
                 lux = zeros(size(u,1),m);
 
-                Qx = lx+A.'*v(:,i+1);
-                Qu = lu+B.'*v(:,i+1) + cu*(lambda(:,i) + I(i,i)*C(:,i).');
-                Qxx = lxx+A.'*S*A;
-                Quu = luu+B.'*S*B + cu*I(i,i)*cu.';
-                Qux = lux+B.'*S*A;
+                Qx = lx+A.'*v(:,i+1) + cx.'*(lambda(:,i) + diag(I(:,i))*C(:,i));
+                Qu = lu+B.'*v(:,i+1) + cu.'*(lambda(:,i) + diag(I(:,i))*C(:,i));
+                Qxx = lxx+A.'*S*A + cx.'*diag(I(:,i))*cx;
+                Quu = luu+B.'*S*B + cu.'*diag(I(:,i))*cu;
+                Qux = lux+B.'*S*A + cu.'*diag(I(:,i))*cx;
 
                 Quur = Quu;
 
@@ -224,9 +241,15 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
             end
     
             % Inequality penalty evaluations
-            C = sqrt(dot(u,u,1))-umax;
-            I = rho*diag(C > 0);
-            Vp = Vp+dot(lambda,C)+0.5*C*I*C.';
+            % p = Sc(:,4:6)./sqrt(dot(Sc(:,4:6),Sc(:,4:6),2));
+            l = -dot(Sc(:,7:9),p,2)+sqrt(dot(Sc(:,7:9),Sc(:,7:9),2)).*sqrt(dot(p,p,2))*cos(beta);
+            C = [sqrt(dot(u,u,1))-umax; ( (sqrt(dot(Sc(:,7:9),Sc(:,7:9),2)) < 1e-4 & LOS_constraint ).*l).'];
+
+            I = [rho(1)*(C(1,:) > 0); rho(2)*(C(2,:) > 0)];
+            Vp = Vp+sum(dot(lambda,C,1));
+            for i = 1:size(Sc,1)
+                Vp = Vp + 0.5*C(:,i).'*diag(I(:,i))*C(:,i);
+            end
 
             % Convergence check 
             dV = abs(Vp-V);
@@ -239,7 +262,7 @@ function [tspan, Sc, u, state] = iLQR_control(mu, tf, s0, GNC, umax, dt, tol)
         end
 
         % Augmented Langrangian update 
-        if (max(C) < tol(1))
+        if (max(max(C)) < tol(1))
             GoOn(1) = false; 
         else
             iter(1) = iter(1)+1;

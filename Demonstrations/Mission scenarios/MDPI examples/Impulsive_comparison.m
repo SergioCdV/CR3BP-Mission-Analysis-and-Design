@@ -171,23 +171,6 @@ for i = 1:1
     time(i) = toc;
 end
 Time(4) = mean(time);
-%%
-tspan_mpc = 0:1e-2:TOF;
-[~, Sopt] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, [s0 reshape(eye(6), [1 6^2])], options);
-iter = 1; 
-for i = 1:iter
-    tic
-    [dV] = OPTI_guidance(cost_function, Tmin, Tmax, tspan, Sopt, 'Corrector', cost_function);
-    time(i) = toc;
-end
-Time(4) = mean(time);
-
-for i = 1:length(tspan_mpc)-1
-    s0opt = Sopt(i,:); 
-    s0opt(10:12) = s0opt(10:12)+dV(:,i).';
-   [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), [0 tspan_mpc(2)-tspan_mpc(1)], s0opt, options);
-   Sopt(i+1,:) = aux(end,:);
-end
 
 % Control integrals
 effort_mpc = control_effort(tspan_mpc, dV, true);
@@ -226,7 +209,7 @@ effort_ilqr = control_effort(tspan_ilqr, u, true);
 
 %% Results %% 
 % Plot results 
-figure(1) 
+figure
 view(3) 
 hold on
 plot3(Sn(:,1), Sn(:,2), Sn(:,3)); 
@@ -239,7 +222,7 @@ zlabel('$z$');
 grid on;
 
 % Plot relative phase trajectory
-figure(2) 
+figure
 view(3) 
 plot3(St_miss(:,7), St_miss(:,8), St_miss(:,9)); 
 xlabel('$x$');
@@ -248,43 +231,45 @@ zlabel('$z$');
 grid on;
 
 % Configuration space error 
-figure(3)
+figure
 hold on 
 plot(tspan, log(e_tiss));
 plot(tspan, log(e_miss));
-plot(tspan, log(e_opt)); 
+plot(tspan_mpc, log(e_mpc)); 
 plot(tspan_misg, log(e_misg)); 
-plot(tspan_ilqr, log(e_ilqr)); 
+plot(tspan_ilqr(1:12), log(e_ilqr(1:12))); 
 xlabel('$t$');
 ylabel('Absolute error $\log{e}$');
 legend('TI', 'MI', 'Opt-MI', 'MISG', 'AL-iLQR'); 
 grid on;
-axes('position', [.22 .47 .6 .25])
-box on
-indexOfInterest = (tspan > 0.1) & (tspan < 0.5); 
-hold on
-plot(tspan(indexOfInterest), e_tiss(indexOfInterest))  
-plot(tspan(indexOfInterest), e_miss(indexOfInterest))  
-plot(tspan(indexOfInterest), e_opt(indexOfInterest))  
-plot(tspan_misg(indexOfInterest), e_misg(indexOfInterest)) 
-plot(tspan_ilqr(indexOfInterest), e_ilqr(indexOfInterest)) 
-hold off
-axis tight
+% axes('position', [.20 .40 .6 .25])
+% box on
+% indexOfInterest = (tspan > 0.1) & (tspan < 0.5); 
+% hold on
+% plot(tspan(indexOfInterest), e_tiss(indexOfInterest))  
+% plot(tspan(indexOfInterest), e_miss(indexOfInterest))  
+% plot(tspan_mpc(indexOfInterest), e_mpc(indexOfInterest))  
+% plot(tspan_misg(indexOfInterest), e_misg(indexOfInterest)) 
+% plot(tspan_ilqr(indexOfInterest), e_ilqr(indexOfInterest)) 
+% hold off
+% axis tight
 
-figure(4)
+figure
 view(3) 
 hold on
-c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b', 'Linewidth', 0.8); 
-r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), 'k', 'Linewidth', 0.8); 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'r', 'Linewidth', 0.8);
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'k', 'Linewidth', 0.8);
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'k-*', 'Linewidth', 0.8, 'MarkerIndices', 1:500:size(S_rc,1)); 
+r = plot3(St_miss(:,7)+St_miss(:,1), St_miss(:,8)+St_miss(:,2), St_miss(:,9)+St_miss(:,3), 'r', 'Linewidth', 1); 
+r = plot3(St_misg(:,7)+St_misg(:,1), St_misg(:,8)+St_misg(:,2), St_misg(:,9)+St_misg(:,3), 'b', 'Linewidth', 1); 
+r = plot3(St_ilqr(:,7)+St_ilqr(:,1), St_ilqr(:,8)+St_ilqr(:,2), St_ilqr(:,9)+St_ilqr(:,3), 'Linewidth', 1); 
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
 text(L(1,Ln), L(2,Ln), 5e-3, '$L_2$');
 hold off
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
-legend('Initial orbit', 'Rendezvous arc', 'Target orbit', 'Location', 'northwest');
+legend('Target orbit', 'Initial orbit', 'MI', 'MISG', 'AL-iLQR', 'Location', 'northwest');
  
 %Rendezvous animation 
 if (false)
@@ -307,52 +292,59 @@ if (false)
     end
     hold off
 end
-
-plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss);
+%% 
+plotTripleEvolution(tspan, tspan_mpc, tspan_misg, tspan_ilqr, St_tiss, St_miss, St_mpc, St_misg, St_ilqr);
 
 %% Auxiliary functions 
 %Function to plot the three relative state evolutions in the same figure 
-function plotTripleEvolution(tspan, St_mpc, St_tiss, St_miss)
-    %Assemble the three of them in a single array 
-    St = [St_mpc; St_tiss; St_miss]; 
-
+function plotTripleEvolution(tspan, tspan_mpc, tspan_misg, tspan_ilqr, St_tiss, St_miss, St_mpc, St_misg, St_ilqr)
     %Line format array 
-    lines = {'-' '-.' '-'};
+    lines = {'-' '-' '-', '-', '-.'};
 
     %Colors
     colors = [[0.8500 0.3250 0.0980]; [0.9290 0.6940 0.1250]; [0.3010 0.7450 0.9330]];
 
     %Markers 
-    markers = {'none', 'none', '*'};
-    markers_size = [6, 5, 6];
+    markers = {'none', '|', '*', '^', 'none'};
+    markers_size = [6, 5, 6, 6, 6];
     
     figure
+    subplot(1,2,1)
+    hold on
     for i = 1:3
         %Configuration space evolution
-        subplot(1,2,1)
-        hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),7), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),8), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),9), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        hold off
+        plot(tspan, St_tiss(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:80:length(tspan)); 
     end
-    legend('$x$', '$y$', '$z$');
-    xlabel('Nondimensional epoch');
-    ylabel('Relative configuration coordinates');
-    grid on;
-    title('Relative position in time');
-
+    legend('$x$', '$y$', '$z$', 'AutoUpdate', 'off');
     for i = 1:3
-        subplot(1,2,2)
-        hold on
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),10), 'Color', colors(1,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),11), 'Color', colors(2,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        plot(tspan, St((i-1)*length(tspan)+1:i*length(tspan),12), 'Color', colors(3,:), 'LineStyle', lines{i}, 'Marker', markers{i}, 'MarkerSize', markers_size(i), 'MarkerIndices', 1:80:length(tspan)); 
-        hold off
-        legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
+        %Configuration space evolution
+        plot(tspan, St_miss(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan_mpc, St_mpc(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_mpc));
+        plot(tspan_misg, St_misg(:,6+i), 'Color', colors(i,:), 'LineStyle', lines{4}, 'Marker', markers{4}, 'MarkerSize', markers_size(4), 'MarkerIndices', 1:20:length(tspan_misg));
+        plot(tspan_ilqr(1:12), St_ilqr(1:12,6+i), 'Color', colors(i,:), 'LineStyle', lines{5}, 'Marker', markers{5}, 'MarkerSize', markers_size(5), 'MarkerIndices', 1:1:length(tspan_ilqr(1:12)));
     end
-    xlabel('Nondimensional epoch');
-    ylabel('Relative velocity coordinates');
+    hold off;
+    xlabel('$t$');
+    ylabel('$\mathbf{\rho}$');
     grid on;
-    title('Relative velocity in time');
+
+    subplot(1,2,2)
+    hold on
+    for i = 1:3
+        %Configuration space evolution
+        plot(tspan, St_tiss(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{1}, 'Marker', markers{1}, 'MarkerSize', markers_size(1), 'MarkerIndices', 1:80:length(tspan)); 
+    end
+    legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$', 'AutoUpdate', 'off');
+    for i = 1:3
+        %Configuration space evolution
+        plot(tspan, St_miss(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{2}, 'Marker', markers{2}, 'MarkerSize', markers_size(2), 'MarkerIndices', 1:80:length(tspan)); 
+        plot(tspan_mpc, St_mpc(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{3}, 'Marker', markers{3}, 'MarkerSize', markers_size(3), 'MarkerIndices', 1:20:length(tspan_mpc));
+        plot(tspan_misg, St_misg(:,9+i), 'Color', colors(i,:), 'LineStyle', lines{4}, 'Marker', markers{4}, 'MarkerSize', markers_size(4), 'MarkerIndices', 1:20:length(tspan_misg));
+        plot(tspan_ilqr(1:12), St_ilqr(1:12,9+i), 'Color', colors(i,:), 'LineStyle', lines{5}, 'Marker', markers{5}, 'MarkerSize', markers_size(5), 'MarkerIndices', 1:1:length(tspan_ilqr(1:12)));
+    end
+    hold off;
+
+    xlabel('$t$');
+    ylabel('$\dot{\mathbf{\rho}}$');
+    grid on;
 end
