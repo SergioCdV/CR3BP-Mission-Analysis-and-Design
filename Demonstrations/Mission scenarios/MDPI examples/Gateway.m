@@ -1,534 +1,391 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 29/12/21 % 
+% 23/10/22 % 
 
-%% JGCD Gateway Mission %% 
+%% Gateway Mission for MDPI %% 
 % This script provides an interface to test the general control scheme for
 % a rendezvous, docking and undocking mission in a re-supply mission for
 % the Gateway 
 
-% Units are non-dimensional and solutions are expressed in the Lagrange
-% points reference frame as defined by Howell, 1984.
+% Units are non-dimensional and solutions are expressed in the 
+% synodic reference frame as defined by Howell, 1984.
 
 %% Set up %%
-%Set up graphics 
+clc 
+clear; 
+close all; 
+
+% Set up graphics 
 set_graphics();
 
-%Integration tolerances (ode113)
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);  
-
-%% Contants and initial data %% 
-%Phase space dimension 
-n = 6; 
-
-%CR3BP constants 
-mu = 0.0121505;                     %Earth-Moon reduced gravitational parameter
-Lem = 384400e3;                     %Mean distance from the Earth to the Moon
-
-%% Initial conditions and halo orbit computation %%
-%Initial conditions
-L = libration_points(mu);                                   %System libration points
-Az = 195e6;                                                 %Orbit amplitude out of the synodic plane. Play with it! 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         %Normalize distances for the E-M system
-Ln = 2;                                                     %Orbits around Li. Play with it! (L1 or L2)
-gamma = L(end,Ln);                                          %Li distance to the second primary
-m = 1;                                                      %Number of periods to compute
-param = [-1 Az Ln gamma m];                                 %Halo orbit parameters (-1 being for southern halo)
-
-%Correction parameters 
-dt = 1e-3;                                                  %Time step to integrate converged trajectories
-maxIter = 20;                                               %Maximum allowed iterations in the differential correction schemes
-tol = 1e-10;                                                %Differential correction tolerance 
-Bif_tol = 1e-2;                                             %Bifucartion tolerance on the stability index
-num = 2;                                                    %Number of orbits to continuate
-direction = -1;                                             %Direction to continuate (to the Earth)
-   
-%% Functions
-%Compute the NRHO
-[halo_seed, haloT] = object_seed(mu, param, 'Halo');        %Generate a halo orbit seed
-
-%Continuation procedure 
-method = 'SPC';                                             %Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                %Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, haloT};                       %Object and characteristics to continuate
-corrector = 'Plane Symmetric';                              %Differential corrector method
-setup = [mu maxIter tol direction];                         %General setup
-
-[target_orbit, state_energy] = continuation(num, method, algorithm, object, corrector, setup);
-
-%Generate the NRHO
-s0 = [target_orbit.Seeds(end,:).'; reshape(eye(6), [36 1])];
-tspan = 0:dt:target_orbit.Period(end);
-[~, S] = ode113(@(t,s)cr3bp_equations(mu, true, true, t, s), tspan, s0, options);
-Sn = S; 
-
-%Generate the L1 halo 
-Az = 120e6;                                                         %Orbit amplitude out of the synodic plane. 
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 %Normalize distances for the E-M system
-Ln = 1;                                                             %Orbits around L1
-gamma = L(end,Ln);                                                  %Li distance to the second primary
-m = 1;                                                              %Number of periods to compute
-
-%Compute a halo seed 
-halo_param = [1 Az Ln gamma m];                                     %Northern halo parameters
-[halo_seed, ~] = object_seed(mu, halo_param, 'Halo');               %Generate a halo orbit seed
-
-%Correct the seed and obtain initial conditions for a halo orbit
-[initial_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
-
-%% Compute the tranfer trajectory
-%Parking orbit definition 
-R = [-mu; 0; 0];                        %Primary location in the configuration space
-branch = 'L';                           %Manifold branch to globalize
-map = 'First primary';                  %Poincaré map to use
-event = @(t,s)fp_crossing(t,s,mu);      %Integration event
-
-hd = dimensionalizer(Lem, 1, 1, 2000e3, 'Position', 0);                   %Parking orbit altitude
-
-%Integrate the stable manifold backwards and check if it intersects the whereabouts of the parking orbit
-manifold = 'S';                                                          %Integrate the stable manifold
-seed = initial_orbit.Trajectory;                                         %Periodic orbit seed
-tspan = 0:1e-3:initial_orbit.Period;                                     %Original integration time
-rho = 50;                                                                %Density of fibres to analyze
-S = invariant_manifold(mu, Ln, manifold, branch, seed, rho, tspan, map); %Initial trajectories
-
-%Relative distance to the primary of interest
-distance = zeros(rho,1);    
-for i = 1:rho
-    %Distance to the orbital altitude
-    distance(i) = norm(shiftdim(S.Trajectory(i,S.ArcLength(i),1:3))-R)-hd;  
+if (false)
+    %% Contants and initial data %% 
+    % Integration tolerances (ode113)
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22); 
+    
+    % Phase space dimension 
+    n = 6; 
+    
+    % CR3BP constants 
+    mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
+    Lem = 384400e3;                     % Mean distance from the Earth to the Moon
+    Tc = 86400*28;                      % Characteristic period of the Earth-Moon system
+    Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
+    
+    % General setup 
+    dt = 1e-3;                          % Time step to integrate converged trajectories
+    maxIter = 20;                       % Maximum allowed iterations in the differential correction schemes
+    tol = 1e-10;                        % Differential correction tolerance 
+    
+    %% Target and loitering halo orbit computation %%
+    % Generate the L1 loitering halo 
+    L = libration_points(mu);                                           % System libration points
+    Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+    Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+    Ln = 1;                                                             % Orbits around L1
+    gamma = L(end,Ln);                                                  % Li distance to the second primary
+    m = 1;                                                              % Number of periods to compute
+    
+    % Compute the halo orbit seed 
+    halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
+    [halo_seed, ~] = object_seed(mu, halo_param, 'Halo');               % Generate a halo orbit seed
+    
+    % Correct the seed and obtain initial conditions for a halo orbit
+    [initial_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+    
+    % Generate the L1 target halo
+    Az = 30e6;                                                  % Orbit amplitude out of the synodic plane. Play with it! 
+    Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
+    Ln = 2;                                                     % Orbits around Li. Play with it! (L1 or L2)
+    gamma = L(end,Ln);                                          % Li distance to the second primary
+    m = 1;                                                      % Number of periods to compute
+    param = [-1 Az Ln gamma m];                                 % Halo orbit parameters (-1 being for southern halo)
+    
+    % Compute the NRHO
+    [halo_seed, haloT] = object_seed(mu, param, 'Halo');       
+    [target_orbit, state_energy] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
+    
+    %% Natural spacecraft motion %%
+    r_t0 = target_orbit.Trajectory(500, 1:6);         % Initial target conditions
+    r_c0 = initial_orbit.Trajectory(1, 1:6);          % Initial chaser conditions 
+    rho0 = r_c0-r_t0;                                 % Initial relative conditions
+    s0 = [r_t0 rho0].';                               % Initial conditions of the target and the relative state
+    
+    % Integration of the model
+    tspan = 0:dt:2*pi; 
+    [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
+    Sn = S;                
+    
+    % Reconstructed chaser motion 
+    S_rc = S(:,1:6)+S(:,7:12);                        % Reconstructed chaser motion via Encke method
+    
+    % Insertion plot 
+    figure
+    view(3)
+    hold on
+    plot3(Sn(:,1), Sn(:,2), Sn(:,3));
+    plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3));
+    scatter3(Sn(1,1), Sn(1,2), Sn(1,3), 'blue', 'filled');
+    scatter3(S_rc(1,1), S_rc(1,2), S_rc(1,3), 'red', 'filled');
+    hold off
+    grid on;
+    legend('Target orbit', 'Loiter orbit', 'Target at HOI', 'Chaser at HOI'); 
+    
+    %% Initial phase: SMC + continuous iLQR 
+    % Guidance computation
+    GNC.Guidance.Dimension = 9;                     % Dimension of the guidance law
+    GNC.Control.Dimension = 3;                      % Dimension of the control law
+    GNC.Navigation.NoiseVariance = 0;               % Noise variance
+    
+    GNC.Algorithms.Guidance = '';                   % Guidance algorithm
+    GNC.Algorithms.Navigation = '';                 % Navigation algorithm
+    
+    GNC.System.mu = mu;                             % Systems's reduced gravitational parameter
+    GNC.System.Libration = [Ln gamma];              % Libration point ID
+    
+    GNC.Algorithms.Control = 'SDRE';                % Control algorithm
+    GNC.Control.SDRE.Q = 5e2*blkdiag(eye(3), 1e-6*eye(6));                          % Control algorithm
+    GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
+    GNC.Control.SDRE.Model = 'RLM';                 % Control algorithm model
+    
+    GNC.Tmax = 3e-3 / (4*pi^2*Lem/Tc^2);            % Maximum available acceleration
+    
+    % Augmented initial conditions 
+    int = zeros(3,1);                               % Integral of the relative position
+    s0 = [s0; int].';                               % Initial conditions
+    
+    dt = 1e-3;                                      % Zero-order hold time span
+    tf(1) = pi;                                     % Approach TOF
+    tspan_1 = 0:dt:tf(1);
+    
+    [~, S1] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan_1, s0, options); 
+    
+    % % Offline Guidance regression
+    % order = 50; 
+    % [Cp, Cv, Cg] = CTR_guidance(order, tspan_1, Sg(:,n+1:2*n));
+    % 
+    % GNC.Algorithms.Guidance = 'CTR';                             % Guidance algorithm
+    % GNC.Guidance.CTR.Order = order;                              % Order of the approximation
+    % GNC.Guidance.CTR.TOF = tspan(end);                           % Time of flight
+    % GNC.Guidance.CTR.PositionCoefficients = Cp;     	         % Coefficients of the Chebyshev approximation
+    % GNC.Guidance.CTR.VelocityCoefficients = Cv;                  % Coefficients of the Chebyshev approximation
+    % GNC.Guidance.CTR.AccelerationCoefficients = Cg;              % Coefficients of the Chebyshev approximation
+    % GNC.Guidance.CTR.IntegralCoefficients = zeros(size(Cg));     % Coefficients of the Chebyshev approximation
+    % 
+    % % Control 
+    % GNC.Navigation.NoiseVariance = 1/Lem;
+    % 
+    % GNC.Algorithms.Control = 'SMC';                              % Control algorithm
+    % 
+    % GNC.Control.SMC.Parameters = [1.000000000000000 0.985999332287318 0.006010671478548 0.1*0.013227007322678]; 
+    % 
+    % tic;
+    % [~, S1] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan_1, s0, options);
+    % Time(1) = toc; 
+    
+    % Control law
+    [~, ~, u_smc] = GNC_handler(GNC, S1(:,1:n), S1(:,n+1:end), tspan_1);
+    
+    % Error in time 
+    [e_smc, merit_smc] = figures_merit(tspan_1, S1(:,n+1:2*n));
+    
+    % Control integrals
+    effort_smc = control_effort(tspan_1, u_smc, false);
+    
+    % Range reduction 
+    range(1) = 1-norm(S1(end,n+1:n+3))/norm(S1(1,n+1:n+3));
+    
+    figure
+    view(3)
+    hold on
+    plot3(Sn(:,1), Sn(:,2), Sn(:,3));
+    plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3));
+    plot3(S1(:,1)+S1(:,7), S1(:,2)+S1(:,8), S1(:,3)+S1(:,9));
+    legend('Target orbit', 'Loiter orbit', 'SDRE transfer', 'AutoUpdate', 'off'); 
+    % plot3(Sg(:,1)+Sg(:,7), Sg(:,2)+Sg(:,8), Sg(:,3)+Sg(:,9));
+    scatter3(Sn(1,1), Sn(1,2), Sn(1,3), 'blue', 'filled');
+    scatter3(S_rc(1,1), S_rc(1,2), S_rc(1,3), 'red', 'filled');
+    scatter3(L(1,1), L(2,1), 0, 'k', 'filled')
+    scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
+    hold off
+    text(L(1,1)+1e-2, L(2,Ln), 1e-4, '$L_1$');
+    text(L(1,Ln)-2e-2, L(2,Ln), 1e-4, '$L_2$');
+    grid on;
+    
+    figure 
+    view(3)
+    hold on 
+    % plotObject(Sg(:,7:12)); 
+    plotObject(S1(:,7:12));
+    
+    %% Second phase: MPC + Opt-MI
+    % Set up of the optimization
+    method = 'NPL';                               % Method to solve the problem
+    core = 'Linear';                              % Number of impulses
+    cost_function = 'Position';                   % Target a position rendezvous
+    
+    tf(2) = 1;                                  % Time of flight
+    
+    % Thruster characteristics 
+    Tmin = -1e-3;                                 % Minimum thrust capability (in velocity impulse)
+    Tmax = 1e-3;                                  % Maximum thrust capability (in velocity impulse)
+    
+    % Main computation 
+    s0 = S1(end,1:2*n);
+    tic
+    [tspan_21, S21, u_mpc1, state{2}] = MPC_control(mu, cost_function, Tmin, Tmax, tf(2), s0, core, method);
+    Time(2) = toc;
+    
+    s0 = S21(end,1:2*n);
+    tic
+    [tspan_22, S22, u_mpc2, state{2}] = MPC_control(mu, cost_function, Tmin, Tmax, 0.25, s0, core, method);
+    Time(2) = Time(2) + toc;
+    
+    % Complete trajectory 
+    S2 = [S21(1:end-1,1:2*n); S22(1:end,1:2*n)];
+    tspan_2 = [tspan_21(1:end-1) tspan_21(end)+tspan_22];
+    tf(2) = tf(2) + 0.25;
+    u_mpc = [u_mpc1 u_mpc2];
+    
+    % Error in time 
+    [e_mpc, merit_mpc] = figures_merit(tspan_2, S2(:,n+1:2*n));
+    
+    % Control integrals
+    effort_mpc = control_effort(tspan_2, u_mpc, true);
+    
+    % Range reduction 
+    range(2) = 1-norm(S2(end,n+1:n+3))/norm(S2(1,n+1:n+3));
+    
+    %% Third phase: formation-flying
+    % Guidance (Lissajous trajectory around the target)
+    tf(3) = pi; 
+    
+    % Generate an 1 km Lissajous relative orbit
+    tspan_3 = (0:1e-3:tf(3)).';
+    Ax = 1e3/Lem;
+    Az = 1e3/Lem;
+    Sg(:,1:3) = [Ax*cos((2*pi/0.5)*tspan_3) Ax*sin((2*pi/0.5)*tspan_3) Az*sin((2*pi/3)*tspan_3)];
+    Sg(:,4:6) = [-(2*pi/0.5)*Ax*sin((2*pi/0.5)*tspan_3) (2*pi/0.5)*Ax*cos((2*pi/0.5)*tspan_3) (2*pi/3)*Az*cos((2*pi/3)*tspan_3)];
+    
+    % Compute the trajectory as a Chebyshev analytical expression
+    tspan_3 = tspan_3.';
+    order = 50; 
+    [Cp, Cv, Cg] = CTR_guidance(order, tspan_3, Sg);
+    
+    % GNC algorithms definition 
+    GNC.Algorithms.Guidance = 'CTR';            % Guidance algorithm
+    GNC.Algorithms.Navigation = '';             % Navigation algorithm
+    GNC.Algorithms.Control = 'SMC';             % Control algorithm
+    FNC.Algorithms.Solver = 'Encke';            % Dynamics vector field to be solved
+    GNC.Guidance.Dimension = 9;                 % Dimension of the guidance law
+    GNC.Control.Dimension = 3;                  % Dimension of the control law
+    GNC.System.mu = mu;                         % System reduced gravitational parameter
+    
+    GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 1, 'Position', 0);
+    
+    % Controller parameters
+    GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
+    
+    % Guidance parameters 
+    GNC.Guidance.CTR.Order = order;                     % Order of the approximation
+    GNC.Guidance.CTR.TOF = tf(3);                       % Time of flight
+    GNC.Guidance.CTR.PositionCoefficients = Cp;     	% Coefficients of the Chebyshev approximation
+    GNC.Guidance.CTR.VelocityCoefficients = Cv;         % Coefficients of the Chebyshev approximation
+    GNC.Guidance.CTR.AccelerationCoefficients = Cg;     % Coefficients of the Chebyshev approximation
+    
+    % Controller
+    s0 = S2(end,1:2*n); 
+    tic
+    [~, S3] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan_3, s0, options);
+    Time(3) = toc;
+    
+    % Control effort
+    [~, ~, u] = GNC_handler(GNC, S3(:,1:n), S3(:,n+1:2*n), tspan_3); 
+    effort_ff = control_effort(tspan_3, u, false);
+    
+    %% Final results 
+    % Complete trajectory 
+    St = [S1(1:end-1,1:2*n); S2(1:end-1,1:2*n); S3(1:end,1:2*n)];
+    
+    % Total integration time
+    tspan = [tspan_1(1:end-1) tspan_1(end)+tspan_2(1:end-1) tspan_2(end)+tspan_3(1:end)];
+    
+    save Gateway_mission;
+else
+    load Gateway_mission;
 end
-
-[~, index] = sort(distance);                            %Select the closest manifold to the parking orbit
-s0 = shiftdim(S.Trajectory(index(1),1,:));              %Initial conditions to correct
-Phi = eye(n);                                           %Initial STM 
-Phi = reshape(Phi, [n^2 1]);                            %Initial STM 
-sHalo = seed(S.Index(index(1)),1:n).';                  %Halo insertion point
-s0 = [s0(1:3); s0(4:6); Phi];                           %Initial conditions
-TOF = S.TOF(index(1));                                  %Time of flight
-tspan = TOF:-dt:0;                                                                  %Integration time
-options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', event);             %Integration tolerances  
-[~, St0] = ode113(@(t,s)cr3bp_equations(mu, 1, true, t, s), tspan, s0, options);    %Natural trajectory
-
-%Heteroclinic chain between the two halo orbits
-%Manifold definition
-TOF = 2*pi;                     %Time of flight
-rho = 75;                       %Manifold fibers to compute 
-
-%Computation flags
-position_fixed = false;         %Flag to determine a final target state
-graphics = false;               %Flag to plot the manifolds
-
-%Final target state
-target_orbit.TargetState = Sn(1,1:n); 
-target_orbit.Trajectory = Sn; 
-
-%Connection itenerary
-sequence = [1 2];               %Connection itenerary
-branch = ['L' 'R'];             %Manifold branches to be propagated
-
-%Trajectory design core
-[Sg, dV] = HTRC_guidance(mu, sequence, branch, rho, target_orbit, initial_orbit, TOF, position_fixed, graphics);
-
-Stw = initial_orbit.Trajectory(:,1:n);
-Schain = Sg.Trajectory;
-
-%Transfer effort
-effort_transfer = control_effort(NaN, dV, true);
-Ln = 2;
-
-%% Modelling in the synodic frame %%
-r_t0 = Sn(mod(size(St0,1), size(Sn,1)), 1:6);               %Initial target conditions
-r_c0 = Schain(end,1:6);                                     %Initial chaser conditions 
-rho0 = r_c0-r_t0;                                           %Initial relative conditions
-s0 = [r_t0 rho0].';                                         %Initial conditions of the target and the relative state
-
-%Insertion plot 
-figure(1)
-hold on
-plot3(Sn(:,1), Sn(:,2), Sn(:,3));
-plot3(St0(:,1), St0(:,2), St0(:,3));
-plot3(Stw(:,1), Stw(:,2), Stw(:,3));
-plot3(Schain(:,1), Schain(:,2), Schain(:,3));
-scatter3(r_c0(1), r_c0(2), r_c0(3))
-scatter3(r_t0(1), r_t0(2), r_t0(3))
-hold off
-legend('Target orbit', 'Unstable manifold transfer', 'Loitering orbit', 'Transfer chain', 'Target at HOI', 'Chaser at HOI'); 
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
-grid on;
-title('Reconstruction of the natural chaser motion');
-
-%% First phase: long-range rendezvous using the TITA approach
-%Time of flight 
-tf(1) = 0.6;                                %Nondimensional maneuver end time 
-sd = zeros(1,3);                            %Desired state of the system
-
-%Differential corrector set up
-tol = 1e-5;                                 %Differential corrector tolerance
-
-%Cost function matrices
-penalties.R = eye(3);                       %Penalty on the impulse
-penalties.Q = 2*eye(6);                     %Penalty on the state error
-penalties.M  = 0.1*eye(6);                  %Penalty on the state noise
-
-%Select measuring times 
-target_points.Noise = true;                 %Boolean to account for state noise
-
-thruster_model.Sigma = 0.01;                %Velocity noise dependance on the velocity impulse
-thruster_model.Rotation = eye(3);           %Rotational misalignment of the thrusters
-
-%Cost function 
-cost_function = 'Position';                 %Cost function to target
-two_impulsive = true;                       %Two-impulsive rendezvous boolean
-
-%TITA controller first stage
-target_points.Times = 0.8*tf(1)*rand(1,3);  %Times to measure the state noise
-tic
-[Staux1, dVaux1, ~] = TITA_control(mu, 0.8*tf(1), s0, cost_function, zeros(1,3), two_impulsive, penalties, target_points, thruster_model, tol);
-toc
-
-%Multi-impulse stage
-tol = 1e-8;                                   %Differential corrector tolerance
-
-%Select impulsive times 
-times = [0.2*tf(1)*rand(1,5)];                %Times to impulse the spacecraft
-
-%Compute the control law
-impulses.Number = length(times);              %Number of impulses
-impulses.Weights = eye(impulses.Number*3);    %Weightening matrix
-impulses.Times = times;                       %Impulses times
-
-cost = 'Position';                            %Cost function to target
-
-%Controller scheme
-tic
-[Staux2, dVaux2, state] = MISS_control(mu, 0.2*tf(1), Staux1(end,1:2*n), tol, cost, impulses);
-toc
-
-St1 = [Staux1(1:end,1:2*n); Staux2(2:end,1:2*n)];
-dV = [dVaux1 dVaux2]; 
-
-%Control effort 
-tspan = 0:dt:tf(1);
-effort_first = control_effort(tspan, dV, true);
-
-%% Second phase: close-range rendezvous
-%Phase definition 
-tf(2) = pi/14;                              %Timeline
-
-%GNC algorithms definition 
-GNC.Algorithms.Guidance = '';               %Guidance algorithm
-GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'SMC';             %Control algorithm
-GNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-GNC.Control.Dimension = 3;                  %Dimension of the control law
-GNC.System.mu = mu;                         %System reduced gravitational parameter
-
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
-
-%Controller parameters
-GNC.Control.SMC.Parameters = [1 1.000000000000000 0.985999332287318 0.006010671478548 0.013227007322678]; 
-
-%Integration time 
-tspan = 0:dt:tf(2); 
-
-%Initial conditions 
-s0 = St1(end,:); 
-
-%Re-integrate trajectory
-tic
-[~, St2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
-toc
-
-%Control effort
-[~, ~, u] = GNC_handler(GNC, St2(:,1:6), St2(:,7:12), tspan); 
-effort_second = control_effort(tspan, u, false);
-
-%% Third phase: formation-flying
-% Guidance (Lissajous trajectory around the target)
-%Phase definition 
-tf(3) = pi/2; 
-tspan = 0:dt:tf(3); 
-
-%Target trajectory
-s0 = St2(end,1:6);
-[~, Staux] = ode113(@(t,s)cr3bp_equations(mu, 1, false, t, s), tspan, s0, options);   
-
-%Compute the Frenet-Serret
-T = zeros(size(Staux,1), 3, 3);    %Preallocation of the frame
-dT = T;                            %Preallocation of the angular velocity of the frame
-for i = 1:size(Staux,1)
-    T(i,:,:) = frenet_triad(mu, Staux(i,1:6));                 %Frenet-Serret triad
-end
-
-for i = 1:size(Staux,1)
-    if (i == 1)
-        dT(i,:,:) = (T(i+1,:,:)-T(size(Staux,1),:,:))/(2*dt);  %Frenet-Serret triad derivative
-    elseif (i == size(Staux,1))
-        dT(i,:,:) = (T(1,:,:)-T(i,:,:))/(2*dt);                %Frenet-Serret triad derivative
-    else
-        dT(i,:,:) = (T(i+1,:,:)-T(i,:,:))/(2*dt);              %Frenet-Serret triad derivative
-    end
-end
-
-%Generate an 1 km helix around in the Frenet-Serret XY plane for the given
-A = dimensionalizer(Lem, 1, 1, 50, 'Position', 0);
-omega = 4*pi/tspan(end);
-Sg_frenet(:,1:3) = [dt*tspan.'/100 A*cos(omega*tspan).' A*sin(omega*tspan).'];
-Sg_frenet(:,4:6) = zeros(length(tspan),3);
-Sg = Sg_frenet; 
-for i = 1:size(Sg,1)
-    omega = zeros(1,3);
-    for j = 1:size(T,3)
-        omega = omega + (1/2)*cross(T(i,:,j),dT(i,:,j));     %Darboux vector
-    end
-    Sg(i,1:3) = (shiftdim(T(i,:,:)).'*Sg(i,1:3).').';        %Synodic position
-    Sg(i,4:6) = (shiftdim(T(i,:,:)).'*Sg(i,4:6).').';        %Synodic velocity
-    Sg(i,4:6) = Sg(i,4:6) + cross(omega,Sg(i,4:6));          %Synodic velocity Coriolis correction
-end
-
-%Compute the trajectory as a Chebyshev analytical expression
-order = 100; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, Sg);
-
-%Reconstructed guidance trajectory
-u = (2*tspan-(tspan(end)+tspan(1)))/(tspan(end)-tspan(1));          %Normalized time domain
-T = CH_basis('first', order, u);                                    %Polynomial basis
-
-%Error in the regression
-p = Cp*T;                   %Position regression
-v = Cv*T;                   %Velocity regression
-Sr = Staux+[p.' v.'];       %Regress the phase space trajectory
-
-%GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
-GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'SMC';             %Control algorithm
-FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-GNC.Control.Dimension = 3;                  %Dimension of the control law
-GNC.System.mu = mu;                         %System reduced gravitational parameter
-
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 1, 'Position', 0);
-
-%Controller parameters
-GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
-
-%Guidance parameters 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf(3);                       %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation
-
-%Initial conditions 
-s0 = St2(end,:); 
-
-%Re-integrate trajectory
-tic
-[~, St3] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
-toc
-
-%Control effort
-[~, ~, u] = GNC_handler(GNC, St3(:,1:6), St3(:,7:12), tspan); 
-effort_third = control_effort(tspan, u, false);
-
-%% Fourth phase: close-range rendezvous
-%Integration time 
-tf(4) = pi/4;
-
-%Impulsive first approach
-tic
-[St4aux, dV4, state] = TISS_control(mu, 0.1*tf(4), St3(end,1:2*n), 1e-10, 'Position', true);  %Controller scheme
-toc
-
-effort_fourth1 = control_effort(NaN, dV4, true);
-
-%GNC algorithms definition 
-GNC.Algorithms.Guidance = '';               %Guidance algorithm
-GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'SDRE';            %Control algorithm
-FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-GNC.Control.Dimension = 3;                  %Dimension of the control law
-GNC.System.mu = mu;                         %System reduced gravitational parameter
-
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 0, 'Position', 0);
-
-%Controller paramters
-GNC.System.Libration = [Ln gamma];          %Libration point ID
-GNC.Control.SDRE.Model = 'RLM';             %SDRE model
-GNC.Control.SDRE.Q = 2*eye(9);              %Penalty on the state error
-GNC.Control.SDRE.M = eye(3);                %Penalty on the control effort
-
-%Initial conditions 
-tspan = 0:dt:0.9*tf(4); 
-s0 = [St4aux(end,1:2*n) zeros(1,3)]; 
-
-%Re-integrate trajectory
-tic
-[~, St4] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0, options);
-toc
-
-%Compute the trajectory as a Chebyshev analytical expression
-order = 50; 
-[Cp, Cv, Cg] = CTR_guidance(order, tspan, St4(:,n+1:2*n));
-
-%GNC algorithms definition 
-GNC.Algorithms.Guidance = 'CTR';            %Guidance algorithm
-GNC.Algorithms.Navigation = '';             %Navigation algorithm
-GNC.Algorithms.Control = 'SMC';             %Control algorithm
-FNC.Algorithms.Solver = 'Encke';            %Dynamics vector field to be solved
-GNC.Guidance.Dimension = 9;                 %Dimension of the guidance law
-GNC.Control.Dimension = 3;                  %Dimension of the control law
-GNC.System.mu = mu;                         %System reduced gravitational parameter
-
-GNC.Navigation.NoiseVariance = dimensionalizer(Lem, 1, 1, 10, 'Position', 0);
-
-%Controller parameters
-GNC.Control.SMC.Parameters = [1.000000000000000 0.432562054680836 0.070603623964497 0.099843662546135]; 
-
-%Guidance parameters 
-GNC.Guidance.CTR.Order = order;                     %Order of the approximation
-GNC.Guidance.CTR.TOF = tf(4);                       %Time of flight
-GNC.Guidance.CTR.PositionCoefficients = Cp;     	%Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.VelocityCoefficients = Cv;         %Coefficients of the Chebyshev approximation
-GNC.Guidance.CTR.AccelerationCoefficients = Cg;     %Coefficients of the Chebyshev approximation 
-
-%Re-integrate trajectory
-tic
-[~, St4] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tspan, s0(1:2*n), options);
-toc
-
-%Control effort
-[~, ~, u] = GNC_handler(GNC, St4(:,1:6), St4(:,7:12), tspan); 
-effort_fourth = control_effort(tspan, u, false);
-
-%Final trajectory 
-St4 = [St4aux(:,1:2*n); St4];
-
-%% Final departure
-%Phase definition
-tf(5) = 0.1;                             %End of the escape 
-tspan = 0:dt:tf(5);
-
-%Controller definition
-constraint.Constrained = false;                 %No constraints on the maneuver
-constraint.SafeDistance = 1e-5;                 %Safety distance at the collision time
-constraint.Period = target_orbit.Period(end);   %Orbital Period
-constraint.Energy = true;                       %Energy constraint
-
-tic
-[St5, dV5, tm] = FMSC_control(mu, tf(5), St4(end,1:12)+dimensionalizer(Lem, NaN, NaN, 1e3, 'Position', false)*[1 zeros(1,11)], 1e-8, constraint, 'Stable');
-toc 
-
-%Control effort 
-effort_fifth = control_effort(tspan, dV5, true);
-
-tf(6) = 2*pi;
-tspan = 0:dt:tf(6);
-[~, St6] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, St5(end,:), options);
-
-%% Final results 
-%Complete trajectory 
-St = [St1(1:end-1,1:2*n); St2(2:end,1:2*n); St3(2:end,1:2*n); St4(2:end,1:2*n); St5(2:end,1:2*n); St6(2:end,1:2*n)];
-
-%Total integration time
-tspan = 0:dt:sum(tf);                                                    
 
 %% Plotting
-figure(3) 
+figure 
 view(3) 
 hold on 
-t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'b*', 'MarkerIndices', 1:200:size(Sn,1));
-plot3(St(:,1)+St(:,7), St(:,2)+St(:,8), St(:,3)+St(:,9), 'r'); 
-plot3(Schain(:,1), Schain(:,2), Schain(:,3), 'r');
-plot3(Stw(:,1), Stw(:,2), Stw(:,3), 'r');
-plot3(St0(1:1500,1), St0(1:1500,2), St0(1:1500,3), 'r');
+t = plot3(Sn(:,1), Sn(:,2), Sn(:,3), 'k*', 'MarkerIndices', 1:200:size(Sn,1));
+c = plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'k-*', 'MarkerIndices', 1:200:size(S_rc,1));
+plot3(St(length(tspan_1):end,1)+St(length(tspan_1):end,7), St(length(tspan_1):end,2)+St(length(tspan_1):end,8), St(length(tspan_1):end,3)+St(length(tspan_1):end,9), 'r', 'LineWidth', 0.7); 
+legend('Target orbit', 'Chaser motion', 'Location', 'northwest', 'AutoUpdate', 'off');
 scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
-scatter3(1-mu, 0, 0, 'k', 'filled');
 hold off
-text(L(1,Ln)-5e-3, L(2,Ln)+1e-3, 5e-3, '$L_2$');
-text(1-mu+1e-3, 0, 5e-3, '$M_2$');
-xlabel('Synodic $x$ coordinate');
-ylabel('Synodic $y$ coordinate');
-zlabel('Synodic $z$ coordinate');
-legend('Target orbit', 'Chaser trajectory', 'Location', 'southwest');
+text(L(1,Ln)-1e-4, L(2,Ln), 1e-4, '$L_2$');
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
 
-%%
-%Configuration space evolution
-figure(4)
+figure 
+view(3) 
+plot3(St(:,7), St(:,8), St(:,9));
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
+grid on;
+
+% Configuration space evolution (Phase I)
+figure
 subplot(1,2,1)
 hold on
-plot(tspan(1:size(St,1)), St(:,7)); 
-plot(tspan(1:size(St,1)), St(:,8)); 
-plot(tspan(1:size(St,1)), St(:,9)); 
+plot(tspan_1, S1(:,7)); 
+plot(tspan_1, S1(:,8)); 
+plot(tspan_1, S1(:,9)); 
 hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative configuration coordinate');
+xlabel('$t$');
+ylabel('$\mathbf{\rho}$');
 grid on;
 legend('$x$', '$y$', '$z$');
-title('Relative position evolution');
-
 subplot(1,2,2)
 hold on
-plot(tspan(1:size(St,1)), St(:,10)); 
-plot(tspan(1:size(St,1)), St(:,11)); 
-plot(tspan(1:size(St,1)), St(:,12)); 
+plot(tspan_1, S1(:,10)); 
+plot(tspan_1, S1(:,11)); 
+plot(tspan_1, S1(:,12)); 
 hold off
-xlabel('Nondimensional epoch');
-ylabel('Relative velocity coordinate');
+xlabel('$t$');
+ylabel('$\dot{\mathbf{\rho}}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-title('Relative velocity evolution');
 
+% Configuration space evolution (Phase II)
+figure
 subplot(1,2,1)
-axes('position', [.22 .40 .2 .2])
-box on
-indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(2))); 
 hold on
-plot(tspan(indexOfInterest), St(indexOfInterest, 7))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 8))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 9))  
+plot(tspan_2(1:120), S2(1:120,7)); 
+plot(tspan_2(1:120), S2(1:120,8)); 
+plot(tspan_2(1:120), S2(1:120,9)); 
 hold off
-axis tight
-ax = gca; 
-ax.YAxis.Exponent = 0;
-
+xlabel('$t$');
+ylabel('$\mathbf{\rho}$');
+grid on;
+legend('$x$', '$y$', '$z$');
 subplot(1,2,2)
-axes('position', [0.69 .25 .18 .2])
-box on
-indexOfInterest = (tspan < 0.98*sum(tf(1:5))) & (tspan > sum(tf(1))); 
 hold on
-plot(tspan(indexOfInterest), St(indexOfInterest, 10))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 11))  
-plot(tspan(indexOfInterest), St(indexOfInterest, 12))  
+plot(tspan_2(1:120), S2(1:120,10)); 
+plot(tspan_2(1:120), S2(1:120,11)); 
+plot(tspan_2(1:120), S2(1:120,12)); 
 hold off
-axis tight
-ax = gca; 
-ax.YAxis.Exponent = 0;
+xlabel('$t$');
+ylabel('$\dot{\mathbf{\rho}}$');
+grid on;
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
+
+% Configuration space evolution (Phase III)
+figure
+subplot(1,2,1)
+hold on
+plot(tspan_3, S3(:,7)); 
+plot(tspan_3, S3(:,8)); 
+plot(tspan_3, S3(:,9)); 
+hold off
+xlabel('$t$');
+ylabel('$\mathbf{\rho}$');
+grid on;
+legend('$x$', '$y$', '$z$');
+subplot(1,2,2)
+hold on
+plot(tspan_3, S3(:,10)); 
+plot(tspan_3, S3(:,11)); 
+plot(tspan_3, S3(:,12));
+hold off
+xlabel('$t$');
+ylabel('$\dot{\mathbf{\rho}}$');
+grid on;
+legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 
 if (false)
     dh = 50; 
     steps = fix(size(St,1)/dh);
     M = cell(1,steps);
     h = figure;
-    filename = 'nhro.gif';
-    view([37 20])
+    filename = 'webb.gif';
+    view([40 20])
     hold on
-    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.b', 'Linewidth', 0.1);
+    plot3(flip(St0(:,1)), flip(St0(:,2)), flip(St0(:,3)), '.r', 'Linewidth', 0.1);
     plot3(St(:,1), St(:,2), St(:,3), '.-b', 'Linewidth', 0.1);
+    plot3(St4(:,1)+St4(:,7), St4(:,2)+St4(:,8), St4(:,3)+St4(:,9), '.r', 'Linewidth', 0.1); 
     xlabel('Synodic x coordinate');
     ylabel('Synodic y coordinate');
     zlabel('Synodic z coordinate');
     scatter3(L(1,Ln), L(2,Ln), 0, 'k', 'filled');
     scatter3(1-mu, 0, 0, 'k', 'filled');
-    text(L(1,Ln)-2e-2, L(2,Ln), 0, '$L_2$');
-    text(1-mu+1e-3, 0, 5e-3, '$M_2$');
+    text(L(1,Ln)-2e-3, L(2,Ln), 0, '$L_2$');
+    text(1-mu-1e-3, 0, 1e-3, '$M_2$');
     grid on;
     title('Rendezvous simulation');
     

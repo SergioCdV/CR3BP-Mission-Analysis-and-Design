@@ -67,7 +67,9 @@ function [tspan, Sg, dV, state] = MPC_control(mu, cost_function, Tmin, Tmax, TOF
                  
         %Add the maneuver
         dV(:,i) = shiftdim(commands(:,1));
-        Sg(i,10:12) = Sg(i,10:12) + dV(:,i).';  
+        du = rand(1,3);
+        du = 0.05*rand*norm(dV(:,1))*du/norm(du);
+        Sg(i,10:12) = Sg(i,10:12) + dV(:,i).'+du; 
 
         %New integration
         [~, St] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), atime, Sg(i,:), options);

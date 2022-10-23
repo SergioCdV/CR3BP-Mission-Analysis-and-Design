@@ -178,7 +178,7 @@ iter = 1;
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u_ilqr, ~] = iLQR_control(mu, 2, s0, GNC, Tmax, 1e-2, tol);
+    [tspan_ilqr, St_ilqr, u_ilqr, ~] = iLQR_control(mu, 2, s0, GNC, Tmax, 1e-2, false, tol);
     time(i) = toc; 
 end
 Time(3) = mean(time);
