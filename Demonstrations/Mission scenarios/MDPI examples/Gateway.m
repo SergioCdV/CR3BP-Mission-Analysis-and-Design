@@ -218,7 +218,7 @@ if (false)
     
     %% Third phase: formation-flying
     % Guidance (Lissajous trajectory around the target)
-    tf(3) = pi; 
+    tf(3) = 1.5*pi; 
     
     % Generate an 1 km Lissajous relative orbit
     tspan_3 = (0:1e-3:tf(3)).';
