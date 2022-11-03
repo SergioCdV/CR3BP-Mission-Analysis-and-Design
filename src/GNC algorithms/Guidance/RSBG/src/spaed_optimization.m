@@ -87,7 +87,7 @@ function [C, dV, u, tf, tfapp, tau, exitflag, output] = spaed_optimization(syste
     end
 
     % Normlized spacecraft propulsion parameters 
-    T = T*(t0^2/r0);                                        
+    T = T/(4*pi^2*r0/t0^2);                                        
         
     % Add additional revolutions 
     final(2) = final(2)+2*pi*K;
