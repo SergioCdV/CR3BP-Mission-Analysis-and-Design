@@ -24,7 +24,7 @@
 
 % New versions: 
 
-function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0, tol)
+function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constraint, s0, tol)
     % Constants 
     m = 6;                                                      % Relative phase space dimension
     dt = 1e-3;                                                  % Time step
@@ -61,9 +61,13 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     Phi = reshape(eye(m), [1 m^2]);                             % Initial monodromy matrix
     s0 = [s0 Phi];                                              % Complete initial conditions
 
+    % Initial rendezvous guess
+    [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
+    Sn = Saux;
+
     % Center manifold constraints
-    if (constrain.Flag)
-        T = constrain.Period;                                   % Synodic period of the relative orbit
+    if (constraint.Flag)
+        T = constraint.Period;                                  % Synodic period of the relative orbit
         [~, Sref] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), 0:dt:T, s0, options);
     
         Monodromy = reshape(Sref(end,2*m+1:end), [m m]);        % Monodromy matrix
@@ -77,17 +81,9 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     psi = -wp*tf;                                                   % Out-of-plane phase 
     Az = sd(3)/sin(psi);                                            % Out-of-plane amplitude
 
-    s0(m+1:2*m) = zeros(1,m);                                       % Prellocation
-    s0(7) = -Ax*cos(phi);                                           % X relative coordinate
-    s0(8) = kap*Ax*sin(phi);                                        % Y relative coordinate
-    s0(9) = Az*sin(psi);                                            % Z relative coordinate
-    s0(10) = wp*Ax*sin(phi);                                        % Vx relative velocity
-    s0(11) = kap*wp*Ax*cos(phi);                                    % Vy relative velocity
-    s0(12) = wv*Az*cos(psi);                                        % Vz relative velocity
-
     % Lissajous curve guess
     tspan2 = 0:dt:2*tspan(end);
-    [~, Saux] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, s0(1:6), options);
+    [~, Slis] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, s0(1:6), options);
 
     r(1,:) = -Ax*cos(wp*tspan2+phi);         % X relative coordinate
     r(2,:) = kap*Ax*sin(wp*tspan2+phi);      % Y relative coordinate
@@ -96,11 +92,17 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     v(2,:) = kap*wp*Ax*cos(wp*tspan2+phi);   % Vy relative velocity
     v(3,:) = wv*Az*cos(wv*tspan2+psi);       % Vz relative velocity 
 
-    Sref = [Saux [r; v].'];                  % Complete relative state phase-space trajectory
+    Sref = [Slis [r; v].'];                       % Complete relative state phase-space trajectory
 
-    % Initial rendezvous guess
-    [~, Saux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
-    Sn = Saux;
+    % Lissajous guess
+    Saux(:,7) = -Ax*cos(wp*tspan+phi).';          % X relative coordinate
+    Saux(:,8) = kap*Ax*sin(wp*tspan+phi).';       % Y relative coordinate
+    Saux(:,9) = Az*sin(wv*tspan+psi).';           % Z relative coordinate
+    Saux(:,10) = wp*Ax*sin(wp*tspan+phi).';       % Vx relative velocity
+    Saux(:,11) = kap*wp*Ax*cos(wp*tspan+phi).';   % Vy relative velocity
+    Saux(:,12) = wv*Az*cos(wv*tspan+psi).';       % Vz relative velocity
+
+    s0(m+1:2*m) = Saux(1,m+1:2*m);
 
     % Differential corrector setup 
     iter = 1;                                % Initial iteration
@@ -109,7 +111,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
 
     while ((GoOn) && (iter < maxIter))
         % Error analysis 
-        if (constrain.Flag)
+        if (constraint.Flag)
             V = [zeros(3,1); Saux(1,10:12).'-sd(4:6)];  % Initial velocity impulse
             dv = dot(V,Ec)-norm(Ec)*norm(V);            % Initial impulse constraint along the center manifold
         else
@@ -122,7 +124,7 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
         STM = reshape(Saux(end,2*m+1:end), [m m]);                      % State Transition Matrix
         A = [zeros(3) STM(1:3,4:6); eye(3) zeros(3)];                   % Sensibillity matrix
 
-        if (constrain.Flag)
+        if (constraint.Flag)
             C = [A; zeros(1,3) Ec(4:6).'-norm(Ec)*V(1:3).'/norm(V)];    % Complete sensibillity matrix
         else
             C = A;                                                      % Complete sensibillity matrix
@@ -144,8 +146,9 @@ function [S, dV, state, Sref, SM] = ILG_guidance(mu, L, gamma, tf, constrain, s0
     end
 
     % Final output 
+    dV = zeros(3,length(tspan));                 % Impulses array
     dV(:,1) = Saux(1,10:12)-Sn(1,10:12);         % Initial impulse
-    dV(:,2) = Saux(end,10:12)-Sn(end,10:12);     % Final impulse
+    dV(:,end) = -Saux(end,10:12);                % Final impulse
 
     S = Saux;                                    % Final trajectory
     S(end,10:12) = zeros(1,3);                   % Final null relative velocity

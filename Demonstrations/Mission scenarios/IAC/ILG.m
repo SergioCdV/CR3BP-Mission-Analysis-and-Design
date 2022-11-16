@@ -99,7 +99,7 @@ constraint.Period = Tsyn;
 % Final transfer time span
 tspan = 0:dt:tf;                 
 
-iter = 25; 
+iter = 1; 
 time = zeros(2,iter);
 for i = 1:iter
     tic
@@ -125,7 +125,7 @@ time = mean(time,2);
 effort(:,2) = control_effort(tspan, dVtiss, true);
 
 % Final absolute trajectories
-S0 = S0(:,1:n)+S0(:,n+1:2*n);       % Natural quasi-periodic model 
+S0 = S0(:,1:n)+S0(:,n+1:2*n);                       % Natural quasi-periodic model 
 
 St = Str(:,1:n);
 for i = 1:size(Str,1)
@@ -151,7 +151,6 @@ xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
-% title('Guidance trajectory between periodic orbits');
 
 % Configuration space evolution
 figure
@@ -165,7 +164,6 @@ xlabel('t');
 ylabel('$\mathbf{\rho}$');
 grid on;
 legend('$x$', '$y$', '$z$');
-% title('Position in time');
 subplot(1,2,2)
 hold on
 plot(tspan(1:size(Str,1)), Str(:,10)); 
@@ -176,11 +174,9 @@ xlabel('$t$');
 ylabel('$\dot{\mathbf{\rho}}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
-% title('Velocity in time');
 
-%%
 % Rendezvous animation
-if (true)
+if (false)
     dh = 50;
     W = figure;
     set(W, 'color', 'white');

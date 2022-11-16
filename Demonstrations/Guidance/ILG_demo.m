@@ -94,7 +94,7 @@ Tsyn = target_orbit.Period*chaser_orbit.Period/(target_orbit.Period+chaser_orbit
 constraint.Flag = false; 
 constraint.Period = Tsyn; 
 
-[Str, V1, state(1), S0, A] = CMLG_guidance(mu, [1 1], gamma, 2*tf, constraint, [r_t0 r_c0], tol);
+[Str, V1, state(1), S0, A] = ILG_guidance(mu, Ln, gamma, 2*tf, constraint, [r_t0 r_c0], tol);
 
 % Comparison against the TISS controller
 [~, dV, ~] = TISS_control(mu, 2*tf, [r_t0 r_c0-r_t0].', tol, 'Position', true);  

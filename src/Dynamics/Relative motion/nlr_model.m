@@ -238,3 +238,19 @@ function [drho] = two_body(mu, s_r, s_t)
     drho = [v_r; 
             gamma];
 end
+
+% Full nonlinear second order relative motion model
+% function [drho] = full_second_order(mu, s_r, s_t)
+%     % State variables 
+%     r_t = s_t(1:3);               % Synodic position of the target
+%     r_r = s_r(1:3);               % Synodic relative position 
+%     v_r = s_r(4:6);               % Synodic relative velocity 
+%         
+%     % Second order model
+%     cn =
+%     gamma = lr_model(mu, cn, true, false, 'RLM', 0, [s_t; s_r]);
+%     
+%     %Equations of motion 
+%     drho = [v_r; 
+%             gamma];
+% end
