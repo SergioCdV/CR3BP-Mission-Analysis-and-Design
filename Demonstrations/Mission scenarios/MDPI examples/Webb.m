@@ -394,6 +394,24 @@ ylabel('$\dot{\mathbf{\rho}}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 
+figure 
+stem(tspan_1, [sqrt(dot(u,u,1)) 0]*Vc, 'filled');
+grid on; 
+xlabel('$t$')
+ylabel('$||\Delta\mathbf{V}||$')
+
+figure 
+plot(tspan_2, sqrt(dot(u_smc,u_smc,1))*(4*pi^2*Lem/Tc^2)*1e3);
+grid on; 
+xlabel('$t$')
+ylabel('$||\mathbf{u}||$')
+
+figure 
+stem(tspan_misg, sqrt(dot(u_misg,u_misg,1))*Vc, 'filled');
+grid on; 
+xlabel('$t$')
+ylabel('$||\Delta\mathbf{V}||$')
+
 if (false)
     dh = 50; 
     steps = fix(size(St,1)/dh);

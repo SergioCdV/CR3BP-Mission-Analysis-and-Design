@@ -130,7 +130,7 @@ function [drho] = rlm_model(mu, s_t, s_r)
             +3*((mup(1)/norm(Ur(:,1))^3)*(ur(:,1)*ur(:,1).')+(mup(2)/norm(Ur(:,2))^3)*(ur(:,2)*ur(:,2).'));
     
     % State matrix 
-    A = [O I; Sigma-Omega*Omega 2*Omega];
+    A = [O I; Sigma 2*Omega];
     
     % Equations of motion 
     drho = A*s_r;

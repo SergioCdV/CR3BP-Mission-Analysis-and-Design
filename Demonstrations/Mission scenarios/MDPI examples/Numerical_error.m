@@ -1,16 +1,15 @@
 %% Autonomous RVD and docking in the CR3BP %% 
 % Sergio Cuevas del Valle % 
-% 20/02/21 % 
+% 28/11/22 % 
 
-%% Nonlinear models %% 
+%% Numerical error %% 
 % This script provides a script to test different nonlinear models for relative motion in the CR3BP. 
 
 % The relative motion of two spacecraft in a halo orbit around L1 in the
 % Earth-Moon system is analyzed both from the direct integration of the
 % equations of motion and the full motion relative motion % 
 
-% Units are non-dimensional and solutions are expressed in the Lagrange
-% points reference frame as defined by Howell, 1984.
+% Units are non-dimensional and solutions are expressed in the synodic reference frame as defined by Howell, 1984.
 
 %% Set up %%
 close all; 
@@ -82,52 +81,13 @@ s0 = [r_t0 rho0];                                           % Initial conditions
 S_rc = S(:,1:6)+S(:,7:12);                 % Reconstructed chaser motion via Encke method
 S_rcn = Sn(:,1:6)+Sn(:,7:12);              % Reconstructed chaser motion via the full nonlinear model
 
-error = S_c-S_rc;             % Error via the Encke method
-error_n = S_c-S_rcn;          % Error via the full nonlinear model
+error = S_c-S_rc;                          % Error via the Encke method
+error_n = S_c-S_rcn;                       % Error via the full nonlinear model
 
-% Integration through MCPI
-% N = length(tspan)-1;                                                % Degree of approximation
-% tf = tspan(end);                                                    % Final integration time
-% t0 = tspan(1);                                                      % Initial integration time
-% tau = flip(cos((0:N)*pi/N));                                        % Integration Chebyshev nodes
-% dynamics = @(t,s)(vnlr_model(mu, zeros(3,N+1), t.', s.').');        % Vectorized dynamics 
-% 
-% [tspan2, Sr, state] = MCPI([t0 tf], tau, repmat(s0,N+1,1), dynamics, N, 1e-12);
-% [~, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan2, r_c0, options);
-% 
-% S_rc = Sr(:,1:6)+Sr(:,7:12);                                % Reconstructed chaser motion via MCPI method
-% error_m = S_c-S_rc;                                         % Error via MCPI
+e(:,1) = sqrt(dot(error, error, 2));       % State error (L2 norm) via Encke's method
+e(:,2) = sqrt(dot(error_n, error_n, 2));   % State error (L2 norm) via Newtonian formulation
 
-e(:,1) = sqrt(dot(error, error, 2));                        % State error (L2 norm) via Encke's method
-e(:,2) = sqrt(dot(error_n, error_n, 2));                    % State error (L2 norm) via Newtonian formulation
-% e(:,3) = sqrt(dot(error_m, error_m, 2));                    % State error (L2 norm) via MCPI
-
-%% Results in the inertial frame %% 
-% Preallocation 
-inertial = zeros(size(S_c,1),3);                                       % Position error in the inertial frame
-
-for i = 1:size(S_c,1)
-     elaps = dt*(i-1);                                                 % Elapsed time
-     inertial(i,:) = (inertial2synodic(elaps, Sn(i,7:9).', 1)).';      % Relative position in the synodic frame
-end
-
-%% Results in the libration synodic frame %% 
-% Preallocation 
-libration = zeros(size(S_c,1),3);                                               % Position error in the libration synodic frame
-
-for i = 1:size(S_c, 1)
-     libration(i,:) = (synodic2lagrange(mu, gamma, Ln, Sn(i,7:9).', 1)).';      % Relative position in the libration synodic frame
-end
-
-%% Results in the Frenet-Serret frame of the target orbit %% 
-% Preallocation
-T = zeros(size(S_c,1),3,3);             % Synodic to Frenet frame rotation matrix
-frenet = zeros(size(S_c,1), 3);         % Position error in the Frenet frame
-
-for i = 1:size(S_c,1)
-    T(i,1:3,1:3) = frenet_triad(mu, S(i,1:6));                % Frenet-Serret frame
-    frenet(i,:) = (shiftdim(T(i,:,:)).'*S(i,7:9).').';        % Relative position in the Frenet-Serret frame of the target orbit
-end
+save NumericalError s0 S Sn;
 
 %% Plotting and results %% 
 % Plot results 
@@ -148,36 +108,8 @@ figure
 hold on
 plot(t, log(e(:,1)), 'b'); 
 plot(t, log(e(:,2)), 'r');
-% plot(tspan, log(e(:,3)), 'k');
 hold off
 grid on
 xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
 legend('Encke', 'Newton');
-
-% Relative orbit plots
-if (false)
-    figure(4) 
-    plot3(inertial(:,1), inertial(:,2), inertial(:,3)); 
-    xlabel('Nondimensional $x$ coordinate'); 
-    ylabel('Nondimensional $y$ coordinate');
-    zlabel('Nondimensional $z$ coordinate');
-    grid on
-    title('Relative orbit in the inertial frame'); 
-
-    figure(5) 
-    plot3(libration(:,1), libration(:,2), libration(:,3)); 
-    xlabel('Nondimensional $x$ coordinate'); 
-    ylabel('Nondimensional $y$ coordinate');
-    zlabel('Nondimensional $z$ coordinate');
-    grid on
-    title('Relative orbit in the libration synodic frame'); 
-
-    figure(6) 
-    plot3(frenet(:,1), frenet(:,2), frenet(:,3)); 
-    xlabel('Nondimensional $x$ coordinate'); 
-    ylabel('Nondimensional $y$ coordinate');
-    zlabel('Nondimensional $z$ coordinate');
-    grid on
-    title('Relative orbit in the Frenet-Serret frame');
-end

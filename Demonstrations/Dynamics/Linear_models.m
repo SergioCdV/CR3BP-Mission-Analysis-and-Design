@@ -93,7 +93,7 @@ plot3(S_ct(:,1), S_ct(:,2), S_ct(:,3), 'k');
 plot3(S_cfl(:,1), S_cfl(:,2), S_cfl(:,3), 'b'); 
 plot3(S_cml(:,1), S_cml(:,2), S_cml(:,3), 'r'); 
 hold off
-legend('Expected trajectory', 'RLM', 'SRLLM', 'URLLM', 'Location', 'northeast'); 
+legend('Expected trajectory', 'RLM', 'SRLLM', 'ULLM', 'Location', 'northeast'); 
 xlabel('Synodic $x$ coordinate');
 ylabel('Synodic $x$ coordinate');
 zlabel('Synodic $x$ coordinate');
@@ -104,12 +104,12 @@ figure(2)
 hold on
 plot(t, log(error_t), 'k'); 
 plot(t, log(error_ml), 'r'); 
-plot(t, log(error_fl), 'b'); 
+% plot(t, log(error_fl), 'b'); 
 hold off
 grid on
 xlabel('Nondimensional epoch'); 
 ylabel('Absolute error $\log{e}$');
-legend('RLM', 'SRLLM', 'URLLM');
+legend('RLM', 'SRLLM');
 title('Absolute error between the true and linear dynamics')
 
 

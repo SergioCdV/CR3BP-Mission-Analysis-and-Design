@@ -95,18 +95,19 @@ GNC.System.Libration = [Ln gamma];              % Libration point ID
 GNC.Control.LQR.Model = 'SLLM';                                 % LQR model
 GNC.Control.LQR.Reference = Sn(end,1:3);                        % Reference operting point
 GNC.Control.LQR.Q = [eye(3) zeros(3); zeros(3) 1e-6*eye(3)];    % Penalty on the state error
-GNC.Control.LQR.Q = 2*eye(9);
+% GNC.Control.LQR.Q = 2*eye(9);
 GNC.Control.LQR.M = eye(3);                                     % Penalty on the control effort
 
-GNC.Control.SDRE.Model = 'RLM';                 % SDRE model
-GNC.Control.SDRE.Q = 2*eye(9);                  % Penalty on the state error
-GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
+% GNC.Control.SDRE.Model = 'RLM';                 % SDRE model
+% GNC.Control.SDRE.Q = 2*eye(9);                  % Penalty on the state error
+% GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
 
-GNC.Control.iLQR.Mode = 'Continuous';                                 % iLQR solver
+GNC.Control.iLQR.Mode = 'Discrete';                                 % iLQR solver
 
 % iLQR control law 
 int = zeros(1,3);                  % Integral of the relative position
-s0 = [Sn(1,:) int];                % Initial conditions
+s0 = Sn(1,:);                % Initial conditions
+% s0 = [Sn(1,:) int];                % Initial conditions
 
 % Compute the homing trajectory
 tol = [1e-5 1e-5];                 % Convergence tolerance
@@ -116,8 +117,8 @@ iter = 1;
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, 2, s0, GNC, 5e-2, 1e-2, false, tol);
-    [tspan_ilqr, St_ilqr_los, u, state{3}] = iLQR_control(mu, 2, s0, GNC, 5e-2, 1e-2, true, tol);    
+    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, pi, s0, GNC, 5e-2, 5e-2, false, tol);
+    [tspan_ilqr, St_ilqr_los, u, state{3}] = iLQR_control(mu, pi, s0, GNC, 5e-2, 5e-2, true, tol);    
     time(i) = toc;
 end
 Time(5) = mean(time);

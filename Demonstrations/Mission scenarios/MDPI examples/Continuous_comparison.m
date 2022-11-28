@@ -112,12 +112,12 @@ GNC.Navigation.NoiseVariance = 0;               % Noise variance
 GNC.System.mu = mu;                             % Systems's reduced gravitational parameter
 GNC.System.Libration = [Ln gamma];              % Libration point ID
 
-GNC.Control.LQR.Model = 'SLLM';                 % LQR model
+GNC.Control.LQR.Model = 'RLM';                  % LQR model
 GNC.Control.LQR.Q = 2*eye(9);                   % Penalty on the state error
 GNC.Control.LQR.M = eye(3);                     % Penalty on the control effort
 GNC.Control.LQR.Reference = Sn(index,1:3);      % Reference operting point
 
-GNC.Control.SDRE.Model = 'RLM';                 % SDRE model
+GNC.Control.SDRE.Model = 'ULLM';                 % SDRE model
 GNC.Control.SDRE.Q = 2*eye(9);                  % Penalty on the state error
 GNC.Control.SDRE.M = eye(3);                    % Penalty on the control effort
 

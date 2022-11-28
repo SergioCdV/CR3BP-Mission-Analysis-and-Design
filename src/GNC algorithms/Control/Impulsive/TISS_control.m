@@ -29,6 +29,15 @@
 function [Sc, dV, state] = TISS_control(mu, TOF, s0, tol, cost_function, two_impulsive)
     % Constants 
     m = 6;                               % Phase space dimension
+
+    % LTI model 
+    L = libration_points(mu);           % System libration points
+    gamma = L(end,2);
+    L = 2; 
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];
+    A = [zeros(3) eye(3); Sigma 2*[0 1 0; -1 0 0; 0 0 0]]; 
     
     % Sanity check on initial conditions dimension 
     if (size(s0,1) == 1)
@@ -66,6 +75,7 @@ function [Sc, dV, state] = TISS_control(mu, TOF, s0, tol, cost_function, two_imp
     while ((GoOn) && (iter < maxIter))
         % Rearrange the STM 
         STM = reshape(S(end,13:end), [m m]);                            % STM evaluated at time tf
+        STM = expm(A*TOF);
         
         % Compute the error 
         switch (cost_function)

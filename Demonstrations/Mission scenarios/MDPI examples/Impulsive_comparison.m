@@ -86,7 +86,7 @@ tspan = 0:dt:tf;                        % Manoeuvre integration time span
 tol = 1e-10;                            % Differential corrector tolerance
 
 % Controller scheme
-iter = 1; 
+iter = 25; 
 time = zeros(1,iter);
 for i = 1:iter
     tic
@@ -151,6 +151,13 @@ effort_misg = control_effort(tspan_misg, dV, true);
 % Error in time 
 [e_misg, merit_misg] = figures_merit(tspan_misg, St_misg(:,7:12));
 
+% Impulse sequence plot 
+figure 
+stem(tspan_misg,sqrt(dot(dV,dV,1))*Vc, 'filled');
+grid on; 
+xlabel('$t$')
+ylabel('$||\Delta\mathbf{V}||$')
+
 %% GNC: MPC multi impulsive rendezvous %%
 % Set up of the optimization
 method = 'NPL';                               % Method to solve the problem
@@ -178,6 +185,13 @@ effort_mpc = control_effort(tspan_mpc, dV, true);
 % Error in time 
 [e_mpc, merit_mpc] = figures_merit(tspan_mpc, St_mpc(:,7:12));
 
+% Impulse sequence plot 
+figure 
+stem(tspan_mpc,sqrt(dot(dV,dV,1))*Vc, 'filled');
+grid on; 
+xlabel('$t$')
+ylabel('$||\Delta\mathbf{V}||$')
+
 %% GNC: discrete iLQR
 GNC.Control.iLQR.Mode = 'Discrete';                                 % iLQR solver
 
@@ -196,7 +210,7 @@ tol = [1e-4 1e-5];                 % Convergence tolerance
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, pi, s0, GNC, 5e-2, 5e-2, tol);    
+    [tspan_ilqr, St_ilqr, u, state{3}] = iLQR_control(mu, pi, s0, GNC, 5e-2, 5e-2, false, tol);    
     time(i) = toc;
 end
 Time(5) = mean(time);
@@ -206,6 +220,13 @@ Time(5) = mean(time);
 
 % Control integrals
 effort_ilqr = control_effort(tspan_ilqr, u, true);
+
+% Impulse sequence plot 
+figure 
+stem(tspan_ilqr,sqrt(dot(u,u,1))*Vc, 'filled');
+grid on; 
+xlabel('$t$')
+ylabel('$||\Delta\mathbf{V}||$')
 
 %% Results %% 
 % Plot results 

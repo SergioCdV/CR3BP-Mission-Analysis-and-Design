@@ -128,7 +128,7 @@ function [drho] = full_model(mu, s_t, s_r)
     Rr(:,2) = r_t-R(:,1);       % Synodic relative position of the target to the second primary
     
     % Relative acceleration 
-    gamma = [2*v_r(2)+y; -2*v_r(1)+x; 0];                                            % Synodic acceleration
+    gamma = [2*v_r(2)+x; -2*v_r(1)+y; 0];                                            % Synodic acceleration
     F(:,1) = mup(1)*(Rr(:,1)/norm(Rr(:,1))^3-(r_r+Rr(:,1))/norm(r_r+Rr(:,1))^3);     % Gravitational force of the first primary
     F(:,2) = mup(2)*(Rr(:,2)/norm(Rr(:,2))^3-(r_r+Rr(:,2))/norm(r_r+Rr(:,2))^3);     % Gravitational force of the second primary
     gamma = gamma + sum(F,2);                                                        % Total synodic acceleration

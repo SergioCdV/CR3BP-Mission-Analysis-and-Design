@@ -22,13 +22,25 @@ function [effort] = control_effort(tspan, u, discrete_flag)
    
     if (discrete_flag)
         % Control effort in time 
-            effort(1) = sum(sqrt(dot(u,u,1)));                  % dV integral of the control
-            effort(2) = sum(sum(abs(u),1));                     % L1 integral of the control
-            effort(3) = sum(dot(u,u,1));                        % L2 integral of the control
+        V = sqrt(dot(u,u,1));                               % Euclidean norm of the impulses
+
+        effort(1) = sum(sqrt(dot(u,u,1)));                  % dV integral of the control
+        effort(2) = sum(sum(abs(u),1));                     % L1 integral of the control
+        effort(3) = sum(dot(u,u,1));                        % L2 integral of the control
+
+        % Infinity norms 
+        effort(4) = min(V(V~=0));                           % Minimum impulse
+        effort(5) = max(V(V~=0));                           % Maximum impulse
     else
         % Control effort in time 
-            effort(1) = trapz(tspan, sqrt(dot(u,u,1)));         % dV integral of the control
-            effort(2) = trapz(tspan, sum(abs(u),1));            % L1 integral of the control
-            effort(3) = trapz(tspan, dot(u,u,1));               % L2 integral of the control
+        a = sqrt(dot(u,u,1));                               % Euclidean norm of the acceleration
+
+        effort(1) = trapz(tspan, a);                        % dV integral of the control
+        effort(2) = trapz(tspan, sum(abs(u),1));            % L1 integral of the control
+        effort(3) = trapz(tspan, dot(u,u,1));               % L2 integral of the control
+
+        % Infinity norms 
+        effort(4) = min(a(a~=0));                           % Minimum acceleration
+        effort(5) = max(a(a~=0));                           % Maximum acceleration
     end
 end
