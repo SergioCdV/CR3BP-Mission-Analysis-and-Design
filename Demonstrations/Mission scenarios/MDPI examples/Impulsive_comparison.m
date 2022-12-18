@@ -86,7 +86,7 @@ tspan = 0:dt:tf;                        % Manoeuvre integration time span
 tol = 1e-10;                            % Differential corrector tolerance
 
 % Controller scheme
-iter = 25; 
+iter = 1; 
 time = zeros(1,iter);
 for i = 1:iter
     tic
@@ -157,6 +157,10 @@ stem(tspan_misg,sqrt(dot(dV,dV,1))*Vc, 'filled');
 grid on; 
 xlabel('$t$')
 ylabel('$||\Delta\mathbf{V}||$')
+%%
+% Prune sequence 
+dV = PP_guidance(dV);
+effort_misg_2 = control_effort(tspan_misg, dV, true);
 
 %% GNC: MPC multi impulsive rendezvous %%
 % Set up of the optimization

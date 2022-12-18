@@ -301,7 +301,7 @@ xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
 grid on;
-
+%%
 % Configuration space evolution
 figure
 subplot(1,2,1)
@@ -314,7 +314,7 @@ xlabel('$t$');
 ylabel('$\mathbf{\rho}$');
 grid on;
 legend('$x$', '$y$', '$z$');
-subplot(1,2,2)
+ax = subplot(1,2,2);
 hold on
 plot(tspan(1:size(St,1)), St(:,10)); 
 plot(tspan(1:size(St,1)), St(:,11)); 
@@ -325,6 +325,7 @@ ylabel('$\dot{\mathbf{\rho}}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 
+%%
 % Configuration space evolution (Phase I)
 figure
 subplot(1,2,1)

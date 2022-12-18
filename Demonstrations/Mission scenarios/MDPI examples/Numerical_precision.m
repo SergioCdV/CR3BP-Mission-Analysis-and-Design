@@ -26,6 +26,8 @@ set_graphics();
 % MP test 
 % mp.Test();
 
+set_graphics();
+
 %% High accuracy integration %%
 % Selection of precision 
 mp.Digits(34);
@@ -74,6 +76,8 @@ grid on
 xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
 legend('Encke', 'Newton');
+
+save NumericalPrecision S_c S Sn error error_n
 
 %% Auxiliary functions
 function [ds] = dyn(mu, t, s)

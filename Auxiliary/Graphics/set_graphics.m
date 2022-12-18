@@ -11,7 +11,7 @@
 
 function set_graphics()
     %Set graphical properties
-    set(groot, 'defaultAxesTickLabelInterpreter', 'latex'); 
+   set(groot, 'defaultAxesTickLabelInterpreter', 'latex'); 
     set(groot, 'defaultAxesFontSize', 11); 
     set(groot, 'defaultAxesGridAlpha', 0.3); 
     set(groot, 'defaultAxesLineWidth', 0.75);
