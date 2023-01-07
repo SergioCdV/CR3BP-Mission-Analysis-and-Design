@@ -37,7 +37,7 @@ function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method
     % Branch the different algorithms 
     switch (method)
        case 'Prescribed shape-based'
-            [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf);
+            [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf, GNC.Polynomial);
         case 'Numerical shape-based'
              [S, u, tf, lissajous_constants] = num_lissajous(mu, L, gamma, s0, GNC);
         case 'Dynamics shape-based'
@@ -51,7 +51,7 @@ end
 
 %% Auxiliary functions
 % Employ a 3rd order Bézier curve to impose the needed lissajous trajectory
-function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf)
+function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf, polynomial)
     % Constants of the model
     cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
     c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
@@ -59,9 +59,20 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
     wv  = sqrt(c2);                                             % Out of plane frequency
     kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
 
-    % Time span 
+    % Time span and the curve polynomial basis 
     tspan = 0:1e-3:tf;                                          % Dimensional time span 
-    tau = tspan/tf;                                             % Non-dimensional time span
+    switch (polynomial)
+        case 'Chebyshev'
+            tau = 2*tspan/tf-1;                                 % Non-dimensional time span
+                B = [CH_basis('first',3,tau); 2*CH_derivative('first',3,tau,1)/tf; 4*CH_derivative('first',3,tau,2)/tf^2];
+        case 'Bernstein'
+            tau = tspan/tf;                                     % Non-dimensional time span
+            for i = 1:2
+                B = [bernstein_basis(3,tau); bernstein_derivative(3,tau,1)/tf; bernstein_derivative(3,tau,2)/tf^2];
+            end
+        otherwise
+            error('No valid polynomial family has been selected');
+    end
 
     % Initial constants
     phi0 = atan2(s0(2), -kap*s0(1));                            % In-plane initial phase
@@ -70,41 +81,34 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
 
     % Amplitude computation 
     initial = -s0(1)/cos(phi0);                                 % Initial conditions on the in-plane amplitude
-    initial([2 4]) = [s0(3); s0(6)];                            % Initial conditions on the amplitudes
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial conditions on the in-plane amplitude velocity
+    initial([2 4],1) = [s0(3); s0(6)];                          % Initial conditions on the amplitudes
+    initial(3,1) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);  % Initial conditions on the in-plane amplitude velocity
     final = zeros(4,1);                                         % Rendezvous sufficient/necessary conditions
-    
-    % Compute the Bézier curve polynomial basis 
-    B = cell(2,1);                                                     
-    for i = 1:2
-        B{i} = [bernstein_basis(3,tau); bernstein_derivative(3,tau,1); bernstein_derivative(3,tau,2)];
-    end
-
-    initial(3:4) = tf*initial(3:4);                             % Non-dimensional initial amplitude velocities
-    final(3:4) = tf*final(3:4);                                 % Non-dimensional final amplitude velocities
-               
+                   
     % Control points
-    P(:,1) = initial(1:2);
-    P(:,2) = initial(1:2)+initial(3:4)/3;
-    for i = 1:2
-        P(i,3) = final(i)-final(length(final)/2+i)/3;
-        P(i,4) = final(i);
+    P = zeros(2,4);             % Preallocation of the control points
+    switch (polynomial)
+        case 'Chebyshev'
+            P(:,1) = initial(1:2)/2+final(1:2)/2+initial(3:4)/8+final(3:4)/8;
+            P(:,2) = (-9*initial(1:2)-9*final(1:2)-initial(3:4)-final(3:4))/16;
+            P(:,3) = (final(3:4)-initial(3:4))/8;
+            P(:,4) = (initial(1:2)-final(1:2)+initial(3:4)+final(3:4))/16;
+        case 'Bernstein'
+            P(:,1) = initial(1:2);
+            P(:,2) = initial(1:2)+initial(3:4)/3;
+            for i = 1:2
+                P(i,3) = final(i)-final(length(final)/2+i)/3;
+                P(i,4) = final(i);
+            end
     end
 
     % Bézier curve
     for i = 1:size(P,1)
         % State vector fitting
         for j = 1:3
-            lissajous_constants(i+size(P,1)*(j-1),:) = P(i,1:4)*B{i}(1+4*(j-1):4*j,:);
+            lissajous_constants(i+size(P,1)*(j-1),:) = P(i,1:4)*B(1+4*(j-1):4*j,:);
         end
     end
-
-    % Dimensionalisation 
-    lissajous_constants(3:4,:) = lissajous_constants(3:4,:)/tf;
-    lissajous_constants(5:6,:) = lissajous_constants(5:6,:)/tf^2;
-
-    % Final TOF 
-    tf = tspan(end);
 
     % Rendezvous phase-space trajectory
     Ax = lissajous_constants(1,:);                                           % In-plane amplitude
@@ -125,6 +129,15 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
  
     % Compute the final control law 
     u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
+    
+%     u = zeros(3,length(tspan));
+%     for i = 1:length(tspan)
+%         Omega = [-cos(wp*tspan(i)+phi(i)) 2*(wp-kap)*sin(wp*tspan(i)+phi(i)); sin(wv*tspan(i)+psi(i)) 2*wv*cos(wv*tspan(i)+psi(i))];
+%         D = [B(9:12,i); B(5:8,i)];
+%         u([1 3],i) = blkdiag(Omega(1,:),Omega(2,:))*[kron(eye(2),P(1,:)); kron(eye(2),P(2,:))]*D;
+%     end
+
+%    u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
 end
 
 % Numerical solution
@@ -185,8 +198,8 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
 
     % Amplitude computation 
     initial = -s0(1)/cos(phi0);                                 % Initial conditions on the in-plane amplitude
-    initial([2 4]) = [s0(3); s0(6)];                            % Initial conditions on the out-of-plane amplitude and velocity
-    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial conditions on the in-plane amplitude velocity
+    initial([2 4],1) = [s0(3); s0(6)];                          % Initial conditions on the out-of-plane amplitude and velocity
+    initial(3,1) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);  % Initial conditions on the in-plane amplitude velocity
     final = zeros(4,1);                                         % Rendezvous sufficient/necessary conditions
 
     % Initial estimation of the TOF      
@@ -313,7 +326,7 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 
             % Compute the amplitude vector field 
             Alpha = [-2*(wp-kap)*tan(wp*t+phi0) 0; 0 -2*wv/tan(wv*t+psi0)];  % Acceleration dynamics
-            Theta = [-1/cos(wp*t+phi0) 0; 0 1/sin(wv*t+psi0)];               % Control input acceleration matrixç
+            Theta = [-1/cos(wp*t+phi0) 0; 0 1/sin(wv*t+psi0)];               % Control input acceleration matrix
 
             % In-plane motion
             A = [0 1; 0 Alpha(1,1)];                                         % Constant state dynamics 
@@ -359,7 +372,19 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
 
             % Compute the amplitude vector field 
             A = [zeros(2) eye(2); zeros(2,4)];                  % Constant state dynamics 
-            B = [zeros(2); eye(2)];                             % Global control input matrixç
+            B = [zeros(2); eye(2)];                             % Global control input matrix
+
+        case 'Backstepping'
+            K1 = GNC.BSK.K1;                                    % First regulation matrix
+            K2 = GNC.BSK.K2;                                    % Second regulation matrix
+
+            A = [-2*(wp-kap)*tan(wp*t+phi0) 0; 0 -2*wv/tan(wv*t+psi0)];  % Acceleration dynamics
+            B = [-1/cos(wp*t+phi0) 0; 0 1/sin(wv*t+psi0)];               % Control input acceleration matrix
+
+            u = -B^(-1)*((A+K1+K2)*s(3:4,1)+(eye(2)+K2*K1)*s(1:2,1));
+
+            A = [zeros(2) eye(2); zeros(2) A];
+            B = [zeros(2); B];
 
         otherwise 
             error('No valid control algorithm was selected');
