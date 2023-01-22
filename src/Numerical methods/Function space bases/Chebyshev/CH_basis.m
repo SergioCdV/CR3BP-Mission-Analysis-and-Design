@@ -1,13 +1,9 @@
-%% CR3BP Library %% 
-% Sergio Cuevas del Valle
+%% Project: 
 % Date: 30/04/22
-% File: CH_derivative.m 
-% Issue: 0 
-% Validated: 
 
 %% Chebysev basis %%
 % This function allows to compute all Chebyshev polynomials of order n of both kinds,
-% evaluated at the argument u
+% evaluated at the argument u. 
 
 % Inputs: - string kind, specifying the kind of Chebyshev polynomials to
 %           compute

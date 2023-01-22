@@ -62,28 +62,28 @@ function [u] = RLQR_control(mu, t, L, F, St, Jref, Sn, K)
 end
 
 % SDRE version of the controller
-function [u] = RSDRE_control(mu, t, L, F, St, Jref, Sn, Q, M)
+function [u] = RSDRE_control(mu, t, J, F, St, Jref, Sn, Q, M)
     % Constants of the model
     n = 6;                           % Dimension of the state vector
     
     % Preallocation 
     u = zeros(3,size(Sn,1));         % Control law   
     B = [zeros(3,3); eye(3)];        % Control input matrix
-    A = [L(1,1) 0; 0 0];             % State matrix
+    A = [J(1,1) 0; 0 0];             % State matrix
 
     for i = 1:size(Sn,1)
         % Compute the actual state
         Monodromy = reshape(Sn(i,n+1:n+n^2), [n n]);
 
-        E = Monodromy*F*expm(-L*t(i));          % Floquet basis                                                                                                           
+        E = Monodromy*F*expm(-J*t(i));          % Floquet basis                                                                                                           
         invE = E^(-1);                          % Floquet change of basis
         e = invE*Sn(i,1:n).';                   % State error
         e = e(1);                               % Unstable component of the error
 
         % Jacobi Constant constraint
         Sr = St(i,1:n)+Sn(i,1:n);               % Absolute chaser trajectory
-        J = jacobi_constant(mu, Sr.');          % Absolute Jacobi Constant 
-        e(2) = J-Jref;                          % Jacobi Constant error
+        C = jacobi_constant(mu, Sr.');          % Absolute Jacobi Constant 
+        e(2) = C-Jref;                          % Jacobi Constant error
         e = e.';
 
         % Compute the gradient of the integrals 
@@ -91,7 +91,7 @@ function [u] = RSDRE_control(mu, t, L, F, St, Jref, Sn, Q, M)
         V = V(1,:);                             % Control input matrix
         dJ = jacobi_gradient(mu,Sr.').';        % Gradient of the Jacobi Constant 
         V(2,:) = dJ*B;                          % Gradient of the Jacobi Constant with respect to the Floquet variables
-        C = dJ*E*L;                             % Gradient of the Jacobi Constant with respect to the relative Floquet variables 
+        C = dJ*E*J;                             % Gradient of the Jacobi Constant with respect to the relative Floquet variables 
         A(2,1) = C(1);                          % Gradient of the Jacobi Constant with respect to the unstable relative Floquet variable
 
         % SDRE design
@@ -102,7 +102,7 @@ function [u] = RSDRE_control(mu, t, L, F, St, Jref, Sn, Q, M)
             u(:,i) = zeros(3,1);           
         else
             [K,~,~] = lqr(A,V,Q,M);  
-            u(:,i) = -real(K*e);           
+            u(:,i) = -real(K*e);
         end
     end
 end

@@ -1,13 +1,9 @@
-%% CR3BP Library %% 
-% Sergio Cuevas del Valle
-% Date: 06/09/22
-% File: HT_basis.m 
-% Issue: 0 
-% Validated:
+%% Project: 
+% Date: 05/05/22
 
 %% Hermite basis %%
 % This function allows to compute all physicist Hermite polynomials of order n,
-% evaluated at the argument u
+% evaluated at the argument u. 
 
 % Inputs: - scalar order, determining the order of the approximation 
 %         - scalar u, the normalized domain value on which the polynomials

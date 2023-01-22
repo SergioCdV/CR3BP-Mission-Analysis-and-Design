@@ -10,7 +10,8 @@ close all
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           % System libration points
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-T0 = 28*86400/(2*pi);               % Mean period for the Earth-Moon system
+T0 = 28*86400;                      % Characteristic time of the Earth-Moon system
+Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
 n = 6;                              % Phase-space dimension
 
 % Differential corrector set up
@@ -19,9 +20,9 @@ maxIter = 20;                       % Maximum number of iterations
 tol = 1e-10;                        % Differential corrector tolerance
 
 % Halo characteristics 
-Az = 20e6;                                                          % Orbit amplitude out of the synodic plane. 
+Az = 20140e3;                                                       % Orbit amplitude out of the synodic plane 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
-Ln = 1;                                                             % Orbits around L1
+Ln = 2;                                                             % Orbits around L2
 gamma = L(end,Ln);                                                  % Li distance to the second primary
 m = 1;                                                              % Number of periods to compute
 
@@ -42,85 +43,117 @@ corrector = 'Plane Symmetric';                                      % Differenti
 direction = 1;                                                      % Direction to continuate (to the Earth)
 setup = [mu maxIter tol direction];                                 % General setup
 
-[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-
 butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     % State vector of a butterfly orbit
 
+[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
 
 %% Prescribed guidance using polynomial families
 % Initial conditions 
-initial_state = chaser_orbit.Trajectory(1,1:n);     % Initial chaser state
-target_state = target_orbit.Trajectory(500,1:n);    % Initial target state 
+initial_state = chaser_orbit.Trajectory(1,1:6);                     % Initial chaser conditions 
+target_state = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
  
 % Setup of the solution 
 T = 0.5e-3*(T0^2/Lem);                  % Maximum thrust in non-dimensional units
 GNC.Algorithm = 'SDRE';                 % Solver algorithm
 GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
-GNC.Tmax = T/sqrt(3)*(T0^2/Lem);        % Constrained acceleration
-GNC.TOF = 0.1*pi;                       % Maneuver time
-GNC.Polynomial = 'Bernstein';           % Polynomial family to be used
+GNC.Tmax = T;                           % Constrained acceleration
+GNC.TOF = pi/2;                         % Maneuver time
+GNC.Polynomial = 'Chebyshev';           % Polynomial family to be used
 
 method = 'Prescribed shape-based'; 
 
+% Relative solution  
+iter = 25; 
+Time = zeros(1,iter);
+for i = 1:iter
+    tic
+    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, GNC.TOF, GNC);  
+    Time(i) = toc; 
+end
+Time = mean(Time);
+
+% Absolute chaser trajectory
 tau = linspace(0,tf,size(Sr,2));
 options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+[~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tau, target_state, options);
 
-% Relative solution    
-tic
-for i = 1:length(tau)
-    % Guidance
-    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, GNC.TOF, GNC);
+% Total transfer metrics 
+effort = control_effort(tau, u, false)*Vc;
 
-    % Setup of the guidance scheme 
-    GNC_p = 1; 
+% Error in time 
+[e, merit] = figures_merit(tau, Sr);
 
-    % Propagation 
-    [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC_p), tau, [target_state initial_state-target_state], options);
-end
-toc 
+% Minimum and maximum control 
+u_ex(1) = (Lem/T0^2)*min(sqrt(dot(u,u,1)))*1e3;
+u_ex(2) = (Lem/T0^2)*max(sqrt(dot(u,u,1)))*1e3;
 
-C = Sc(:,1:6)+Sc(:,7:12);
+% Complete arc
+C = Sc.'+Sr;
+
+%% Parametric study 
+% TF = 0.1:0.1:3*pi; 
+% dV = zeros(1,length(TF)); 
+% umax = dV;
+% 
+% for i = 1:length(TF)
+%    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, TF(i), GNC);
+%    tau = linspace(0,TF(i),size(Sr,2));
+%    effort = control_effort(tau, u, false)*Vc;
+%    dV(i) = effort(1);
+%    umax(i) = max(sqrt(dot(u,u,1))); 
+% end
+% 
+% figure 
+% plot(TF, dV); 
+% grid on;
+% xlabel('$t_f$'); 
+% ylabel('$\Delta V$'); 
+% 
+% figure
+% plot(TF, log(umax*(Lem/T0^2)*1e3));
+% grid on;
+% xlabel('$t_f$'); 
+% ylabel('log $||\mathbf{u}||_{max}$');
 
 %% Plots
 % Orbit representation
 figure 
-plot3(Sr(1,:),Sr(2,:),Sr(3,:),'k','LineWidth',0.4); 
-xlabel('Relative synodic $x$ coordinate')
-ylabel('Relative synodic $y$ coordinate')
-zlabel('Relative synodic $z$ coordinate')
+plot3(Sr(1,:), Sr(2,:), Sr(3,:), 'k', 'LineWidth', 1); 
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on; 
+% yticklabels(strrep(yticklabels, '-', '$-$'));
 
 figure_orbits = figure;
 view(3)
 hold on
-xlabel('Synodic $x$ coordinate')
-ylabel('Synodic $y$ coordinate')
-zlabel('Synodic $z$ coordinate')
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
+plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3),'Color','r','LineWidth', 0.9);                    % Target's orbit
+plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3),'Color','b','LineWidth', 0.9);                    % Charser's initial orbit
+N = plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth',1);                                                                                               % Trasfer orbit
+legend('Target orbit', 'Initial orbit', 'Transfer arc', 'Location', 'northwest', 'Autoupdate', 'off');
 plot3(C(1,1),C(2,1),C(3,1),'*k');                                                                                                                % Initial conditions
-N = plot3(C(1,:),C(2,:),C(3,:),'k','LineWidth',0.4);                                                                                             % Trasfer orbit
-plot3(target_orbit.Trajectory(:,1), target_orbit.Trajectory(:,2), target_orbit.Trajectory(:,3), 'LineStyle','--','Color','r','LineWidth', 0.9);  % Target's orbit
-plot3(chaser_orbit.Trajectory(:,1), chaser_orbit.Trajectory(:,2), chaser_orbit.Trajectory(:,3),'LineStyle','-.','Color','b','LineWidth', 0.9);   % Charser's initial orbit
 plot3(C(1,end),C(2,end),C(3,end),'*k');                                                                                                          % Final conditions
 plot3(L(1,Ln), L(2,Ln), 0, '+k');
 labels = {'$L_1$', '$L_2$', '$L_3$', '$L_4$', '$L_5$'};
 text(L(1,Ln)-1e-3, L(2,Ln)-1e-3, 1e-2, labels{Ln});
 hold off
 grid on; 
-legend('off')
+% yticklabels(strrep(yticklabels, '-', '$-$'));
 
 % Propulsive acceleration plot
 figure;
 hold on
-plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2, 'k','LineWidth',1)
-plot(tau, u*Lem/T0^2, 'LineWidth', 0.3)
-yline(T, '--k')
-xlabel('Flight time')
-ylabel('$\mathbf{a}$')
-legend('$a$','$a_x$','$a_y$','$a_z$')
+plot(tau, sqrt(u(1,:).^2+u(2,:).^2+u(3,:).^2)*Lem/T0^2*1e3)
+xlabel('$t$')
+ylabel('$\|\mathbf{u}\|$')
 grid on;
-xlim([0 1])
+% yticklabels(strrep(yticklabels, '-', '$-$'));
 
 figure 
 hold on

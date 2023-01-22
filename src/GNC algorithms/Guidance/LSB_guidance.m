@@ -44,6 +44,8 @@ function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method
             [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, GNC);
         case 'Minimum energy'
             [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, GNC);
+        case 'Minimum time'
+            [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GNC);
         otherwise 
             error('No valid algorithm has been selected')
     end
@@ -202,15 +204,12 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     initial(3,1) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);  % Initial conditions on the in-plane amplitude velocity
     final = zeros(4,1);                                         % Rendezvous sufficient/necessary conditions
 
-    % Initial estimation of the TOF      
+    % Initial estimation of the TOF  
     tspan = 0:1e-3:tf; 
 
     % Setup of the integration 
     options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22, 'Events', @(t,s)rendezvous(final, t, s)); 
     [t, x] = ode45(@(t,s)amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC), tspan, initial);
-
-    % Final TOF 
-    tf = t(end); 
 
     % Rendezvous relative trajectory in phase-space
     Ax = x(:,1).';                                                           % In-plane amplitude
@@ -238,16 +237,7 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     lissajous_constants(7:8,:) = [phi; psi];
 
     % Compute the final control law
-    u = [u(1,:); zeros(1,length(tspan)); u(3,:)];     
-
-    switch (GNC.Algorithm)
-        case 'SDRE'
-        otherwise
-            u([1 3],:) = (u([1 3],:)+[2*dAx*(wp-kap).*sin(wp*tspan+phi); 2*dAz*wv.*cos(wv*tspan+psi)]).*[-cos(wp*tspan+phi); sin(wv*tspan+psi)];
-    end
-
-    % Y axis control 
-    u(2,:) = x(:,5).'*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
+    u(2,:) = x(:,5).'*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);       % Y axis control 
 end
 
 % Minimum energy solution 
@@ -258,7 +248,6 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
     wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
     wv  = sqrt(c2);                                             % Out of plane frequency
     kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
-    Tmax = GNC.Tmax;                                            % Maximum axial acceleration
 
     % Time span 
     tspan = 0:1e-3:tf;                                          % Dimensional time span 
@@ -274,15 +263,19 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
     initial(1) = -s0(1)/cos(phi0);                              % Initial condition on the in-plane amplitude
     initial([2 4]) = [s0(3); s0(6)];                            % Initial condition on the out-of-plane amplitude and velocity
     initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial condition on the in-plane amplitude velocity
+    final = zeros(4,1);                                         % Rendezvous condition
     
     % Compute the analytical solution
-    initial(3:4) = tf*initial(3:4);                             % Velocity dimensionalizing
-    c1 = -6*initial(1:2)-4*initial(3:4);                        % Constant of motion
-    c2 = 12*initial(1:2)+6*initial(3:4);                        % Constant of motion
+    initial(3:4) = tf*initial(3:4);                                     % Velocity dimensionalizing
+    final(3:4) = tf*final(3:4);                                         % Velocity dimensionalizing
+    c1 = 12*(initial(1:2)-final(1:2))+6*(initial(3:4)+final(3:4));      % Constant of motion
+    c2 = 6*(final(1:2)-initial(1:2))-2*(2*initial(3:4)+final(3:4));     % Constant of motion
+    c3 = initial(3:4);                                                  % Constant of motion
+    c4 = initial(1:2);                                                  % Constant of motion
     
-    lissajous_constants(1:2,:) = (1/6)*c2.*tau.^3+(1/2)*c1.*tau.^2+initial(3:4)*tau+initial(1:2);
-    lissajous_constants(3:4,:) = (1/2)*c2.*tau.^2+c1.*tau+initial(3:4);
-    lissajous_constants(5:6,:) = c1+c2*tau;
+    lissajous_constants(1:2,:) = (1/6)*c1.*tau.^3+(1/2)*c2.*tau.^2+c3*tau+c4;
+    lissajous_constants(3:4,:) = (1/2)*c1.*tau.^2+c2.*tau+c3;
+    lissajous_constants(5:6,:) = c1*tau+c2;
                
     % Dimensionalisation 
     lissajous_constants(3:4,:) = lissajous_constants(3:4,:)/tf;
@@ -306,8 +299,140 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
  
     % Compute the final control law 
-    u = Tmax*[-(ddAx+2*dAx*(wp-kap).*sin(wp*tspan+phi)).*cos(wp*tspan+phi); (ddAz+2*dAz*wv.*cos(wv*tspan+psi)).*sin(wv*tspan+psi)];
-    u = [u(1,:); zeros(1,length(tspan)); u(2,:)];   
+    u([1 3],:) = [-ddAx.*cos(wp*tspan+phi)-2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
+    u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
+end
+
+% Minimum time solution 
+function [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GNC)
+% Constants of the model
+    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
+    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
+    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
+    wv  = sqrt(c2);                                             % Out of plane frequency
+    kap = (wp^2+1+2*c2)/(2*wp);                                 % Constraint on the planar amplitude
+
+    % Initial constants
+    phi0 = atan2(s0(2), -kap*s0(1));                            % Initial in-plane phase
+
+    % Amplitude computation 
+    initial = zeros(4,1);                                       % Preallocation of initial conditions
+    initial(1) = -s0(1)/cos(phi0);                              % Initial condition on the in-plane amplitude
+    initial([2 4]) = [s0(3); s0(6)];                            % Initial condition on the out-of-plane amplitude and velocity
+    initial(3) = (-s0(4)+initial(1)*wp*sin(phi0))/cos(phi0);    % Initial condition on the in-plane amplitude velocity
+    final = zeros(4,1);                                         % Rendezvous condition
+    
+    % Compute the analytical solution
+    Tmax = GNC.Tmax;                                            % Maximum control authority
+    s = initial/Tmax;                                           % Reduced state
+    dt = 1e-4;                                                  % Time step
+
+    % In-plane motion
+    F = s(1)+sign(s(3))*s(3)^2/2;
+    Sigma = sign(F);
+
+    if (Sigma == 0)
+        tf(1) = abs(s(3));
+        tspan = 0:dt:tf(1);
+        U = -sign(s(3))*ones(1,length(tspan));
+        A = [s(1)+s(3).*tspan+U(1,:).*tspan.^2/2; s(3)+U.*tspan];
+    else
+        Lambda = sqrt(Sigma*s(1)+s(3)^2/2);
+        Delta = [Lambda+Sigma*s(3); Lambda];
+        tf(1) = sum(Delta);
+        tspan = 0:dt:tf(1);
+
+        % Preallocation 
+        A = zeros(2,length(tspan));
+
+        % State trajectory and control
+        u = -Sigma*ones(1,length(tspan(tspan < Delta(1))));
+        A(:,1:length(tspan(tspan < Delta(1)))) = [s(1)+s(3).*tspan(tspan < Delta(1))+u.*tspan(tspan < Delta(1)).^2/2; s(3)+u.*tspan(tspan < Delta(1))];
+
+        u = Sigma*ones(1,length(tspan(tspan >= Delta(1))));
+        Ss = [0.5*(s(1)+(Sigma-0.5)*s(3)^2); -Sigma*Lambda];
+        A(:,length(tspan(tspan < Delta(1)))+1:length(tspan)) = [Ss(1)+Ss(2).*(tspan(tspan > Delta(1))-Delta(1))+u.*(tspan(tspan > Delta(1))-Delta(1)).^2/2; ...
+                                                                Ss(2)+u.*(tspan(tspan > Delta(1))-Delta(1))];
+
+        % Complete control law 
+        U = [-Sigma*ones(1,length(tspan(tspan < Delta(1)))) Sigma*ones(1,length(tspan(tspan >= Delta(1))))];
+    end
+
+    x([1 3],:) = A*Tmax;
+    c = U*Tmax;
+
+    % Out-of-plane motion
+    F = s(2)+sign(s(4))*s(4)^2/2;
+    Sigma = sign(F);
+
+    if (Sigma == 0)
+        tf(2) = abs(s(4));
+        tspan = 0:1e-4:tf(2);
+        U = -sign(s(4))*ones(1,length(tspan));
+        A = [s(2)+s(4).*tspan+U.*tspan.^2/2; s(4)+U.*tspan];
+    else
+        Lambda = sqrt(Sigma*s(2)+s(4)^2/2);
+        Delta = [Lambda+Sigma*s(4); Lambda];
+        tf(2) = sum(Delta);
+        tspan = 0:dt:tf(2);
+
+        % Preallocation 
+        A = zeros(2,length(tspan));
+
+        % State trajectory and control
+        u = -Sigma*ones(1,length(tspan(tspan < Delta(1))));
+        A(:,1:length(tspan(tspan < Delta(1)))) = [s(2)+s(4).*tspan(tspan < Delta(1))+u.*tspan(tspan < Delta(1)).^2/2; s(4)+u.*tspan(tspan < Delta(1))];
+
+        u = Sigma*ones(1,length(tspan(tspan >= Delta(1))));
+        Ss = [0.5*(s(2)+(Sigma-0.5)*s(4)^2); -Sigma*Lambda];
+        A(:,length(tspan(tspan < Delta(1)))+1:length(tspan)) = [Ss(1)+Ss(2).*(tspan(tspan > Delta(1))-Delta(1))+u.*(tspan(tspan > Delta(1))-Delta(1)).^2/2; ...
+                                                                Ss(2)+u.*(tspan(tspan > Delta(1))-Delta(1))];
+
+        % Complete control law 
+        U = [-Sigma*ones(1,length(tspan(tspan < Delta(1)))) Sigma*ones(1,length(tspan(tspan >= Delta(1))))];
+    end
+
+    if (tf(2) > tf(1))
+        x = [x x(:,end).*ones(size(x,1),length(tspan)-size(x,2))];
+        c = [c zeros(size(c,1),length(tspan)-size(c,2))];
+    else
+        A = [A A(:,end).*ones(size(A,1),size(x,2)-size(A,2))];
+        U = [U zeros(size(U,1),size(c,2)-size(U,2))];
+    end
+
+    x([2 4],:) = A*Tmax;
+    c(2,:) = U*Tmax;
+    u = c; 
+
+    % Final TOF
+    tf = max(tf);
+    tspan = (0:dt:tf);    
+    
+    % Dimensionalisation 
+    lissajous_constants(1:4,:) = x;                                          % Amplitude and velocity evolution
+    lissajous_constants(5:6,:) = u;                                          % Amplitude acceleration
+    lissajous_constants(7,:) = phi0*ones(1,length(tspan));                   % Initial in-plane phase 
+    lissajous_constants(8,:) = (pi/2)*ones(1,length(tspan));                 % Initial out-of-plane phase 
+    
+    Ax = lissajous_constants(1,:);                                           % In-plane amplitude
+    Az = lissajous_constants(2,:);                                           % Out-of-plane amplitude
+    phi = lissajous_constants(7,:);                                          % In-plane initial phase
+    psi = lissajous_constants(8,:);                                          % In-plane initial phase
+    dAx = lissajous_constants(3,:);                                          % First derivative of the in-plane amplitude
+    dAz = lissajous_constants(4,:);                                          % First derivative of the out-of-plane amplitude
+    ddAx = lissajous_constants(5,:);                                         % Second derivative of the in-plane amplitude
+    ddAz = lissajous_constants(6,:);                                         % Second derivative of the out-of-plane amplitude
+
+    % Rendezvous relative trajectory in phase-space
+    S(1,:) = -Ax.*cos(wp*tspan+phi);                                         % X relative coordinate
+    S(2,:) = kap*Ax.*sin(wp*tspan+phi);                                      % Y relative coordinate
+    S(3,:) = Az.*sin(wv*tspan+psi);                                          % Z relative coordinate
+    S(4,:) = -dAx.*cos(wp*tspan+phi)+wp*Ax.*sin(wp*tspan+phi);               % Vx relative velocity
+    S(5,:) = kap*dAx.*sin(wp*tspan+phi)+kap*wp*Ax.*cos(wp*tspan+phi);        % Vy relative velocity
+    S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
+ 
+    % Compute the final control law 
+    u([1 3],:) = [-ddAx.*cos(wp*tspan+phi)-2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
     u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
 end
 
@@ -365,10 +490,21 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
             B = [zeros(2); eye(2)];                             % Global control input matrix
 
         case 'Minimum time'
-            e = Tmax*s(1)+(1/2)*abs(s(3))*s(3);                 % Error to the first switching curve
-            u(1) = -Tmax*tanh(5e6*e);              
-            e = Tmax*s(2)+(1/2)*abs(s(4))*s(4);                 % Error to the second switching curve
-            u(2) = -Tmax*tanh(5e6*e);
+            y = s(3)+sign(s(1))*sqrt(2*Tmax*abs(s(1)));
+            if (y == 0)
+                e = s(1);                                       % Error to the first switching curve
+            else
+                e = y;                                          % Error to the first switching curve
+            end
+            u(1) = -Tmax*sign(e); 
+             
+            y = s(4)+sign(s(2))*sqrt(2*Tmax*abs(s(2)));
+            if (y == 0)
+                e = s(2);                                       % Error to the second switching curve
+            else
+                e = y;                                          % Error to the second switching curve
+            end
+            u(2) = -Tmax*sign(e); 
 
             % Compute the amplitude vector field 
             A = [zeros(2) eye(2); zeros(2,4)];                  % Constant state dynamics 

@@ -1,13 +1,9 @@
-%% CR3BP Library %% 
-% Sergio Cuevas del Valle
-% Date: 06/09/22
-% File: LG_derivative.m 
-% Issue: 0 
-% Validated:
+%% Project: 
+% Date: 30/04/22
 
-%% Legendre polynomials derivative %%
+%% Legendre derivative %%
 % This function allows to compute all Legendre polynomials derivatives of order n,
-% evaluated at the argument u
+% evaluated at the argument u. 
 
 % Inputs: - scalar order, determining the order of the approximation 
 %         - scalar u, the normalized domain value on which the polynomials

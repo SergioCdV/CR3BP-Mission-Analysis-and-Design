@@ -30,8 +30,8 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
     %Navigation module 
     noise = GNC.Navigation.NoiseVariance; 
     Sn = S;
-    if (noise ~= 0)
-        Sn(1:6) = S(1:6)+noise*normrnd(0,1,1,6);
+    if (any(noise ~= 0))
+        Sn(1,1:6) = S(1,1:6)+normrnd(0,noise,1,6);
     end
     
     %Guidance module 
@@ -162,7 +162,7 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
             target = GNC.Control.LQR.Reference; %Reference position of the target spacecraft
             
             %Control law
-            u = LQR_control(model, mu, Sg, Sn, target, Ln, gamma, Q, M);
+            u = LQR_control(model, mu, Sg, Sn(:,1:9), target, Ln, gamma, Q, M);
             
         case 'SDRE'
             %System characteristics 
@@ -280,6 +280,31 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
 
             %Stationkeeping control law
             u = PFSK_control(t, T, Sn, P, J, lambda, cost_function, Tmax); 
+
+        case 'LSB'
+           % System characteristics 
+           mu = GNC.System.mu;                 % Systems's reduced gravitational parameter
+           Ln = GNC.System.Libration(1);       % Libration point ID
+           gamma = GNC.System.Libration(2);    % Libration point distance to the neareast primary
+           
+           % Control law
+           u = zeros(3,size(Sn,1));
+           for i = 1:size(Sn,1)
+                % Time of flight
+                switch (GNC.LSB.Method) 
+                   case 'Dynamics shape-based'
+                       tf = 1e-2;
+                   otherwise
+                       tf = GNC.LSB.Parameters.TOF-t(i);
+                end
+
+                if (tf ~= 0)
+                    [~, u_c, ~, ~] = LSB_guidance(mu, Ln, gamma, Sn(i,:), GNC.LSB.Method, tf, GNC.LSB.Parameters); 
+                    u(:,i) = u_c(:,1);  
+                else
+                    a = 1;
+                end
+           end
 
         otherwise
             warning('No valid control law was selected')

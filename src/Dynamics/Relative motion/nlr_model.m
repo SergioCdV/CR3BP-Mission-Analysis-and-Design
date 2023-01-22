@@ -92,7 +92,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     % GNC handler 
     if (~isempty(GNC))
         % GNC scheme
-        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r(1:m).', t);         % Compute the control law
+        [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t);         % Compute the control law
         drho(4:6) = drho(4:6)+u;                                         % Add the control vector       
     end
     

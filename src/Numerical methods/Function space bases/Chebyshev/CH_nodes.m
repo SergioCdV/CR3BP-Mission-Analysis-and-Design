@@ -1,7 +1,7 @@
-%% CR3BP Library %% 
+%% Project:  
 % Sergio Cuevas del Valle
-% Date: 30/04/22
-% File: CH_nodes.m 
+% Date: 07/05/20
+% File: CH_nodes
 % Issue: 0 
 % Validated: 
 
@@ -15,6 +15,6 @@
 
 function [y] = CH_nodes(N)
     % Chebyshev nodes 
-    i = N-1:-1:0;
-    y = cos(pi*i/(N-1));
+    i = N:-1:0;
+    y = cos(pi*i/N);
 end

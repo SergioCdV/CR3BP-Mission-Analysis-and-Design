@@ -20,56 +20,50 @@ maxIter = 20;                       % Maximum number of iterations
 tol = 1e-10;                        % Differential corrector tolerance
 
 % Halo characteristics 
-Az = 20140e3;                                                       % Orbit amplitude out of the synodic plane 
+Az = 10000e3;                                                       % Orbit amplitude out of the synodic plane 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
-Ln = 2;                                                             % Orbits around L2
+Ln = 1;                                                             % Orbits around L2
 gamma = L(end,Ln);                                                  % Li distance to the second primary
 m = 1;                                                              % Number of periods to compute
 
 % Compute a halo seed 
 halo_param = [1 Az Ln gamma m];                                     % Northern halo parameters
-[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
+[halo_seed, ~] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
 % Correct the seed and obtain initial conditions for a halo orbit
 [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 % Continuate the first halo orbit to locate the chaser spacecraft
-Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
-num = 5;                                                            % Number of orbits to continuate
-method = 'SPC';                                                     % Type of continuation method (Single-Parameter Continuation)
-algorithm = {'Energy', NaN};                                        % Type of SPC algorithm (on period or on energy)
-object = {'Orbit', halo_seed, target_orbit.Period};                 % Object and characteristics to continuate
-corrector = 'Plane Symmetric';                                      % Differential corrector method
-direction = 1;                                                      % Direction to continuate (to the Earth)
-setup = [mu maxIter tol direction];                                 % General setup
+Az = 10000e3;                                                       % Orbit amplitude out of the synodic plane 
+Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
+Ln = 1;                                                             % Orbits around L2
+gamma = L(end,Ln);                                                  % Li distance to the second primary
+m = 1;                                                              % Number of periods to compute
 
-butterfly_seed = [1.0406 0 0.1735 0 -0.0770 0];                     % State vector of a butterfly orbit
+% Compute a halo seed 
+halo_param = [-1 Az Ln gamma m];                                    % Southern halo parameters
+[halo_seed, period] = object_seed(mu, halo_param, 'Halo');          % Generate a halo orbit seed
 
-[chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
-[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
+% Correct the seed and obtain initial conditions for a halo orbit
+[chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Prescribed guidance using polynomial families
 % Initial conditions 
 initial_state = chaser_orbit.Trajectory(1,1:6);                     % Initial chaser conditions 
-target_state = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
+target_state = target_orbit.Trajectory(800,1:6);                    % Initial target conditions
  
 % Setup of the solution 
-T = 0.5e-3*(T0^2/Lem);                  % Maximum thrust in non-dimensional units
-GNC.Algorithm = 'SDRE';                 % Solver algorithm
-GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
-GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
-GNC.Tmax = T/sqrt(3)*(T0^2/Lem);        % Constrained acceleration
-GNC.TOF = pi/2;                         % Maneuver time
-GNC.Polynomial = 'Chebyshev';           % Polynomial family to be used
+T = 0.3e-3*(T0^2/Lem);                  % Maximum thrust in non-dimensional units
+GNC.Tmax = T;                           % Constrained acceleration
 
-method = 'Prescribed shape-based'; 
+method = 'Minimum time'; 
 
 % Relative solution  
 iter = 25; 
 Time = zeros(1,iter);
 for i = 1:iter
     tic
-    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, GNC.TOF, GNC);  
+    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, 0, GNC);  
     Time(i) = toc; 
 end
 Time = mean(Time);
@@ -91,31 +85,6 @@ u_ex(2) = (Lem/T0^2)*max(sqrt(dot(u,u,1)))*1e3;
 
 % Complete arc
 C = Sc.'+Sr;
-
-%% Parametric study 
-% TF = 0.1:0.1:3*pi; 
-% dV = zeros(1,length(TF)); 
-% umax = dV;
-% 
-% for i = 1:length(TF)
-%    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, TF(i), GNC);
-%    tau = linspace(0,TF(i),size(Sr,2));
-%    effort = control_effort(tau, u, false)*Vc;
-%    dV(i) = effort(1);
-%    umax(i) = max(sqrt(dot(u,u,1))); 
-% end
-% 
-% figure 
-% plot(TF, dV); 
-% grid on;
-% xlabel('$t_f$'); 
-% ylabel('$\Delta V$'); 
-% 
-% figure
-% plot(TF, log(umax*(Lem/T0^2)*1e3));
-% grid on;
-% xlabel('$t_f$'); 
-% ylabel('log $||\mathbf{u}||_{max}$');
 
 %% Plots
 % Orbit representation
