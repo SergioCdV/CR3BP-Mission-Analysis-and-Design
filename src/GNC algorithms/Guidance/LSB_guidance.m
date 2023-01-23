@@ -350,7 +350,7 @@ function [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GN
         A(:,1:length(tspan(tspan < Delta(1)))) = [s(1)+s(3).*tspan(tspan < Delta(1))+u.*tspan(tspan < Delta(1)).^2/2; s(3)+u.*tspan(tspan < Delta(1))];
 
         u = Sigma*ones(1,length(tspan(tspan >= Delta(1))));
-        Ss = [0.5*(s(1)+(Sigma-0.5)*s(3)^2); -Sigma*Lambda];
+        Ss = [0.5*(s(1)+0.5*(Sigma)*s(3)^2); -Sigma*Lambda];
         A(:,length(tspan(tspan < Delta(1)))+1:length(tspan)) = [Ss(1)+Ss(2).*(tspan(tspan > Delta(1))-Delta(1))+u.*(tspan(tspan > Delta(1))-Delta(1)).^2/2; ...
                                                                 Ss(2)+u.*(tspan(tspan > Delta(1))-Delta(1))];
 
@@ -367,9 +367,9 @@ function [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GN
 
     if (Sigma == 0)
         tf(2) = abs(s(4));
-        tspan = 0:1e-4:tf(2);
+        tspan = 0:dt:tf(2);
         U = -sign(s(4))*ones(1,length(tspan));
-        A = [s(2)+s(4).*tspan+U.*tspan.^2/2; s(4)+U.*tspan];
+        A = [s(2)+s(4).*tspan+U(1,:).*tspan.^2/2; s(4)+U.*tspan];
     else
         Lambda = sqrt(Sigma*s(2)+s(4)^2/2);
         Delta = [Lambda+Sigma*s(4); Lambda];
@@ -384,7 +384,7 @@ function [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GN
         A(:,1:length(tspan(tspan < Delta(1)))) = [s(2)+s(4).*tspan(tspan < Delta(1))+u.*tspan(tspan < Delta(1)).^2/2; s(4)+u.*tspan(tspan < Delta(1))];
 
         u = Sigma*ones(1,length(tspan(tspan >= Delta(1))));
-        Ss = [0.5*(s(2)+(Sigma-0.5)*s(4)^2); -Sigma*Lambda];
+        Ss = [0.5*(s(2)+0.5*(Sigma)*s(4)^2); -Sigma*Lambda];
         A(:,length(tspan(tspan < Delta(1)))+1:length(tspan)) = [Ss(1)+Ss(2).*(tspan(tspan > Delta(1))-Delta(1))+u.*(tspan(tspan > Delta(1))-Delta(1)).^2/2; ...
                                                                 Ss(2)+u.*(tspan(tspan > Delta(1))-Delta(1))];
 

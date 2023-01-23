@@ -10,7 +10,7 @@ close all
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           % System libration points
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-T0 = 28*86400;                      % Characteristic time of the Earth-Moon system
+T0 = 28*86400/(2*pi);               % Characteristic time of the Earth-Moon system
 Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
 n = 6;                              % Phase-space dimension
 

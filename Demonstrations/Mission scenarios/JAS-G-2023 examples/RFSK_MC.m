@@ -192,7 +192,7 @@ scatter(Error(1,:), Effort(1,:), 'filled', 'b')
 scatter(Error(1,:), Effort(2,:), 'filled', 'r')
 legend('RFSK', 'LQR'); 
 grid on; 
-xlabel('Initial velocity error $\dot{\mathbf{\rho}_0}$')
+xlabel('Initial position error $||\mathbf{\rho}_0||$')
 ylabel('$\Delta V$ [m/s]')
 
 % Error cost figure 
@@ -202,9 +202,9 @@ scatter(Error(1,:), log(Merit(1,:)), 'filled')
 scatter(Error(1,:), log(Merit(2,:)), 'filled')
 scatter(Error, log(Merit(3,:)), '*')
 scatter(Error, log(Merit(4,:)), '*')
-legend('RFSK-$\rho$', 'RFSK-$\dot{\rho}$', 'LQR-$\rho$', 'LQR-$\dot{\rho}$'); 
+legend('RFSK-$||\rho_f||$', 'RFSK-$||\dot{\rho}_f||$', 'LQR-$||\rho_f||$', 'LQR-$||\dot{\rho}_f||$'); 
 grid on; 
-xlabel('Initial velocity error $\dot{\mathbf{\rho}_0}$')
+xlabel('Initial position error $||\mathbf{\rho}_0||$')
 ylabel('Error log $e(t_f)$')
 
 % Computational cost figure
@@ -214,5 +214,5 @@ scatter(Error(1,:), Time(1,:), 'filled', 'b')
 scatter(Error(1,:), Time(2,:), 'filled', 'r')
 legend('RFSK', 'LQR'); 
 grid on; 
-xlabel('Initial velocity error $\dot{\mathbf{\rho}_0}$')
+xlabel('Initial position error $||\mathbf{\rho}_0||$')
 ylabel('Computational cost $T_c$ [s]')

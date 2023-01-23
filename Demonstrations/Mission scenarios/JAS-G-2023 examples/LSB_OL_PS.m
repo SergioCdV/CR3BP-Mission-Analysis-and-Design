@@ -10,7 +10,7 @@ close all
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
 L = libration_points(mu);           % System libration points
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-T0 = 28*86400;                      % Characteristic time of the Earth-Moon system
+T0 = 28*86400/(2*pi);               % Characteristic time of the Earth-Moon system
 Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
 n = 6;                              % Phase-space dimension
 
@@ -59,8 +59,8 @@ GNC.Algorithm = 'SDRE';                 % Solver algorithm
 GNC.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
 GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 GNC.Tmax = T;                           % Constrained acceleration
-GNC.TOF = pi/2;                         % Maneuver time
-GNC.Polynomial = 'Chebyshev';           % Polynomial family to be used
+GNC.TOF = 2*pi;                         % Maneuver time
+GNC.Polynomial = 'Bernstein';           % Polynomial family to be used
 
 method = 'Prescribed shape-based'; 
 
@@ -93,29 +93,29 @@ u_ex(2) = (Lem/T0^2)*max(sqrt(dot(u,u,1)))*1e3;
 C = Sc.'+Sr;
 
 %% Parametric study 
-% TF = 0.1:0.1:3*pi; 
-% dV = zeros(1,length(TF)); 
-% umax = dV;
-% 
-% for i = 1:length(TF)
-%    [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, TF(i), GNC);
-%    tau = linspace(0,TF(i),size(Sr,2));
-%    effort = control_effort(tau, u, false)*Vc;
-%    dV(i) = effort(1);
-%    umax(i) = max(sqrt(dot(u,u,1))); 
-% end
-% 
-% figure 
-% plot(TF, dV); 
-% grid on;
-% xlabel('$t_f$'); 
-% ylabel('$\Delta V$'); 
-% 
-% figure
-% plot(TF, log(umax*(Lem/T0^2)*1e3));
-% grid on;
-% xlabel('$t_f$'); 
-% ylabel('log $||\mathbf{u}||_{max}$');
+TF = 0.1:0.1:3*pi; 
+dV = zeros(1,length(TF)); 
+umax = dV;
+
+for i = 1:length(TF)
+   [Sr, u, tf, lissajous_constants] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method, TF(i), GNC);
+   tau = linspace(0,TF(i),size(Sr,2));
+   effort = control_effort(tau, u, false)*Vc;
+   dV(i) = effort(1);
+   umax(i) = max(sqrt(dot(u,u,1))); 
+end
+
+figure 
+plot(TF, dV); 
+grid on;
+xlabel('$t_f$'); 
+ylabel('$\Delta V$'); 
+
+figure
+plot(TF, log(umax*(Lem/T0^2)*1e3));
+grid on;
+xlabel('$t_f$'); 
+ylabel('log $||\mathbf{u}||_{max}$');
 
 %% Plots
 % Orbit representation
