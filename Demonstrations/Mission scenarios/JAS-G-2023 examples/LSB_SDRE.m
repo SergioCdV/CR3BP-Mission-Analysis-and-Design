@@ -46,7 +46,7 @@ GNC.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
 GNC.Tmax = T/sqrt(3);                   % Constrained acceleration
 GNC.TOF = pi;                           % Maneuver time
 
-method = 'Dynamics shape-based'; 
+method = 'SDRE'; 
 
 % Relative solution  
 iter = 1; 

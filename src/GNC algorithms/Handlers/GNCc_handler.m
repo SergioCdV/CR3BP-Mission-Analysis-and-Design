@@ -301,8 +301,6 @@ function [Sg, Sn, u] = GNCc_handler(GNC, St, S, t)
                 if (tf ~= 0)
                     [~, u_c, ~, ~] = LSB_guidance(mu, Ln, gamma, Sn(i,:), GNC.LSB.Method, tf, GNC.LSB.Parameters); 
                     u(:,i) = u_c(:,1);  
-                else
-                    a = 1;
                 end
            end
 

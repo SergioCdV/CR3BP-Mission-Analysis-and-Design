@@ -8,51 +8,52 @@ close all
 
 %% Trajectory generation 
 % Halo characteristics 
-Az = 5e6:1000e3:20e6;                                                       % Orbit amplitude out of the synodic plane  
+Az = 5e6:100e3:20e6;                                                       % Orbit amplitude out of the synodic plane  
 Ln = 1; 
-northern_flag = 1; 
 
-method = ["Prescribed shape-based", "Dynamics shape-based", "Dynamics shape-based", "Minimum energy", "Minimum time"];
-method = method(1);
-
-% Main computation 
-[dV([1 3],:)] = cl_analysis(Az, Ln, northern_flag, method);
+method = ["Prescribed shape-based", "SDRE", "Backstepping", "Minimum energy", "Minimum time"];
+method = method(5);
 
 % Main computation 
-northern_flag = -1; 
-[dV([2 4],:), eps(2,:)] = performance_analysis(Az, Ln, northern_flag, method);
+northern_flag = 1;
+[dV(1,:), u_ex(1:4,:), error(1:4,:), epsilon(1:2,:)] = cl_analysis(Az, Ln, northern_flag, method);
 
-%%
+% Dimensionalizing 
 Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);              % Normalize distances for the E-M system
+Az = Az / Lem;
 
 %% Results and plots %% 
 figure 
 hold on
-plot(Az, dV(1:2,:)*100);
-legend('$L_1^+$','$L_1^-$')
+plot(Az, dV(1,:)*100);
 hold off
 grid on;
 xlabel('$A_z$')
-ylabel('$\epsilon_1 [\%]$')
+ylabel('$\epsilon_1(\Delta V) [\%]$')
 
 figure 
 hold on
-plot(Az, dV(3:4,:)*100);
-legend('$L_1^+$','$L_1^-$')
+plot(Az, u_ex(1:4,:));
 hold off
 grid on;
 xlabel('$A_z$')
-ylabel('$\epsilon_2 [\%]$')
+ylabel('$||\mathbf{u}||$')
 
 figure 
 hold on
-plot(Az, eps(1:2,:));
-legend('$L_1^+$','$L_1^-$')
+plot(Az, error(1:4,:));
 hold off
-grid on; 
+grid on;
 xlabel('$A_z$')
-ylabel('$\epsilon_3$')
+ylabel('log $e_f$')
+
+figure 
+hold on
+plot(Az, epsilon(1:2,:));
+hold off
+grid on;
+xlabel('$A_z$')
+ylabel('$\epsilon_2$')
 
 %% Save results
 save Demonstrations\'Mission scenarios'\'JAS-G-2023 examples'\LSB_comparison.mat
@@ -118,28 +119,55 @@ save Demonstrations\'Mission scenarios'\'JAS-G-2023 examples'\LSB_comparison.mat
 
 %% Auxiliary functions 
 % Controller-assited close-loop performance
-function [dV] = cl_analysis(Az, Ln, northern_flag, method_gnc)
+function [dV, u_ex, error, epsilon] = cl_analysis(Az, Ln, northern_flag, method_gnc)
     % Preallocation 
     dV = zeros(1,length(Az));
+    u_ex = zeros(4,length(Az));
+    error = zeros(4,length(Az));
+    epsilon = zeros(2,length(Az));
 
     % CR3BP constants 
     mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
     L = libration_points(mu);           % System libration points
     Lem = 384400e3;                     % Mean distance from the Earth to the Moon
-    T0 = 28*86400;                      % Characteristic time of the Earth-Moon system
+    T0 = 28*86400/(2*pi);               % Characteristic time of the Earth-Moon system
     Vc = 1.025e3;                       % Characteristic velocity of the Earth-Moon system
     n = 6;                              % Phase-space dimension
     
     % Differential corrector set up
-    nodes = 10;                         % Number of nodes for the multiple shooting corrector
     maxIter = 20;                       % Maximum number of iterations
     tol = 1e-10;                        % Differential corrector tolerance
 
+    gamma = L(end,Ln);                  % Li distance to the second primary
+    m = 1;                              % Number of periods to compute
+
+    T = 0.5e-3*(T0^2/Lem);                  % Maximum thrust in non-dimensional units
+    GNC_LSB.LQR.StateMatrix = 10*eye(2);    % State error weight matrix
+    GNC_LSB.LQR.ControlMatrix = eye(1);     % Control effort weight matrix
+    GNC_LSB.BSK.K1 = eye(2);                % First regulation matrix
+    GNC_LSB.BSK.K2 = eye(1);                % Second regulation matrix
+    GNC_LSB.Tmax = T;                       % Constrained acceleration
+    GNC_LSB.TOF = 0.9*pi;                       % Maneuver time
+    GNC_LSB.Polynomial = 'Chebyshev';       % Polynomial family to be used
+
+    % Definition of the CL controller
+    GNC.Guidance.Dimension = 9;                 % Dimension of the guidance law
+    GNC.Control.Dimension = 3;                  % Dimension of the control law
+    GNC.Navigation.NoiseVariance = 0;           % Noise variance
+    GNC.Algorithms.Guidance = '';               % Guidance algorithm
+    GNC.Algorithms.Navigation = '';             % Navigation algorithm
+
+    GNC.System.mu = mu;                         % Systems's reduced gravitational parameter
+    GNC.System.Libration = [Ln gamma];          % Libration point ID
+
+    GNC.Tmax = T;                               % Maximum available acceleration
+    GNC.Algorithms.Control = 'LSB';             % Control algorithm
+    GNC.LSB.Parameters = GNC_LSB;               % Definition of the control law
+    GNC.LSB.Method = method_gnc;
+    
     % Main computation
     for i = 1:length(Az)
         az = dimensionalizer(Lem, 1, 1, Az(i), 'Position', 0);              % Normalize distances for the E-M system
-        gamma = L(end,Ln);                                                  % Li distance to the second primary
-        m = 1;                                                              % Number of periods to compute
         
         % Compute a halo seed 
         halo_param = [northern_flag az Ln gamma m];                         % Halo parameters
@@ -149,7 +177,6 @@ function [dV] = cl_analysis(Az, Ln, northern_flag, method_gnc)
         [target_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
         
         % Continuate the first halo orbit to locate the chaser spacecraft
-        Bif_tol = 1e-2;                                                     % Bifucartion tolerance on the stability index
         num = 5;                                                            % Number of orbits to continuate
         method = 'SPC';                                                     % Type of continuation method (Single-Parameter Continuation)
         algorithm = {'Energy', NaN};                                        % Type of SPC algorithm (on period or on energy)
@@ -158,10 +185,9 @@ function [dV] = cl_analysis(Az, Ln, northern_flag, method_gnc)
         direction = 1;                                                      % Direction to continuate (to the Earth)
         setup = [mu maxIter tol direction];                                 % General setup
         
-        [chaser_seed, state_PA] = continuation(num, method, algorithm, object, corrector, setup);
+        [chaser_seed, ~] = continuation(num, method, algorithm, object, corrector, setup);
         [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, chaser_seed.Seeds(end,:), maxIter, tol);
-        
-        %% Prescribed guidance using polynomial families
+
         % Initial conditions 
         initial_state = chaser_orbit.Trajectory(1,1:6);                     % Initial chaser conditions 
         target_state = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
@@ -169,59 +195,47 @@ function [dV] = cl_analysis(Az, Ln, northern_flag, method_gnc)
         % Minimum velocity change needed 
         Jc(1) = jacobi_constant(mu, initial_state.');
         Jc(2) = jacobi_constant(mu, target_state.');
-         
-        % Setup of the solution 
-        T = 0.5e-3*(T0^2/Lem);                  % Maximum thrust in non-dimensional units
-        GNC_LSB.Algorithm = 'Backstepping';         % Solver algorithm
-        GNC_LSB.LQR.StateMatrix = 10*eye(2);        % State error weight matrix
-        GNC_LSB.LQR.ControlMatrix = eye(1);         % Control effort weight matrix
-        GNC_LSB.BSK.K1 = eye(2);                    % First regulation matrix
-        GNC_LSB.BSK.K2 = eye(1);                    % Second regulation matrix
-        GNC_LSB.Tmax = T;                           % Constrained acceleration
-        GNC_LSB.TOF = pi;                           % Maneuver time
-        GNC_LSB.Polynomial = 'Chebyshev';           % Polynomial family to be used
-                
+                         
         % Relative solution  
         [Sr, u_ol, tf, ~] = LSB_guidance(mu, Ln, gamma, initial_state-target_state, method_gnc, GNC_LSB.TOF, GNC_LSB);  
         
         % Absolute close-loop chaser trajectory
         tau = linspace(0,tf,size(Sr,2));
-        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
-        [~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tau, target_state, options);
-        COL = Sc.'+Sr;
         
         % Total transfer metrics 
         effort(:,1) = control_effort(tau, u_ol, false)*Vc;
+        [~, merit] = figures_merit(tau, Sr.'); 
+        error(1:2,i) = merit(1:2);
                 
         % Minimum and maximum control 
-        u_ex(1) = (Lem/T0^2)*min(sqrt(dot(u_ol,u_ol,1)))*1e3;
-        u_ex(3) = (Lem/T0^2)*max(sqrt(dot(u_ol,u_ol,1)))*1e3;
-                
-        % Definition of the CL controller
-        GNC.Guidance.Dimension = 9;                     % Dimension of the guidance law
-        GNC.Control.Dimension = 3;                      % Dimension of the control law
-        GNC.Navigation.NoiseVariance = 0;               % Noise variance
-        GNC.Algorithms.Guidance = '';                   % Guidance algorithm
-        GNC.Algorithms.Navigation = '';                 % Navigation algorithm
+        u_ex(1,i) = (Lem/T0^2)*min(sqrt(dot(u_ol,u_ol,1)))*1e3;
+        u_ex(2,i) = (Lem/T0^2)*max(sqrt(dot(u_ol,u_ol,1)))*1e3;
+                        
+        % Absolute open-loop chaser trajectory
+        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);
+        [~, Sc] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tau, target_state, options);
 
-        GNC.System.mu = mu;                             % Systems's reduced gravitational parameter
-        GNC.System.Libration = [Ln gamma];              % Libration point ID
+        % Dynamics error 
+        feasibility = zeros(n,length(tau));
+        for j = 1:length(tau)
+            aux = [zeros(9,1); u_ol(:,i)]+nlr_model(mu, true, false, false, 'Encke', tau, [Sc(i,:).'; Sr(:,i)]);
+            feasibility(:,i) = aux(7:12);
+        end
+        epsilon(1,i) = trapz(tau, sqrt(dot(feasibility(1:3,:),feasibility(1:3,:),1)));
+        epsilon(2,i) = trapz(tau, sqrt(dot(feasibility(4:6,:),feasibility(4:6,:),1)));
 
-        GNC.Tmax = T;                                   % Maximum available acceleration
-        GNC.Algorithms.Control = 'LSB';                 % Control algorithm
-        GNC.LSB.Parameters = GNC_LSB;                   % Definition of the control law
-        GNC.LSB.Method = method_gnc; 
-        
-        % Absolute close-loop chaser trajectory
-        [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tau, [target_state initial_state-target_state]);
+        options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-14);
+        [~, Sc] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s, GNC), tau, [target_state initial_state-target_state], options);
         [~, ~, u_cl] = GNC_handler(GNC, Sc(:,1:n), Sc(:,7:end), tau); 
         
         % Total transfer metrics 
         effort(:,2) = control_effort(tau, u_cl, false)*Vc;
+        [~, merit] = figures_merit(tau, Sc(:,n+1:2*n)); 
+        error(3:4,i) = merit(1:2);
         
         % Minimum and maximum control 
-        u_ex(2) = (Lem/T0^2)*min(sqrt(dot(u_cl,u_cl,1)))*1e3;
-        u_ex(4) = (Lem/T0^2)*max(sqrt(dot(u_cl,u_cl,1)))*1e3;
+        u_ex(3,i) = (Lem/T0^2)*min(sqrt(dot(u_cl,u_cl,1)))*1e3;
+        u_ex(4,i) = (Lem/T0^2)*max(sqrt(dot(u_cl,u_cl,1)))*1e3;
                 
         % Cost performance comparison
         dV(1,i) = effort(1,2)/effort(1,1)-1;

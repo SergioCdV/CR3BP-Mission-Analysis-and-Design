@@ -40,7 +40,11 @@ function [S, u, tf, lissajous_constants] = LSB_guidance(mu, L, gamma, s0, method
             [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0, tf, GNC.Polynomial);
         case 'Numerical shape-based'
              [S, u, tf, lissajous_constants] = num_lissajous(mu, L, gamma, s0, GNC);
-        case 'Dynamics shape-based'
+        case 'Backstepping'
+            GNC.Algorithm = 'Backstepping';
+            [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, GNC);
+        case 'SDRE'
+            GNC.Algorithm = 'SDRE';
             [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, GNC);
         case 'Minimum energy'
             [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, GNC);
@@ -484,27 +488,6 @@ function [dS, u] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t, s, GNC)
             B = [zeros(1); 1];                                  % Control input matrix
             K = lqr(A,B,Q,R);                                   % LQR matrix 
             u(2) = -K*s([2 4]);                                 % Control law
-
-            % Compute the amplitude vector field 
-            A = [zeros(2) eye(2); zeros(2,4)];                  % Constant state dynamics 
-            B = [zeros(2); eye(2)];                             % Global control input matrix
-
-        case 'Minimum time'
-            y = s(3)+sign(s(1))*sqrt(2*Tmax*abs(s(1)));
-            if (y == 0)
-                e = s(1);                                       % Error to the first switching curve
-            else
-                e = y;                                          % Error to the first switching curve
-            end
-            u(1) = -Tmax*sign(e); 
-             
-            y = s(4)+sign(s(2))*sqrt(2*Tmax*abs(s(2)));
-            if (y == 0)
-                e = s(2);                                       % Error to the second switching curve
-            else
-                e = y;                                          % Error to the second switching curve
-            end
-            u(2) = -Tmax*sign(e); 
 
             % Compute the amplitude vector field 
             A = [zeros(2) eye(2); zeros(2,4)];                  % Constant state dynamics 
