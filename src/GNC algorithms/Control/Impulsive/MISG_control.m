@@ -10,10 +10,13 @@
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the CR3BP
 %           system
+%         - scalar Ln, the index of the libration point of interest
 %         - scalar TOF, the time of flight for the rendezvous condition
 %         - vector s0, initial conditions of both the target and the
 %           relative particle
 %         - string method, the solver to be used
+%         - string integrator, the integrator to be used for the
+%           variational equations
 %         - scalar N, the number of impulses in the sequence
 %         - scalar tol, the differential corrector scheme absolute
 %           tolerance
@@ -25,10 +28,26 @@
 
 % New versions: 
 
-function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
+function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrator, N, tol)
     % Constants 
     m = 6;                      % Phase space dimension
     B = [zeros(3); eye(3)];     % Control input matrix
+
+    stm_computation = integrator;
+
+    switch (integrator)
+        case 'RLLM'
+            L = libration_points(mu);                       % System libration points
+            gamma = L(end,Ln);                              % Characteristic distance of the libration point
+            cn = legendre_coefficients(mu, Ln, gamma, 2);   % Legendre coefficient c_2 (equivalent to mu)
+            c2 = cn(2);                                     % Legendre coefficient c_2 (equivalent to mu)
+            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];        % Potential linear term
+            Omega = [0 2 0;-2 0 0; 0 0 0];                  % Coriolis force
+            A = [zeros(m/2) eye(m/2); Sigma Omega];         % Jacobian matrix of the dynamics
+
+        otherwise
+            A = zeros(m);
+    end
     
     % Sanity check on initial conditions dimension 
     if (size(s0,1) ~= 1)
@@ -58,12 +77,29 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
                 epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
         
                 % Solve the optimal problem
-                aux = fsolve(@(x)optimal_sequence(s(i:end,:),M,B,epsilon,0.1,x), sol(1+3*(i-1):end), optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'levenberg-marquardt'));
+                solve_options = optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'levenberg-marquardt');
+                aux = fsolve(@(x)optimal_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1, x), sol(1+3*(i-1):end), solve_options);
                 sol(1+3*(i-1):3*i) = aux(1:3);
         
                 % Update the propagation 
-                U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).' zeros(1,m^2)];
-                [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(i:end), s(i,:)+U, options); 
+                switch (stm_computation)
+                    case 'Numerical'
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).' zeros(1,m^2)];
+                        [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(i:end), s(i,:)+U, options); 
+
+                    case 'RLLM'
+                        % Trajectory propagation
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).'];
+                        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan(i:end), s(i,1:2*m)+U, options); 
+
+                        % STM propagation 
+                        aux = zeros(length(tspan(i:end)), 2*m+m^2);
+                        for j = 1:length(tspan(i:end))
+                            STM = expm(A*tspan(i+(j-1)));
+                            aux(j,:) = [S(j,:) reshape(STM, 1, m^2)];
+                        end
+                end
+
                 if (length(tspan(i:end)) == 2)
                     s(i:end,:) = aux([1 end], :);
                 else
@@ -215,34 +251,110 @@ function [tspan, Sc, dV, state] = MISG_control(mu, TOF, s0, method, N, tol)
             state.Iterations = iter;                          % Number of required iterations
             state.Error = norm(S(end,7:9));                   % Final error
 
+        case 'Lagrange'
+            s = S;                                              % Initial guess
+            for i = 1:length(tspan)-1
+                % Constants of the loop 
+                M = reshape(s(end,2*m+1:end), [m m]);           % Final STM
+                epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
+        
+                % Solve the optimal problem
+                dv = lagrange_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1);
+                sol(1+3*(i-1):3*i) = dv(1:3);
+        
+                % Update the propagation 
+                switch (stm_computation)
+                    case 'Numerical'
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).' zeros(1,m^2)];
+                        [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(i:end), s(i,:)+U, options); 
+
+                    case 'RLLM'
+                        % Trajectory propagation
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).'];
+                        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan(i:end), s(i,1:2*m)+U, options); 
+
+                        % STM propagation 
+                        aux = zeros(length(tspan(i:end)), 2*m+m^2);
+                        for j = 1:length(tspan(i:end))
+                            STM = expm(A*tspan(i+(j-1)));
+                            aux(j,:) = [S(j,:) reshape(STM, 1, m^2)];
+                        end
+                end
+
+                if (length(tspan(i:end)) == 2)
+                    s(i:end,:) = aux([1 end], :);
+                else
+                    s(i:end,:) = aux;
+                end
+            end  
+
+            sol(end-2:end) = -s(end,10:12).';                 % Final impulse 
+            s(end,10:12) = zeros(1,3);
+
+            % Output
+            dV = reshape(sol, [3 length(sol)/3]);             % Converged final impulses
+            Sc = s;                                           % Control trajectory 
+            state.State = true;                               % Convergence boolean
+            state.Iterations = length(tspan);                 % Number of required iterations
+            state.Error = norm(s(end,7:12));                  % Final error
+
         otherwise
             error('No valid method was chosen');
     end
 end
 
 %% Auxiliary functions 
+% Recursive optimal sequence
 function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
     % State variables
     V = reshape(x(1:3*size(S,1)), [3 size(S,1)]);           % Optimal sequence
+    dV = zeros(3*(size(S,1)-1),1);                          % Thrusting direction
     % t = x(3*size(S,1)+1:end);                             % Slack variable
 
-    % Optimal thrusting direction
-    dV = zeros(3*(size(S,1)-1),1);
+    % Constants 
+    m = 6;          % Phase space dimension
+
+    % Optimal thrusting direction recursion
     for i = 1:size(S,1)-1
-        Phi0 = M*reshape(S(i,13:end), [6 6])^(-1)*B;
-        Phi1 = M*reshape(S(i+1,13:end), [6 6])^(-1)*B;
+        Phi0 = M*reshape(S(i,:), [m m])^(-1)*B;
+        Phi1 = M*reshape(S(i+1,:), [m m])^(-1)*B;
         dV(1+3*(i-1):3*i,1) = norm(V(:,i))*V(:,i+1)-norm(V(:,i+1))*Phi1.'*pinv(Phi0.')*V(:,i);
     end
 
     % Rendezvous constraint
-    m = 6;
     Aeq = zeros(6,3*size(S,1));
-    M = reshape(S(end,2*m+1:end), [m m]);
     for i = 1:size(S,1)
-        Aeq(1:m,1+m/2*(i-1):m/2*i) = M*reshape(S(i,2*m+1:end), [m m])^(-1)*B;
+        Aeq(1:m,1+m/2*(i-1):m/2*i) = M*reshape(S(i,:), [m m])^(-1)*B;
     end
     dV = [dV; Aeq*x(1:3*size(S,1))-epsilon];
 
     % Maximum impulse inequality
     % dV = [dV; dVmax^2-dot(V,V,1).'-t.^2];
+end
+
+% Lagrange optimal equation 
+function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon, dVmax)
+    % Rendezvous constraint
+    m = 6;
+    Aeq = zeros(size(M));
+    for i = 1:size(S,1)
+        C = M*reshape(S(i,:), [m m])^(-1)*B;
+        Aeq = Aeq+C*C.';
+    end
+
+    % Solve for the Lagrange multiplier
+    lambda = Aeq\epsilon;
+
+    % Impulse sequence 
+    dV = zeros(3*(size(S,1)-1),1);
+    for i = 1:size(S,1)-1
+        Phi = M*reshape(S(i,:), [m m])^(-1)*B;
+        dV(1+3*(i-1):3*i,1) = Phi.'*lambda;
+    end
+
+    % Final cost 
+    cost = 0;
+    for i = 1:size(S,1)-1
+        cost = cost + norm(dV(1+3*(i-1):3*i,1));
+    end
 end

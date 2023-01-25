@@ -133,14 +133,15 @@ effort_miss = control_effort(tspan, dV, true);
 %% GNC: multi-impulsive staging rendezvous
 % Scheme setup
 tol = [1e-7 1e-3];             % Convergence toleranes 
-N = 60;                        % Number of impulses
-method = 'MPC';                % Solver method                                
+N = 200;                        % Number of impulses
+method = 'Lagrange';           % Solver method    
+integrator = 'Numerical';      % Integrator to be used
 
 % Controller scheme
 time = zeros(1,iter);
 for i = 1:iter
     tic
-    [tspan_misg, St_misg, dV, state{3}] = MISG_control(mu, tf, s0, method, N, tol);  
+    [tspan_misg, St_misg, dV, state{3}] = MISG_control(mu, Ln, tf, s0, method, integrator, N, tol);  
     time(i) = toc;
 end
 Time(3) = mean(time);
@@ -157,10 +158,10 @@ stem(tspan_misg,sqrt(dot(dV,dV,1))*Vc, 'filled');
 grid on; 
 xlabel('$t$')
 ylabel('$||\Delta\mathbf{V}||$')
-%%
+
 % Prune sequence 
-dV = PP_guidance(dV);
-effort_misg_2 = control_effort(tspan_misg, dV, true);
+% dV = PP_guidance(dV);
+% effort_misg_2 = control_effort(tspan_misg, dV, true);
 
 %% GNC: MPC multi impulsive rendezvous %%
 % Set up of the optimization
