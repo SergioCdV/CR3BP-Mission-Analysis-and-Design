@@ -357,4 +357,7 @@ function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon, dVmax)
     for i = 1:size(S,1)-1
         cost = cost + norm(dV(1+3*(i-1):3*i,1));
     end
+
+    % Sequence reduction 
+    [dV, cost] = ISP_control(S, B, reshape(dV, 3, []), cost);
 end
