@@ -25,7 +25,7 @@ n = 6;
 
 % Time span 
 dt = 1e-3;                          % Time step
-tf = 2;                           % Allowed time of flight
+tf = pi;                           % Allowed time of flight
 
 % CR3BP constants 
 mu = 0.0121505;                     % Earth-Moon reduced gravitational parameter
@@ -83,9 +83,9 @@ S_rc = S(:,1:6)+S(:,7:12);                                          % Reconstruc
 %% GNC: multi-impulsive staging rendezvous
 % Scheme setup
 tol = [1e-7 1e-3];             % Convergence toleranes 
-N = 200;                        % Number of impulses
-method = 'Lagrange';           % Solver method    
-integrator = 'RLLM';      % Integrator to be used
+N = 60;                        % Number of impulses
+method = 'Dual';           % Solver method    
+integrator = 'Numerical';      % Integrator to be used
 
 % Controller scheme
 iter = 1; 
@@ -109,10 +109,6 @@ stem(tspan_misg,sqrt(dot(dV,dV,1))*Vc, 'filled');
 grid on; 
 xlabel('$t$')
 ylabel('$||\Delta\mathbf{V}||$')
-
-% Prune sequence 
-% dV = PP_guidance(dV);
-% effort_misg_2 = control_effort(tspan_misg, dV, true);
 
 %% Results %% 
 % Plot results 

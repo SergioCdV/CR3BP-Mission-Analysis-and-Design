@@ -69,54 +69,6 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
     [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
 
     switch (method)
-        case 'MPC'
-            s = S;                                              % Initial guess
-            for i = 1:length(tspan)-1
-                % Constants of the loop 
-                M = reshape(s(end,2*m+1:end), [m m]);           % Final STM
-                epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
-        
-                % Solve the optimal problem
-                solve_options = optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'levenberg-marquardt');
-                aux = fsolve(@(x)optimal_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1, x), sol(1+3*(i-1):end), solve_options);
-                sol(1+3*(i-1):3*i) = aux(1:3);
-        
-                % Update the propagation 
-                switch (stm_computation)
-                    case 'Numerical'
-                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).' zeros(1,m^2)];
-                        [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(i:end), s(i,:)+U, options); 
-
-                    case 'RLLM'
-                        % Trajectory propagation
-                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).'];
-                        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan(i:end), s(i,1:2*m)+U, options); 
-
-                        % STM propagation 
-                        aux = zeros(length(tspan(i:end)), 2*m+m^2);
-                        for j = 1:length(tspan(i:end))
-                            STM = expm(A*tspan(i+(j-1)));
-                            aux(j,:) = [S(j,:) reshape(STM, 1, m^2)];
-                        end
-                end
-
-                if (length(tspan(i:end)) == 2)
-                    s(i:end,:) = aux([1 end], :);
-                else
-                    s(i:end,:) = aux;
-                end
-            end  
-
-            sol(end-2:end) = -s(end,10:12).';                 % Final impulse 
-            s(end,10:12) = zeros(1,3);
-
-            % Output
-            dV = reshape(sol, [3 length(sol)/3]);             % Converged final impulses
-            Sc = s;                                           % Control trajectory 
-            state.State = true;                               % Convergence boolean
-            state.Iterations = length(tspan);                 % Number of required iterations
-            state.Error = norm(s(end,7:12));                  % Final error
-
         case 'Numerical'
             % Differential corrector set up
             maxIter = 100;                                    % Maximum number of iterations
@@ -251,7 +203,7 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
             state.Iterations = iter;                          % Number of required iterations
             state.Error = norm(S(end,7:9));                   % Final error
 
-        case 'Lagrange'
+        case 'Primal'
             s = S;                                              % Initial guess
             for i = 1:length(tspan)-1
                 % Constants of the loop 
@@ -259,7 +211,55 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
                 epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
         
                 % Solve the optimal problem
-                dv = lagrange_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1);
+                solve_options = optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'levenberg-marquardt');
+                aux = fsolve(@(x)optimal_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1, x), sol(1+3*(i-1):end), solve_options);
+                sol(1+3*(i-1):3*i) = aux(1:3);
+        
+                % Update the propagation 
+                switch (stm_computation)
+                    case 'Numerical'
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).' zeros(1,m^2)];
+                        [~, aux] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan(i:end), s(i,:)+U, options); 
+
+                    case 'RLLM'
+                        % Trajectory propagation
+                        U = [zeros(1,m+m/2) sol(1+3*(i-1):3*i).'];
+                        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan(i:end), s(i,1:2*m)+U, options); 
+
+                        % STM propagation 
+                        aux = zeros(length(tspan(i:end)), 2*m+m^2);
+                        for j = 1:length(tspan(i:end))
+                            STM = expm(A*tspan(i+(j-1)));
+                            aux(j,:) = [S(j,:) reshape(STM, 1, m^2)];
+                        end
+                end
+
+                if (length(tspan(i:end)) == 2)
+                    s(i:end,:) = aux([1 end], :);
+                else
+                    s(i:end,:) = aux;
+                end
+            end  
+
+            sol(end-2:end) = -s(end,10:12).';                 % Final impulse 
+            s(end,10:12) = zeros(1,3);
+
+            % Output
+            dV = reshape(sol, [3 length(sol)/3]);             % Converged final impulses
+            Sc = s;                                           % Control trajectory 
+            state.State = true;                               % Convergence boolean
+            state.Iterations = length(tspan);                 % Number of required iterations
+            state.Error = norm(s(end,7:12));                  % Final error
+
+        case 'Dual'
+            s = S;                                              % Initial guess
+            for i = 1:length(tspan)-1
+                % Constants of the loop 
+                M = reshape(s(end,2*m+1:end), [m m]);           % Final STM
+                epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
+        
+                % Solve the optimal problem
+                dv = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e2, 1e-4);
                 sol(1+3*(i-1):3*i) = dv(1:3);
         
                 % Update the propagation 
@@ -305,14 +305,14 @@ end
 
 %% Auxiliary functions 
 % Recursive optimal sequence
-function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
+    function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
     % State variables
     V = reshape(x(1:3*size(S,1)), [3 size(S,1)]);           % Optimal sequence
     dV = zeros(3*(size(S,1)-1),1);                          % Thrusting direction
     % t = x(3*size(S,1)+1:end);                             % Slack variable
 
-    % Constants 
-    m = 6;          % Phase space dimension
+    % Constants         
+    m = size(B,1);          % Phase space dimension
 
     % Optimal thrusting direction recursion
     for i = 1:size(S,1)-1
@@ -332,8 +332,66 @@ function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
     % dV = [dV; dVmax^2-dot(V,V,1).'-t.^2];
 end
 
+% ADMM impulse sequence algorithm 
+function [dV, lambda, cost] = ADMM_sequence(S, M, B, epsilon, cost_norm, maxIter, rho, tol)
+    % Constants
+    m = size(B,1);                            % Phase space dimension 
+
+    % Preallocation and start up
+    dV = zeros(3*(size(S,1)-1),maxIter);      % True impulse sequence 
+    y = zeros(3*(size(S,1)-1),maxIter);       % Virtual L22 impulse sequence 
+    mu = zeros(3*(size(S,1)-1),maxIter);      % Lagrange multiplier of the ADMM problem 
+    GoOn = true;                              % Convergence boolean
+    iter = 1;                                 % Initial iterations 
+    J = zeros(1,maxIter);                     % Cost fuction for each iteration
+
+    % ADMM optimization
+    while (GoOn && iter < maxIter)
+        % Quadratic convex optimization 
+        epsilon_m = epsilon;
+        for i = 1:(size(S,1)-1)
+            Phi = M*reshape(S(i,:), [m m])^(-1)*B;
+            epsilon_m = epsilon_m-Phi*rho/(2+rho)*(mu(1+3*(i-1):3*i,iter)+dV(1+3*(i-1):3*i,iter));
+        end
+        [y(:,iter+1), lambda, ~] = lagrange_sequence(S, M, B, epsilon_m);
+
+        % Feedforward term
+        y(:,iter+1) = y(:,iter+1)+rho/(2+rho)*(mu(:,iter)+dV(:,iter));
+        dVy = reshape(y, 3, []); 
+        cost = sum(dot(dVy,dVy,1));
+
+        % Proximal operator 
+        V = zeros(1,(size(S,1)-1));
+        for i = 1:(size(S,1)-1)
+            dV(1+3*(i-1):3*i,iter+1) = proximal_operator(y(1+3*(i-1):3*i,iter+1)-mu(1+3*(i-1):3*i,iter), 1/rho, cost_norm);
+            V(i) = norm(dV(1+3*(i-1):3*i,iter+1));
+        end
+
+        % Lagrange multiplier update
+        mu(:,iter+1) = mu(:,iter) + dV(:,iter)-y(:,iter);
+
+        % Total cost 
+        res = reshape(dV(:,iter+1)-y(:,iter+1), [3 (size(S,1)-1)]);
+        J(iter+1) = sum(V)+cost+rho/2*sum(sqrt(dot(res,res,1)))+dot(mu(:,iter+1),dV(:,iter+1)-y(:,iter+1));
+
+        % Convergence analysis 
+        if (abs(J(iter+1)-J(iter)) < tol)
+            GoOn = false;
+        else
+            iter = iter+1;
+        end
+    end
+
+    dV = dV(:,iter);
+
+    % Pruning
+    if (sum(V) ~= 0)
+        [dV, cost] = ISP_control(S, B, reshape(dV, 3, []), sum(V));
+    end
+end
+
 % Lagrange optimal equation 
-function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon, dVmax)
+function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon)
     % Rendezvous constraint
     m = 6;
     Aeq = zeros(size(M));
@@ -342,11 +400,13 @@ function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon, dVmax)
         Aeq = Aeq+C*C.';
     end
 
+    % Preallocation
+    dV = zeros(3*(size(S,1)-1),1);      % True impulse sequence
+
     % Solve for the Lagrange multiplier
     lambda = Aeq\epsilon;
 
     % Impulse sequence 
-    dV = zeros(3*(size(S,1)-1),1);
     for i = 1:size(S,1)-1
         Phi = M*reshape(S(i,:), [m m])^(-1)*B;
         dV(1+3*(i-1):3*i,1) = Phi.'*lambda;
@@ -357,7 +417,4 @@ function [dV, lambda, cost] = lagrange_sequence(S, M, B, epsilon, dVmax)
     for i = 1:size(S,1)-1
         cost = cost + norm(dV(1+3*(i-1):3*i,1));
     end
-
-    % Sequence reduction 
-    [dV, cost] = ISP_control(S, B, reshape(dV, 3, []), cost);
 end

@@ -22,16 +22,16 @@ function [dV, cost] = ISP_control(Phi, B, dV, J)
 
     % Initial setup
     if (num_sequence >= 0)
-        cost = J;                               % Current cost 
-        sequence = dV(:,end-(m+1)+1:end);       % Initial sequence
+        cost = J;                     % Current cost 
+        sequence = dV(:,1:m+1);       % Initial sequence
 
         for i = 0:num_sequence
-            % Reduce the sequence 
-            [dv, cost] = sequence_reduction(Phi(end-(m+1+i)+1:end,:), B, sequence, cost);
+         % Reduce the sequence 
+         [dv, cost] = sequence_reduction(Phi(1:(m+1+i),:), B, sequence, cost);
     
             % New sequence 
             if (i < num_sequence)
-                sequence = [dV(:,end-(m+1+i)+1) dv];     % Initial sequence
+                sequence = [dv dV(:,m+1+i)];
             end
         end
     
@@ -63,29 +63,34 @@ function [dV, cost] = sequence_reduction(Phi, B, dV, J)
 
     index = V == 0;
     dumb = u(:,~index);
-    b = -dumb(:,end);
-    dumb = [(dumb(:,1:end-1)\b).' 1];
 
-    alpha = zeros(1,size(u,2));
-    alpha(~index) = dumb;
-    Alpha = sum(alpha);
-
-    if (Alpha < 0)
-        alpha = -alpha;
+    if (~isempty(dumb))
+        b = -dumb(:,end);
+        dumb = [(dumb(:,1:end-1)\b).' 1];
+    
+        alpha = zeros(1,size(u,2));
+        alpha(~index) = dumb;
+        Alpha = sum(alpha);
+    
+        if (Alpha < 0)
+            alpha = -alpha;
+        end
+    
+        if (any(isnan(alpha)))
+            a = 1; 
+        end
+    
+        beta = alpha(V ~= 0)./V(V ~= 0);
+        beta_r = max(beta);
+        mu = V(V ~= 0)./beta_r.*(beta_r-beta);
+    
+        % New impulse sequence 
+        dV(:,V ~= 0) = (mu./V(V ~= 0)).*dV(:,V ~= 0); 
+    
+        % New sequence cost 
+        cost = J-Alpha/beta_r;
+    else
+        cost = V; 
     end
-
-    if (any(isnan(alpha)))
-        a = 1; 
-    end
-
-    beta = alpha(V ~= 0)./V(V ~= 0);
-    beta_r = max(beta);
-    mu = V(V ~= 0)./beta_r.*(beta_r-beta);
-
-    % New impulse sequence 
-    dV(:,V ~= 0) = (mu./V(V ~= 0)).*dV(:,V ~= 0); 
-
-    % New sequence cost 
-    cost = J-Alpha/beta_r;
 end
 
