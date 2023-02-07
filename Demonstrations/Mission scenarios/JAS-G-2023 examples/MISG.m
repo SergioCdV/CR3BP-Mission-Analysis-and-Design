@@ -83,7 +83,7 @@ S_rc = S(:,1:6)+S(:,7:12);                                          % Reconstruc
 %% GNC: multi-impulsive staging rendezvous
 % Scheme setup
 tol = [1e-7 1e-3];             % Convergence toleranes 
-N = 60;                        % Number of impulses
+N = 200;                        % Number of impulses
 method = 'Dual';           % Solver method    
 integrator = 'Numerical';      % Integrator to be used
 

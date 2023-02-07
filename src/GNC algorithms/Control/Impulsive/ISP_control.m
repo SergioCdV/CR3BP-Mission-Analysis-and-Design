@@ -26,8 +26,8 @@ function [dV, cost] = ISP_control(Phi, B, dV, J)
         sequence = dV(:,1:m+1);       % Initial sequence
 
         for i = 0:num_sequence
-         % Reduce the sequence 
-         [dv, cost] = sequence_reduction(Phi(1:(m+1+i),:), B, sequence, cost);
+            % Reduce the sequence 
+            [dv, cost] = sequence_reduction(Phi(1:(m+1+i),:), B, sequence, cost);
     
             % New sequence 
             if (i < num_sequence)
@@ -64,7 +64,7 @@ function [dV, cost] = sequence_reduction(Phi, B, dV, J)
     index = V == 0;
     dumb = u(:,~index);
 
-    if (~isempty(dumb))
+    if (sum(~index) >= 2)
         b = -dumb(:,end);
         dumb = [(dumb(:,1:end-1)\b).' 1];
     
@@ -76,10 +76,6 @@ function [dV, cost] = sequence_reduction(Phi, B, dV, J)
             alpha = -alpha;
         end
     
-        if (any(isnan(alpha)))
-            a = 1; 
-        end
-    
         beta = alpha(V ~= 0)./V(V ~= 0);
         beta_r = max(beta);
         mu = V(V ~= 0)./beta_r.*(beta_r-beta);
@@ -88,9 +84,9 @@ function [dV, cost] = sequence_reduction(Phi, B, dV, J)
         dV(:,V ~= 0) = (mu./V(V ~= 0)).*dV(:,V ~= 0); 
     
         % New sequence cost 
-        cost = J-Alpha/beta_r;
+        cost = sum(sqrt(dot(dV,dV,1)));
     else
-        cost = V; 
+        cost = sum(V); 
     end
 end
 

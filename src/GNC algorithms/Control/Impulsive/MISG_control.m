@@ -259,7 +259,7 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
                 epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
         
                 % Solve the optimal problem
-                dv = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e2, 1e-4);
+                dv = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e3, 1e-4);
                 sol(1+3*(i-1):3*i) = dv(1:3);
         
                 % Update the propagation 
@@ -305,7 +305,7 @@ end
 
 %% Auxiliary functions 
 % Recursive optimal sequence
-    function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
+function [dV] = optimal_sequence(S, M, B, epsilon, dVmax, x)
     % State variables
     V = reshape(x(1:3*size(S,1)), [3 size(S,1)]);           % Optimal sequence
     dV = zeros(3*(size(S,1)-1),1);                          % Thrusting direction
