@@ -213,7 +213,11 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
                 % Solve the optimal problem
                 solve_options = optimoptions('fsolve', 'Display', 'off', 'Algorithm', 'levenberg-marquardt');
                 aux = fsolve(@(x)optimal_sequence(s(i:end,2*m+1:end), M, B, epsilon, 0.1, x), sol(1+3*(i-1):end), solve_options);
-                sol(1+3*(i-1):3*i) = aux(1:3);
+
+                % Pruning
+                dv = reshape(aux, 3, []);
+                [dv, ~] = ISP_control(s(i:end,2*m+1:end), B, dv);
+                sol(1+3*(i-1):3*i) = dv(1:3);
         
                 % Update the propagation 
                 switch (stm_computation)
@@ -259,7 +263,11 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
                 epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
         
                 % Solve the optimal problem
-                dv = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e3, 1e-4);
+                [dv, ~, ~] = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e3, 1e-4);
+
+                % Pruning
+                dv = reshape(dv, 3, []);
+                [dv, ~] = ISP_control(s(i:end,2*m+1:end), B, dv);
                 sol(1+3*(i-1):3*i) = dv(1:3);
         
                 % Update the propagation 
@@ -373,6 +381,7 @@ function [dV, lambda, cost] = ADMM_sequence(S, M, B, epsilon, cost_norm, maxIter
         % Total cost 
         res = reshape(dV(:,iter+1)-y(:,iter+1), [3 (size(S,1)-1)]);
         J(iter+1) = sum(V)+cost+rho/2*sum(sqrt(dot(res,res,1)))+dot(mu(:,iter+1),dV(:,iter+1)-y(:,iter+1));
+        cost = sum(V);
 
         % Convergence analysis 
         if (abs(J(iter+1)-J(iter)) < tol)
@@ -383,11 +392,6 @@ function [dV, lambda, cost] = ADMM_sequence(S, M, B, epsilon, cost_norm, maxIter
     end
 
     dV = dV(:,iter);
-
-    % Pruning
-    if (sum(V) ~= 0)
-        [dV, cost] = ISP_control(S, B, reshape(dV, 3, []), sum(V));
-    end
 end
 
 % Lagrange optimal equation 

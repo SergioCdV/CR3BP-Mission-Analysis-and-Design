@@ -15,32 +15,71 @@
 
 % New versions: 
 
-function [dV, cost] = ISP_control(Phi, B, dV, J)
+function [dV, cost] = ISP_control(Phi, B, dV)
     % Constants 
     m = size(B,1);                              % Dimension of the state space
     num_sequence = size(dV,2)-(size(B,1)+1);    % Number of sequence reductions
 
     % Initial setup
     if (num_sequence >= 0)
-        cost = J;                     % Current cost 
-        sequence = dV(:,1:m+1);       % Initial sequence
+        cost = sqrt(dot(dV,dV,1));          % Current cost 
+        sequence = dV;                      % Initial sequence
 
-        for i = 0:num_sequence
-            % Reduce the sequence 
-            [dv, cost] = sequence_reduction(Phi(1:(m+1+i),:), B, sequence, cost);
-    
-            % New sequence 
-            if (i < num_sequence)
-                sequence = [dv dV(:,m+1+i)];
+        % Get the sequence 
+        V = sqrt(dot(sequence, sequence,1));
+        index = V ~= 0;
+
+        while (sum(index) > m+1)
+            % Reduce the sequence
+            seq = sequence(:,index);
+            phi = Phi(index,:);
+            pos = 1:m+1:size(seq,2);
+            for j = 1:length(pos)-1
+                [seq(:,pos(j):pos(j+1)-1), cost] = sequence_reduction(phi(pos(j):pos(j+1)-1,:), B, seq(:,pos(j):pos(j+1)-1), cost);
             end
+
+            % Final sequence
+            sequence(:,index) = seq;
+
+            % Get the sequence 
+            V = sqrt(dot(sequence, sequence,1));
+            index = V ~= 0;
         end
     
         % Final sequence 
-        dV = dv;
+        dV = sequence; 
+        cost = sqrt(dot(dV,dV,1));
     else
-        cost = J; 
+        cost = sqrt(dot(dV,dV,1)); 
     end
 end
+
+% function [dV, cost] = ISP_control(Phi, B, dV, J)
+%     % Constants 
+%     m = size(B,1);                              % Dimension of the state space
+%     num_sequence = size(dV,2)-(size(B,1)+1);    % Number of sequence reductions
+% 
+%     % Initial setup
+%     if (num_sequence >= 0)
+%         cost = J;                     % Current cost 
+%         sequence = dV(:,1:m+1);       % Initial sequence
+% 
+%         for i = 0:num_sequence
+%             % Reduce the sequence 
+%             [dv, cost] = sequence_reduction(Phi(1:(m+1+i),:), B, sequence, cost);
+%     
+%             % New sequence 
+%             if (i < num_sequence)
+%                 sequence = [dv dV(:,m+1+i)];
+%             end
+%         end
+%     
+%         % Final sequence 
+%         dV = dv;
+%     else
+%         cost = J; 
+%     end
+% end
 
 %% Auxiliary functions 
 function [dV, cost] = sequence_reduction(Phi, B, dV, J)
