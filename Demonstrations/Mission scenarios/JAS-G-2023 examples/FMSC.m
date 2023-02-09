@@ -68,8 +68,8 @@ halo_param = [-1 Az Ln gamma m];                                    % Southern h
 [chaser_orbit, ~] = differential_correction('Plane Symmetric', mu, halo_seed, maxIter, tol);
 
 %% Natural trajectory %%
-r_t0 = target_orbit.Trajectory(100,1:6);                    % Initial target conditions
-r_c0 = target_orbit.Trajectory(99,1:6);                     % Initial chaser conditions 
+r_t0 = target_orbit.Trajectory(2,1:6);                      % Initial target conditions
+r_c0 = target_orbit.Trajectory(1,1:6);                      % Initial chaser conditions 
 rho0 = r_c0-r_t0;                                           % Initial relative conditions
 s0 = [r_t0 rho0].';                                         % Initial conditions of the target and the relative state
 
@@ -99,10 +99,21 @@ setup.Restriction = 'Center';                   % Dynamical structures to be use
 setup.LibrationID = Ln;                         % Libration point of interest
 
 setup.Reinsertion = false;                      % Do not re-insert into orbit
-
 tic
-[tspan, Sc, dV] = FMSC_control(mu, TOC, Sn(index(2),1:12), setup);
+[~, Sc, ~, ~] = FMSC_control(mu, [2 * TOC TOC], Sn(index(2),1:12), setup);
 toc
+[~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), 0:dt:0.3, Sc(end,1:12), options);
+
+% Distance to the object
+d(1) = norm(Sc2(end,7:9))*Lem;
+
+setup.Reinsertion = true;                      % Do not re-insert into orbit
+tic
+[tspan, Sc, dV, state] = FMSC_control(mu, [2 * TOC TOC], Sn(index(2),1:12), setup);
+toc
+
+% Distance to the object
+d(2) = norm(Sc(end,7:9))*Lem;
 
 % Total maneuver metrics 
 effort = Vc*control_effort(tspan, dV, true);
@@ -114,24 +125,12 @@ Sc = [Sn(1:index(2)-1,1:12); Sc(:,1:12)];       % Complete trajectory
 ScCAM = Sc(:,1:6)+Sc(:,7:12);                   % Absolute trajectory
 
 tspan = [t(1:index(2)-1).' t(index(2)-1).'+tspan t(index(2)-1).'+tspan(end)+t2.'];
+
+d(3) = norm(Sc2(end,7:9))*Lem;
     
 %% Results %% 
 % Plot results 
 figure(1) 
-view(3) 
-hold on 
-surf(xo+so(1),yo+so(2),zo+so(3));
-plot3(Sc(:,7), Sc(:,8), Sc(:,9), 'b'); 
-plot3(Sn(:,7), Sn(:,8), Sn(:,9), 'r'); 
-hold off
-xlabel('$x$');
-ylabel('$y$');
-zlabel('$z$');
-grid on;
-legend('Colliding object', 'Rendezvous and CAM arc', 'Target orbit');
-% yticklabels(strrep(yticklabels, '-', '$-$'));
-
-figure(2) 
 view(3) 
 hold on 
 plot3(S_rc(:,1), S_rc(:,2), S_rc(:,3), 'b'); 
