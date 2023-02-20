@@ -132,9 +132,14 @@ function [S, u, tf, lissajous_constants] = prescribed_lissajous(mu, L, gamma, s0
     S(4,:) = -dAx.*cos(wp*tspan+phi)+wp*Ax.*sin(wp*tspan+phi);               % Vx relative velocity
     S(5,:) = kap*dAx.*sin(wp*tspan+phi)+kap*wp*Ax.*cos(wp*tspan+phi);        % Vy relative velocity
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
+    
+    S(7,:) = -ddAx.*cos(wp*tspan+phi)+2*wp*dAx.*sin(wp*tspan+phi)+wp^2*Ax.*cos(wp*tspan+phi);
+    S(8,:) = kap*ddAx.*sin(wp*tspan+phi)+2*kap*wp*dAx.*cos(wp*tspan+phi)-kap*wp^2*Ax.*sin(wp*tspan+phi);
+    S(9,:) = ddAz.*sin(wv*tspan+psi)+2*wv*dAz.*cos(wv*tspan+psi)-wv^2*Az.*sin(wv*tspan+psi);
  
     % Compute the final control law 
     u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
+    
     
 %     u = zeros(3,length(tspan));
 %     for i = 1:length(tspan)
@@ -184,6 +189,10 @@ function [S, u, tf, lissajous_constants] = num_lissajous(mu, L, gamma, s0, GNC)
     S(4,:) = -dAx.*cos(wp*tspan+phi)+wp*Ax.*sin(wp*tspan+phi);               % Vx relative velocity
     S(5,:) = kap*dAx.*sin(wp*tspan+phi)+kap*wp*Ax.*cos(wp*tspan+phi);        % Vy relative velocity
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
+    
+    S(7,:) = -ddAx.*cos(wp*tspan+phi)+2*wp*dAx.*sin(wp*tspan+phi)+wp^2*Ax.*cos(wp*tspan+phi);
+    S(8,:) = kap*ddAx.*sin(wp*tspan+phi)+2*kap*wp*dAx.*cos(wp*tspan+phi)-kap*wp^2*Ax.*sin(wp*tspan+phi);
+    S(9,:) = ddAz.*sin(wv*tspan+psi)+2*wv*dAz.*cos(wv*tspan+psi)-wv^2*Az.*sin(wv*tspan+psi);
 
     lissajous_constants = x;
     lissajous_constants(7:8,:) = [phi; psi];
@@ -235,10 +244,16 @@ function [S, u, tf, lissajous_constants] = dyn_lissajous(mu, L, gamma, s0, tf, G
     for i = 1:size(x,1)
         [dS, u([1 3],i)] = amplitude_dynamics(kap, wp, wv, phi0, psi0, t(i), x(i,1:4).', GNC);
         x(i,5:6) = dS(3:4);
+        ddAx(i) = dS(3); 
+        ddAz(i) = dS(4); 
     end
 
     lissajous_constants = x.';
     lissajous_constants(7:8,:) = [phi; psi];
+
+    S(7,:) = -ddAx.*cos(wp*tspan+phi)+2*wp*dAx.*sin(wp*tspan+phi)+wp^2*Ax.*cos(wp*tspan+phi);
+    S(8,:) = kap*ddAx.*sin(wp*tspan+phi)+2*kap*wp*dAx.*cos(wp*tspan+phi)-kap*wp^2*Ax.*sin(wp*tspan+phi);
+    S(9,:) = ddAz.*sin(wv*tspan+psi)+2*wv*dAz.*cos(wv*tspan+psi)-wv^2*Az.*sin(wv*tspan+psi);
 
     % Compute the final control law
     u(2,:) = x(:,5).'*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);       % Y axis control 
@@ -301,10 +316,13 @@ function [S, u, tf, lissajous_constants] = minimum_energy(mu, L, gamma, s0, tf, 
     S(4,:) = -dAx.*cos(wp*tspan+phi)+wp*Ax.*sin(wp*tspan+phi);               % Vx relative velocity
     S(5,:) = kap*dAx.*sin(wp*tspan+phi)+kap*wp*Ax.*cos(wp*tspan+phi);        % Vy relative velocity
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
- 
+
+    S(7,:) = -ddAx.*cos(wp*tspan+phi)+2*wp*dAx.*sin(wp*tspan+phi)+wp^2*Ax.*cos(wp*tspan+phi);
+    S(8,:) = kap*ddAx.*sin(wp*tspan+phi)+2*kap*wp*dAx.*cos(wp*tspan+phi)-kap*wp^2*Ax.*sin(wp*tspan+phi);
+    S(9,:) = ddAz.*sin(wv*tspan+psi)+2*wv*dAz.*cos(wv*tspan+psi)-wv^2*Az.*sin(wv*tspan+psi);
+
     % Compute the final control law 
-    u([1 3],:) = [-ddAx.*cos(wp*tspan+phi)-2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
-    u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);
+    u = [-ddAx.*cos(wp*tspan+phi)+2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
 end
 
 % Minimum time solution 
@@ -434,7 +452,11 @@ function [S, u, tf, lissajous_constants] = minimum_time(mu, L, gamma, s0, tf, GN
     S(4,:) = -dAx.*cos(wp*tspan+phi)+wp*Ax.*sin(wp*tspan+phi);               % Vx relative velocity
     S(5,:) = kap*dAx.*sin(wp*tspan+phi)+kap*wp*Ax.*cos(wp*tspan+phi);        % Vy relative velocity
     S(6,:) = dAz.*sin(wv*tspan+psi)+wv*Az.*cos(wv*tspan+psi);                % Vz relative velocity
- 
+    
+    S(7,:) = -ddAx.*cos(wp*tspan+phi)+2*wp*dAx.*sin(wp*tspan+phi)+wp^2*Ax.*cos(wp*tspan+phi);
+    S(8,:) = kap*ddAx.*sin(wp*tspan+phi)+2*kap*wp*dAx.*cos(wp*tspan+phi)-kap*wp^2*Ax.*sin(wp*tspan+phi);
+    S(9,:) = ddAz.*sin(wv*tspan+psi)+2*wv*dAz.*cos(wv*tspan+psi)-wv^2*Az.*sin(wv*tspan+psi);
+
     % Compute the final control law 
     u([1 3],:) = [-ddAx.*cos(wp*tspan+phi)-2*dAx*(wp-kap).*sin(wp*tspan+phi); ddAz.*sin(wv*tspan+psi)+2*dAz*wv.*cos(wv*tspan+psi)];
     u(2,:) = ddAx*kap.*sin(wp*tspan+phi)+2*dAx*(kap*wp-1).*cos(wp*tspan+phi);

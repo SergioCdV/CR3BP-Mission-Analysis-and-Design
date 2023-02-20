@@ -41,12 +41,12 @@ tol = 1e-10;                        % Differential corrector tolerance
 % Halo characteristics 
 Az = 30e6;                                                  % Orbit amplitude out of the synodic plane
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);         % Normalize distances for the E-M system
-Ln = 2;                                                     % Orbits around L1
+Ln = 1;                                                     % Orbits around L1
 gamma = L(end,Ln);                                          % Li distance to the second primary
 m = 1;                                                      % Number of periods to compute
 
 % Compute a halo orbit seed 
-halo_param = [1 Az Ln gamma m];                             % Northern halo parameters
+halo_param = [-1 Az Ln gamma m];                            % Northern halo parameters
 [halo_seed, period] = object_seed(mu, halo_param, 'Halo');  % Generate a halo orbit seed
 
 % Correct the seed and obtain initial conditions for a halo orbit
@@ -54,9 +54,9 @@ halo_param = [1 Az Ln gamma m];                             % Northern halo para
 T = target_orbit.Period;
 
 % Continuate the first halo orbit to locate the chaser spacecraft
-Az = 20e6;                                                          % Orbit amplitude out of the synodic plane 
+Az = 30e6;                                                          % Orbit amplitude out of the synodic plane 
 Az = dimensionalizer(Lem, 1, 1, Az, 'Position', 0);                 % Normalize distances for the E-M system
-Ln = 2;                                                             % Orbits around L2
+Ln = 1;                                                             % Orbits around L2
 gamma = L(end,Ln);                                                  % Li distance to the second primary
 m = 1;                                                              % Number of periods to compute
 
@@ -85,11 +85,6 @@ S_rc = S(:,1:6)+S(:,7:12);                                  % Reconstructed chas
 index(1) = fix(0.5/dt);                         % Time location of the collision 
 index(2) = fix(0.2/dt);                         % Detection time
 so = [Sn(index(1),7:9) 0 0 0];                  % Phase space state of the object
-R = 2e-3;                                       % Radius of the CA sphere
-[xo, yo, zo] = sphere;                          % Collision avoidance sphere
-xo = R*xo;
-yo = R*yo;
-zo = R*zo;
 
 % Safety parameters 
 TOC = tspan(index(1))-tspan(index(2));          % Collision time
@@ -97,36 +92,37 @@ setup.ReferencePeriod = T;                      % Orbital Period
 setup.STM = 'Numerical';                        % STM model to be used
 setup.Restriction = 'Center';                   % Dynamical structures to be used for the departure maneuver
 setup.LibrationID = Ln;                         % Libration point of interest
-
+setup.SafetyDistance = 100e3/Lem;               % Safety distance to the collider
 setup.Reinsertion = false;                      % Do not re-insert into orbit
 tic
-[~, Sc, ~, ~] = FMSC_control(mu, [2 * TOC TOC], Sn(index(2),1:12), setup);
+[tspan, Sc, dV, state(1)] = FMSC_control(mu, [TOC 2 * TOC], Sn(index(2),1:12), setup);
 toc
-[~, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), 0:dt:0.3, Sc(end,1:12), options);
 
 % Distance to the object
-d(1) = norm(Sc2(end,7:9))*Lem;
+d(1) = norm(Sc(end,7:9))*Lem;
 
-setup.Reinsertion = true;                      % Do not re-insert into orbit
+tol = [1e-7 1e-3];            % Convergence toleranes 
+N = 50;                       % Number of impulses
+method = 'Primal';            % Solver method    
+integrator = 'Numerical';     % Integrator to be used
+
+% Controller scheme
 tic
-[tspan, Sc, dV, state] = FMSC_control(mu, [2 * TOC TOC], Sn(index(2),1:12), setup);
-toc
+[tspan_misg, St_misg, dV_misg, state(2)] = MISG_control(mu, Ln, 3 * TOC, Sc(end,1:2*n).', method, integrator, N, tol);  
+toc;
 
-% Distance to the object
-d(2) = norm(Sc(end,7:9))*Lem;
+dV = [dV(:,1:end-1) dV_misg];
+tspan = [tspan(1:end-1) tspan(end)+tspan_misg];
+Sc = [Sc(1:end-1,:); St_misg];
 
 % Total maneuver metrics 
 effort = Vc*control_effort(tspan, dV, true);
 
 % Forward the trajectory
-[t2, Sc2] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), 0:dt:0.3, Sc(end,1:12), options);
-Sc = [Sc(:,1:2*n); Sc2];
 Sc = [Sn(1:index(2)-1,1:12); Sc(:,1:12)];       % Complete trajectory
 ScCAM = Sc(:,1:6)+Sc(:,7:12);                   % Absolute trajectory
 
-tspan = [t(1:index(2)-1).' t(index(2)-1).'+tspan t(index(2)-1).'+tspan(end)+t2.'];
-
-d(3) = norm(Sc2(end,7:9))*Lem;
+tspan = [t(1:index(2)-1).' t(index(2)-1).'+tspan];
     
 %% Results %% 
 % Plot results 
@@ -167,7 +163,7 @@ plot(tspan(1:size(Sc,1)), Sc(:,11));
 plot(tspan(1:size(Sc,1)), Sc(:,12)); 
 hold off
 xlabel('$t$');
-ylabel('$\dot{rho}$');
+ylabel('$\dot{\rho}$');
 grid on;
 legend('$\dot{x}$', '$\dot{y}$', '$\dot{z}$');
 % yticklabels(strrep(yticklabels, '-', '$-$'));

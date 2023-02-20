@@ -139,7 +139,7 @@ function [S, state, Tref] = one_torus(mu, T, dtheta, K, s0, epsilon, tol)
     dF = zeros(m*nodes, 1);                             % Time derivative of the nodes
 
     % Minimum velocity impulse 
-    Vmin = 1e-7;
+    Vmin = 1e-4;
         
     while ((GoOn) && (iter < maxIter))
         % Torus variables

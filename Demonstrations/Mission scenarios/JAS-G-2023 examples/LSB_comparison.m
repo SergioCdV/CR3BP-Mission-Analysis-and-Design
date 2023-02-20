@@ -12,7 +12,7 @@ Az = 5e6:100e3:20e6;                                                       % Orb
 Ln = 1; 
 
 method = ["Prescribed shape-based", "SDRE", "Backstepping", "Minimum energy", "Minimum time"];
-method = method(5);
+method = method(1);
 
 % Main computation 
 northern_flag = 1;

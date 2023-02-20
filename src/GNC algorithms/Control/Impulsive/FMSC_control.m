@@ -25,147 +25,9 @@
 function [tspan, S, dV, state] = FMSC_control(mu, TOC, s0, setup)
     % Compute the departure maneuver 
     [tspan, S, dV, state] = DEP_control(mu, TOC(1), s0, setup);
-
-    % Compute the re-insertion maneuver and trajectory if allowed 
-    if (setup.Reinsertion)
-        [tspan_i, Si, dVi, state(2)] = INS_control(mu, TOC(2), S(end,1:12), setup);
-
-        % Final composition 
-        dV = [dV(:,1:end-1) dVi];       % Final control law
-        S = [S(1:end-1,:); Si];         % Final state trajectory
-
-        tspan = [tspan(1:end-1) tspan(end)+tspan_i];
-    end
 end
 
 %% Auxiliary functions
-% Re-insertion maneuver
-function [tspan, S, dV, state] = INS_control(mu, TOC, s0, setup)
-    % Constants 
-    m = 6;                              % Phase space dimension
-    STM_model = setup.STM;              % STM model to be used
-    Ln = setup.LibrationID;             % Libration point identifier
-    restriction = setup.Restriction;    % Dynamic structures to be used
-    Tp = setup.ReferencePeriod;         % Reference orbit period
-    
-    % Sanity check on initial conditions dimension 
-    if (size(s0,1) == 1)
-        s0 = s0.';
-    end
-        
-    % Integration tolerance and setup 
-    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      % Integration tolerances
-    
-    dt = 1e-3;                                                  % Integration time step  
-    
-    % Initial conditions and integration of the reference periodic relative orbit
-    tspan = 0:dt:Tp;                                            % Integration time span
-
-    Phi = eye(m);                                               % Initial STM 
-    Phi = reshape(Phi, [m^2 1]);                                % Reshape the initial STM
-    s0 = [s0; Phi];                                             % Complete phase space + linear variational initial conditions
-    
-    switch (STM_model)
-        case 'Numerical'
-            [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
-
-        case 'RLLM'
-            % Relative and targe trajectories
-            [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0(1:2*m), options); 
-
-            % STM propagation 
-            L = libration_points(mu);                       % System libration points
-            gamma = L(end,Ln);                              % Characteristic distance of the libration point
-            cn = legendre_coefficients(mu, Ln, gamma, 2);   % Legendre coefficient c_2 (equivalent to mu)
-            c2 = cn(2);                                     % Legendre coefficient c_2 (equivalent to mu)
-            Sigma = [1+2*c2 0 0; 0 1-c2 0; 0 0 -c2];        % Potential linear term
-            Omega = [0 2 0;-2 0 0; 0 0 0];                  % Coriolis force
-            A = [zeros(m/2) eye(m/2); Sigma Omega];         % Jacobian matrix of the dynamics
-
-            STM = zeros(length(tspan), m^2);
-            for i = 1:length(tspan)
-                STM = expm(A*tspan(i));
-            end
-
-            % Complete trajectory
-            Sn = [Sn reshape(STM, [1 m^2])];
-
-        otherwise
-            error('No valid STM model was selected');
-    end
-    
-    Jref = jacobi_constant(mu, Sn(1,1:m).');                       % Reference Jacobi constant
-    Monodromy = reshape(Sn(end,2*m+1:end), [m m]);                 % State transition matrix at each instant 
-    [E, L] = eig(Monodromy);                                       % Eigenspectrum of the STM 
-    E = E./diag(L);                                                % Floquet modes initial conditions
-
-    restriction = 'Stable';
-    switch (restriction)
-        case 'Mixed'
-            STM = [E(:,1) E(:,5:6) -[zeros(3,3); eye(3)]];         % Linear application
-        case 'Stable' 
-            STM = [E(:,2) -[zeros(3,3); eye(3)]];                  % Linear application
-        case 'Unstable'
-            STM = [E(:,1) -[zeros(3,3); eye(3)]];                  % Linear application
-        case 'Center'
-            STM = [E(:,5:6) -[zeros(3,3); eye(3)]];                % Linear application
-        otherwise
-            error('No valid case was selected');
-    end
-
-    % Compute the reference trajectory for the analysed TOF 
-    tspan = 0:dt:TOC;                                              % Integration time span
-
-    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
-    Phi = reshape(Sn(end,2*m+1:end), [m m]);
-    S = Sn;                                                        % Reference trajectory
-        
-    % Differential corrector setup
-    maxIter = 100;                          % Maximum number of iterations
-    GoOn = true;                            % Convergence boolean
-    iter = 1;                               % Initial iteration
-    tol = 1e-5;                             % Maneuver tolerance
-        
-    % Preallocation of the solution
-    dV = zeros(3,length(tspan));            % Velocity impulse
-                
-    while ((GoOn) && (iter < maxIter))
-        % Compute the maneuver
-        e = s0(m+1:2*m);                                                % State error vector
-        
-        % Energy constraint 
-        J = jacobi_constant(mu, S(end,1:6).'+S(end,7:12).');
-        dJ = jacobi_gradient(mu, S(end,1:6).'+S(end,7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];
-
-        % Sensibility analysis
-        A = [STM; JSTM];
-        b = [e; Jref-J];
-        
-        % Compute the maneuver
-        maneuver = real(pinv(A)*b);            % Needed maneuver
-        dv = maneuver(end-2:end);              % Needed change in velocity
-
-        % Integrate the trajectory 
-        s0(10:12) = s0(10:12)+dv;              % Update initial conditions with the velocity impulse
-
-        [~, S] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options);
-        Phi = reshape(S(end,2*m+1:end), [m m]);
-        
-        % Convergence analysis
-        if (norm(e) < tol)
-            GoOn = false;
-        else
-            iter = iter+1;
-        end
-    end
-        
-    % Evaluate the final control law
-    dV(:,1) = s0(10:12)-Sn(1,10:12).';
-    state.State = ~GoOn;                    % Convergence boolean
-    state.Iterations = iter;                % Number of required iterations
-    state.Error = norm(e);                  % Final error
-end
 
 % Planning and design of the departure maneuver
 function [tspan, S, dV, state] = DEP_control(mu, TOC, s0, setup)
@@ -175,6 +37,7 @@ function [tspan, S, dV, state] = DEP_control(mu, TOC, s0, setup)
     Ln = setup.LibrationID;             % Libration point identifier
     restriction = setup.Restriction;    % Dynamic structures to be used
     Tp = setup.ReferencePeriod;         % Reference orbit period
+    ds = setup.SafetyDistance;          % Safety distance to the original orbit at the time of collision
     
     % Sanity check on initial conditions dimension 
     if (size(s0,1) == 1)
@@ -263,11 +126,13 @@ function [tspan, S, dV, state] = DEP_control(mu, TOC, s0, setup)
         % Energy constraint 
         J = jacobi_constant(mu, S(end,1:6).'+S(end,7:12).');
         dJ = jacobi_gradient(mu, S(end,1:6).'+S(end,7:12).');
-        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];
+        JSTM = [zeros(1,size(STM,2)-3) dJ(4:6).'*Phi(4:6,4:6)];        
+        d = ds^2-dot(S(end,7:9), S(end,7:9));
+        DSTM = 2*[zeros(1,size(STM,2)-3) -S(end,7:9)*Phi(1:3,4:6)];
 
         % Sensibility analysis
-        A = [STM; JSTM];
-        b = [e; Jref-J];
+        A = [STM; JSTM; DSTM];
+        b = [e; Jref-J; d];
         
         % Compute the maneuver
         maneuver = real(pinv(A)*b);            % Needed maneuver
@@ -295,6 +160,94 @@ function [tspan, S, dV, state] = DEP_control(mu, TOC, s0, setup)
 end
 
 %% Previous versions
+% Re-insertion maneuver
+function [tspan, S, dV, state] = INS_control(mu, TOC, S, setup)
+    % Constants 
+    m = 6;                              % Phase space dimension
+    ds = setup.SafetyDistance;          % Safety distance to the original orbit at the time of collision
+        
+    % Integration tolerance and setup 
+    options = odeset('RelTol', 2.25e-14, 'AbsTol', 1e-22);      % Integration tolerances
+    
+    dt = 1e-3;                                                  % Integration time step  
+    
+    % Initial conditions and integration of the reference periodic relative orbit
+    s0 = S(end,1:2*m).';                                        % Define the initial conditions 
+    Phi = eye(m);                                               % Initial STM 
+    Phi = reshape(Phi, [m^2 1]);                                % Reshape the initial STM
+    s0 = [s0; Phi];                                             % Complete phase space + linear variational initial conditions
+
+    % Compute the reference trajectory for the analysed TOF 
+    tspan = 0:dt:TOC;                                           % Integration time span
+
+    [~, Sn] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspan, s0, options); 
+    S = Sn;
+        
+    % Differential corrector setup
+    maxIter = 1e2;                             % Maximum number of iterations
+    GoOn = [true true];                        % Convergence boolean
+    iter = 1;                                  % Initial iteration
+    tol = 1e-10;                               % Maneuver tolerance
+    i = 1;                                     % Initial time span
+        
+    % Preallocation of the solution
+    dV = zeros(3,length(tspan));               % Velocity impulse
+                
+    while (GoOn(1) && i < length(tspan))
+        % Receding horizon preparation 
+        tspanr = tspan(i:end);
+
+        % Main computation
+        while ((GoOn(2)) && (iter < maxIter))
+            % Re-compute the trajectory
+            [~, s] = ode113(@(t,s)nlr_model(mu, true, false, true, 'Encke', t, s), tspanr, s0, options);
+            Phi = reshape(s(end,2*m+1:end), [m m]);
+
+            d = dot(s(end,7:9),s(end,7:9))-ds^2;
+            DSTM = 2*[s0(m+1:2*m).'*(Phi.'*Phi)*[zeros(3); eye(3)]];
+    
+            % Sensibility analysis
+            A = DSTM;
+            b = d;
+            
+            % Compute the maneuver
+            maneuver = real(pinv(A)*b);            % Needed maneuver
+            dv = -maneuver(end-2:end);             % Needed change in velocity
+    
+            % Integrate the trajectory 
+            s0(10:12) = s0(10:12)+dv;              % Update initial conditions with the velocity impulse    
+            
+            % Convergence analysis
+            if (norm(d) < tol)
+                GoOn(2) = false;
+            else
+                iter = iter+1;
+            end
+        end
+    
+        % Evaluate the final control law
+        dV(:,i) = s0(10:12)-Sn(1,10:12).';
+    
+        if (~GoOn(2))
+            GoOn(1) = false;
+        else
+            % Update the reference trajectory
+            s0 = s(2,:).';
+            Sn = s(2:end,:);
+            S(i:end,:) = s;
+            
+            % Reset the loop
+            i = i+1;
+            iter = 1; 
+        end
+    end
+
+    % Evaluate the final control law
+    state.State = ~GoOn(1);                 % Convergence boolean
+    state.Iterations = iter;                % Number of required iterations
+    state.Error = norm(d);                  % Final error
+end
+
 % First version
 function [Sc, dV, tm] = FMSC_V1(mu, TOC, s0, tol, constraint, restriction)
     % Constants 

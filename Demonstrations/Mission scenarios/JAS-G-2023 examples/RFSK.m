@@ -61,6 +61,10 @@ Sn = repmat(S, floor(tf/target_orbit.Period)+1, 1);
 % Guidance law for the Jacobi constant
 Sg = jacobi_constant(mu, Sn(1,1:n).');
 
+% Guidance law coefficients
+order = 30;                                                 % Orbit approximation order
+[Cp, Cv, Cg] = CTR_guidance(order, tspan, S(:,1:6));       % Guidance law coefficients
+
 %% GNC algorithms definition 
 GNC.Algorithms.Guidance = '';                         % Guidance algorithm
 GNC.Algorithms.Navigation = '';                       % Navigation algorithm
@@ -99,12 +103,29 @@ B = [B(1,:); dJ*E*B];                                  % Final control input mat
 GNC.Control.RFSK.K = lqr(A,B,GNC.Control.RFSK.Q,GNC.Control.RFSK.M);                   
 K = 0.3; 
 
+% HSK controller 
+GNC.Algorithms.Guidance = 'CTR';                %Guidance algorithm
+GNC.Algorithms.Navigation = '';                 %Navigation algorithm
+GNC.Algorithms.Control = 'HSK';                 %Control algorithm
+
+GNC.Guidance.Dimension = 9;                     %Dimension of the guidance law
+GNC.Control.Dimension = 3;                      %Dimension of the control law
+
+GNC.Guidance.CTR.Order = order;                 %Order of the approximation
+GNC.Guidance.CTR.TOF = tspan(end);              %Time of flight
+GNC.Guidance.CTR.PositionCoefficients = Cp;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.VelocityCoefficients = Cv;     %Coefficients of the Chebyshev approximation
+GNC.Guidance.CTR.AccelerationCoefficients = Cg; %Coefficients of the Chebyshev approximation
+
+GNC.System.mu = mu;                             %Systems's reduced gravitational parameter
+GNC.Control.HSK.Q = eye(1);                     %Penalty on the state error
+GNC.Control.HSK.M = eye(3);                     %Penalty on the control effort
+
 %% GNC: RFSK stationkeeping control law
 % Initial conditions 
 k = dimensionalizer(Lem, 1, 1, 190e3, 'Position', 0);     % Noise gain
 k = [repmat(k,1,3) 4*ones(1,3)/Vc];
 r_t0 = target_orbit.Trajectory(1,1:6);                    % Initial guidance target conditions
-s0 = normrnd(zeros(1,6),k);                               % Noisy relative initial conditions
 
 s0 = [192e3 -192e3 192e3 13 0.5 0.5]./[Lem Lem Lem Vc Vc Vc];
 
@@ -126,7 +147,7 @@ end
 St = [Staux1; Staux2];
 Time = mean(Time);
 
-% Error in time 
+Error in time 
 [~, merit(:,1)] = figures_merit(tspan, St(:,n+1:2*n));
 [e, merit(:,2)] = figures_merit(tspan, Sr(:,n+1:2*n));
 

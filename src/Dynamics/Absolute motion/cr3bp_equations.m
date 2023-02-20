@@ -71,6 +71,7 @@ function [dr] = cr3bp_equations(mu, direction, flagVar, t, s, varargin)
                 switch (GNC.Algorithms.Control)
                     case 'MFKS'
                         error('MFSK stationkeeping is not available for integration purposes')
+                    case 'HSK'
                     otherwise
                         error('No valid GNC algorithm was selected')
                 end
