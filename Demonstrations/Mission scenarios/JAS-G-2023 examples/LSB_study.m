@@ -16,8 +16,8 @@ Vc = 1.025e3;                           % Characteristic velocity of the Earth-M
 n = 6;                                  % Phase-space dimension
 
 % Halo characteristics  
-Az = 5e6:100e3:15e6;                    % Orbit amplitude out of the synodic plane 
-Ln = 1;                                 % Libration point index
+Az = 20e6:100e4:30e6;                    % Orbit amplitude out of the synodic plane 
+Ln = 2;                                 % Libration point index
 northern_flag = -1;                      % Northern/southern familiy flag
 method = 'Minimum energy';              % Direct prescritpion 
 

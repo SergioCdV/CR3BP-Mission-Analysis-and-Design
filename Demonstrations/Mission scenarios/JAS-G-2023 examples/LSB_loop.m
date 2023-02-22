@@ -20,7 +20,6 @@ Az = 5e6:100e4:15e6;                    % Orbit amplitude out of the synodic pla
 Az = 5e6:100e3:35e6;                    % Orbit amplitude out of the synodic plane 
 Ln = 1;                                 % Libration point index
 northern_flag = 1;                      % Northern/southern familiy flag
-method = 'Minimum energy';      % Direct prescritpion 
 
 % Differential corrector set up
 maxIter = 20;                           % Maximum number of iterations
