@@ -126,8 +126,9 @@ function [drho] = rlm_model(mu, s_t, s_r)
     Omega = [0 1 0; -1 0 0; 0 0 0];         % Hat map dyadic of the angular velocity for the synodice reference frame
     
     % Gravity acceleration
-    Sigma = -((mup(1)/norm(Ur(:,1))^3)+(mup(2)/norm(Ur(:,2)))^3)*eye(3) ...
-            +3*((mup(1)/norm(Ur(:,1))^3)*(ur(:,1)*ur(:,1).')+(mup(2)/norm(Ur(:,2))^3)*(ur(:,2)*ur(:,2).'));
+    kappa(1) = mup(1)/norm(Ur(:,1))^3;
+    kappa(2) = mup(2)/norm(Ur(:,2))^3;
+    Sigma = -sum(kappa)*eye(3)+3*(kappa(1)*(ur(:,1)*ur(:,1).')+kappa(2)*(ur(:,2)*ur(:,2).'));
     
     % State matrix 
     A = [O I; Sigma 2*Omega];
