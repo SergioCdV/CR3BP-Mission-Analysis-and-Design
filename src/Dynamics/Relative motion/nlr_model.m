@@ -148,15 +148,16 @@ function [drho] = rlm_model(mu, s_t, s_r)
     
     % State variables 
     r_t = s_t(1:3);                         % Synodic position of the target
-    
+    rho = s_r(1:3);                         % Relative position vecto
+
     % Synodic position of the primaries 
     R(:,1) = [-mu; 0; 0];                   % Synodic position of the first primary
     R(:,2) = [1-mu; 0; 0];                  % Synodic position of the second primary
     
     % Relative position between the primaries and the target 
-    Ur(:,1) = r_t-R(:,1);                   % Position of the target with respect to the first primary
+    Ur(:,1) = R(:,1)-r_t;                   % Position of the target with respect to the first primary
     ur(:,1) = Ur(:,1)/norm(Ur(:,1));        % Unit vector of the relative position of the target with respect to the first primary
-    Ur(:,2) = r_t-R(:,2);                   % Position of the target with respect to the first primary
+    Ur(:,2) = R(:,2)-r_t;                   % Position of the target with respect to the first primary
     ur(:,2) = Ur(:,2)/norm(Ur(:,2));        % Unit vector of the relative position of the target with respect to the second primary
     
     % Relative acceleration vector field
@@ -164,10 +165,15 @@ function [drho] = rlm_model(mu, s_t, s_r)
     I = eye(3);                             % 3 by 3 identity matrix
     Omega = [0 1 0; -1 0 0; 0 0 0];         % Hat map dyadic of the angular velocity for the synodice reference frame
     
-    % Gravity acceleration
-    kappa(1) = mup(1)/norm(Ur(:,1))^3;
-    kappa(2) = mup(2)/norm(Ur(:,2))^3;
-    Sigma = -sum(kappa)*eye(3)+3*(kappa(1)*(ur(:,1)*ur(:,1).')+kappa(2)*(ur(:,2)*ur(:,2).'));
+    % Relative acceleration (linear order term)
+    Sigma = zeros(3);
+    for i = 1:length(mup)
+        % Relative Legendre coefficients          
+        c2 = mup(i) / norm(Ur(:,i))^3;      % Third order relative Legendre coefficient
+        
+        % Compute the acceleration
+        Sigma = Sigma + c2 * ( -I + 3 * ur(:,i)*ur(:,i).' );
+    end
     
     % State matrix 
     A = [O I; Sigma 2*Omega];
@@ -191,11 +197,7 @@ function [drho] = second_order_model(mu, s_t, s_r)
     R(:,2) = [1-mu; 0; 0];      % Synodic position of the second primary
     Rr(:,1) = R(:,1)-r_t;       % Synodic relative position of the target to the first primary
     Rr(:,2) = R(:,2)-r_t;       % Synodic relative position of the target to the second primary
-        
-    % Relative Legendre coefficients          
-    cn = relegendre_coefficients(mu, r_t, 4);   % Relative Legendre coefficients 
-    c3 = cn(3);                                 % Third order relative Legendre coefficient
-    
+            
     % Relative acceleration (linear term)
     drho = rlm_model(mu, s_t, s_r);
     
@@ -203,8 +205,12 @@ function [drho] = second_order_model(mu, s_t, s_r)
     Sigma = dot(rho,rho)*eye(3)-rho*rho.';
     gamma = zeros(6,1);
     for i = 1:length(mup)
+        % Relative Legendre coefficients          
+        c3 = mup(i) / norm(Rr(:,i))^4;      % Third order relative Legendre coefficient
+        
+        % Compute the acceleration
         cos_theta = dot(rho, Rr(:,i))/(norm(rho)*norm(Rr(:,i)));
-        gamma(4:6) = 1/2 * c3 * (3 * norm(rho) * (5*cos_theta^3-3*cos_theta) * rho + (15*cos_theta^2-3)*Sigma.'*Rr(:,i)/norm(R(:,i)));
+        gamma(4:6) = c3/2 * (3 * norm(rho) * (-3*cos_theta) * rho + (15*cos_theta^2-3) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
         drho = drho + gamma;
     end
 end
@@ -224,11 +230,7 @@ function [drho] = third_order_model(mu, s_t, s_r)
     R(:,2) = [1-mu; 0; 0];      % Synodic position of the second primary
     Rr(:,1) = R(:,1)-r_t;       % Synodic relative position of the target to the first primary
     Rr(:,2) = R(:,2)-r_t;       % Synodic relative position of the target to the second primary
-        
-    % Relative Legendre coefficients          
-    cn = relegendre_coefficients(mu, r_t, 4);   % Relative Legendre coefficients 
-    c4 = cn(4);                                 % Third order relative Legendre coefficient
-    
+            
     % Relative acceleration (linear and second order term)
     drho = second_order_model(mu, s_t, s_r);
     
@@ -236,8 +238,12 @@ function [drho] = third_order_model(mu, s_t, s_r)
     Sigma = dot(rho,rho)*eye(3)-rho*rho.';
     gamma = zeros(6,1);
     for i = 1:length(mup)
+        % Relative Legendre coefficients          
+        c4 = mup(i) / norm(Rr(:,i))^5;      % Third order relative Legendre coefficient
+
+        % Compute the acceleration
         cos_theta = dot(rho, Rr(:,i))/(norm(rho)*norm(Rr(:,i)));
-        gamma(4:6) = 1/8 * c4 * (4 * norm(rho)^3 * (35*cos_theta^4-30*cos_theta^2+3) * rho + norm(rho)*(140*cos_theta^3-60*cos_theta^2)*Sigma.'*Rr(:,i)/norm(R(:,i)));
+        gamma(4:6) = c4/8 * (4 * norm(rho)^2 * (-30*cos_theta^2+3) * rho + norm(rho) * (140*cos_theta^3-60*cos_theta^2) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
         drho = drho + gamma;
     end
 end
