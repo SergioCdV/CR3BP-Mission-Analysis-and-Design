@@ -72,11 +72,11 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      % Relative motion equations
         case 'Linear' 
-            drho = rlm_model(mu, s_t, s_r);                       % Relative motion equations
+            drho = rlm_model(mu, 0, s_t, s_r);                    % Relative motion equations
         case 'Second order' 
-            drho = second_order_model(mu, s_t, s_r);              % Relative motion equations 
+            drho = second_order_model(mu, 0, s_t, s_r);           % Relative motion equations 
         case 'Third order'
-            drho = third_order_model(mu, s_t, s_r);               % Relative motion equations
+            drho = third_order_model(mu, 0, s_t, s_r);            % Relative motion equations
 
         % Uncertainty models 
         case 'Two body'
@@ -141,7 +141,7 @@ function [drho] = full_model(mu, s_t, s_r)
 end
 
 % Relative motion equations linearized with respect to the target
-function [drho] = rlm_model(mu, s_t, s_r)
+function [drho] = rlm_model(mu, order_flag, s_t, s_r)
     % Constants of the system 
     mup(1) = 1-mu;                          % Reduced gravitational parameter of the first primary 
     mup(2) = mu;                            % Reduced gravitational parameter of the second primary 
@@ -166,24 +166,26 @@ function [drho] = rlm_model(mu, s_t, s_r)
     Omega = [0 1 0; -1 0 0; 0 0 0];         % Hat map dyadic of the angular velocity for the synodice reference frame
     
     % Relative acceleration (linear order term)
-    Sigma = zeros(3);
+    Sigma = zeros(6,1);
+    B = (I-order_flag*(rho*rho.')/dot(rho,rho)).';
     for i = 1:length(mup)
         % Relative Legendre coefficients          
-        c2 = mup(i) / norm(Ur(:,i))^3;      % Third order relative Legendre coefficient
+        c2 = mup(i) / norm(Ur(:,i))^3;      % Linear order relative Legendre coefficient
         
         % Compute the acceleration
-        Sigma = Sigma + c2 * ( -I + 3 * ur(:,i)*ur(:,i).' );
+        cos_theta = dot(rho/norm(rho), ur(:,i));
+        Sigma(4:6) = Sigma(4:6) + c2 * ( (3*order_flag*cos_theta^2-1) * I + 3 * (ur(:,i)*ur(:,i).') * B) * rho;
     end
     
     % State matrix 
-    A = [O I; Sigma 2*Omega];
+    A = [O I; O 2*Omega];
     
     % Equations of motion 
-    drho = A*s_r;
+    drho = A*s_r+Sigma;
 end
 
 % Second order relative motion equations 
-function [drho] = second_order_model(mu, s_t, s_r)  
+function [drho] = second_order_model(mu, order_flag, s_t, s_r)  
     % Constants of the system 
     mup(1) = 1-mu;              % Reduced gravitational parameter of the first primary 
     mup(2) = mu;                % Reduced gravitational parameter of the second primary
@@ -199,7 +201,7 @@ function [drho] = second_order_model(mu, s_t, s_r)
     Rr(:,2) = R(:,2)-r_t;       % Synodic relative position of the target to the second primary
             
     % Relative acceleration (linear term)
-    drho = rlm_model(mu, s_t, s_r);
+    drho = rlm_model(mu, 1, s_t, s_r);
     
     % Relative acceleration (third order term)
     Sigma = dot(rho,rho)*eye(3)-rho*rho.';
@@ -210,13 +212,13 @@ function [drho] = second_order_model(mu, s_t, s_r)
         
         % Compute the acceleration
         cos_theta = dot(rho, Rr(:,i))/(norm(rho)*norm(Rr(:,i)));
-        gamma(4:6) = c3/2 * (3 * norm(rho) * (-3*cos_theta) * rho + (15*cos_theta^2-3) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
+        gamma(4:6) = c3/2 * (3 * norm(rho) * (5*order_flag*cos_theta^3-3*cos_theta) * rho + (15*cos_theta^2-3) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
         drho = drho + gamma;
     end
 end
 
 % Third order relative motion equations 
-function [drho] = third_order_model(mu, s_t, s_r)  
+function [drho] = third_order_model(mu, order_flag, s_t, s_r)  
     % Constants of the system 
     mup(1) = 1-mu;              % Reduced gravitational parameter of the first primary 
     mup(2) = mu;                % Reduced gravitational parameter of the second primary
@@ -232,7 +234,7 @@ function [drho] = third_order_model(mu, s_t, s_r)
     Rr(:,2) = R(:,2)-r_t;       % Synodic relative position of the target to the second primary
             
     % Relative acceleration (linear and second order term)
-    drho = second_order_model(mu, s_t, s_r);
+    drho = second_order_model(mu, 1, s_t, s_r);
     
     % Relative acceleration (third order term)
     Sigma = dot(rho,rho)*eye(3)-rho*rho.';
@@ -243,7 +245,7 @@ function [drho] = third_order_model(mu, s_t, s_r)
 
         % Compute the acceleration
         cos_theta = dot(rho, Rr(:,i))/(norm(rho)*norm(Rr(:,i)));
-        gamma(4:6) = c4/8 * (4 * norm(rho)^2 * (-30*cos_theta^2+3) * rho + norm(rho) * (140*cos_theta^3-60*cos_theta^2) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
+        gamma(4:6) = c4/8 * (4 * norm(rho)^2 * (35*order_flag*cos_theta^4-30*cos_theta^2+3) * rho + norm(rho) * (140*cos_theta^3-60*cos_theta^2) * Sigma.' * Rr(:,i)/norm(R(:,i)) );
         drho = drho + gamma;
     end
 end
