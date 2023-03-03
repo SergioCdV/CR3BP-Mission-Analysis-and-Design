@@ -73,6 +73,8 @@ r_c0 = chaser_orbit.Trajectory(1,1:6);                      % Initial chaser con
 rho0 = r_c0-r_t0;                                           % Initial relative conditions
 s0 = [r_t0 rho0];                                           % Initial conditions of the target and the relative state
 
+tspan = 0:dt:chaser_orbit.Period; 
+
 % Integration of the double-precision relative models
 [t, S_c] = ode113(@(t,s)cr3bp_equations(mu, true, false, t, s), tspan, r_c0, options);
 [~, S] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Encke', t, s), tspan, s0, options);
@@ -82,18 +84,33 @@ s0 = [r_t0 rho0];                                           % Initial conditions
 [~, Ss] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Second order', t, s), tspan, s0, options);
 [~, St] = ode113(@(t,s)nlr_model(mu, true, false, false, 'Third order', t, s), tspan, s0, options);
 
+omega = 2*pi/halo_orbit.Period;
+thspan = omega * (0:dt:halo_orbit.Period);
+order = 10; 
+[Cp, Cv, Cg] = CTR_guidance(order, thspan, halo_orbit.Trajectory(:,1:6));
+g_torus = @(theta)([Cp; Cv]*CH_basis('first', order, 2*mod(theta,2*pi)/(2*pi)-1));
+
+sg0 = s0(7:12) ./ [1 1 1 omega omega omega];
+thspan = omega * tspan;
+Sg(:,1:6) = feval(g_torus, thspan).';
+[~, Sg(:,7:12)] = ode113(@(t,s)geo_model(mu, false, false, omega, g_torus, t, s), thspan, sg0, options);
+
 % Reconstructed chaser motion 
+S_c = chaser_orbit.Trajectory(:,1:6);
+
 S_rc = S(:,1:6)+S(:,7:12);                 % Reconstructed chaser motion via Encke method
 S_rcn = Sn(:,1:6)+Sn(:,7:12);              % Reconstructed chaser motion via the full nonlinear model
 S_rcl = Sl(:,1:6)+Sl(:,7:12);              % Reconstructed chaser motion via the linear model
 S_rcs = Ss(:,1:6)+Ss(:,7:12);              % Reconstructed chaser motion via the second order model
 S_rct = St(:,1:6)+St(:,7:12);              % Reconstructed chaser motion via the third order model
+S_rge = Sg(:,1:6)+Sg(:,7:12);              % Reconstructed chaser motion via the geometrical regularized model
 
 error = S_c-S_rc;                          % Error via the Encke method
 error_n = S_c-S_rcn;                       % Error via the full nonlinear model
 error_l = S_c-S_rcl;                       % Error via the linear model
 error_s = S_c-S_rcs;                       % Error via the second order model
 error_t = S_c-S_rct;                       % Error via the third order model
+error_g = S_c-S_rge;                       % Error via the geometrical regularized model  
 
 % Integration through MCPI
 % N = length(tspan)-1;                                                % Degree of approximation
@@ -113,6 +130,7 @@ e(:,2) = sqrt(dot(error_n, error_n, 2));                    % State error (L2 no
 e(:,3) = sqrt(dot(error_l, error_l, 2));                    % State error (L2 norm) via Newtonian formulation (linear model)
 e(:,4) = sqrt(dot(error_s, error_s, 2));                    % State error (L2 norm) via Newtonian formulation (second order model)
 e(:,5) = sqrt(dot(error_t, error_t, 2));                    % State error (L2 norm) via Newtonian formulation (third order model)
+e(:,6) = sqrt(dot(error_g, error_g, 2));                    % State error (L2 norm) via Newtonian formulation (geometrical regularized model)
 % e(:,6) = sqrt(dot(error_m, error_m, 2));                 % State error (L2 norm) via MCPI
 
 %% Results in the inertial frame %% 
@@ -153,8 +171,9 @@ plot3(S_rcn(:,1), S_rcn(:,2), S_rcn(:,3), 'r', 'Linewidth', 0.9);
 plot3(S_rcl(:,1), S_rcl(:,2), S_rcl(:,3), 'Linewidth', 0.9); 
 plot3(S_rcs(:,1), S_rcs(:,2), S_rcs(:,3), 'Linewidth', 0.9); 
 plot3(S_rct(:,1), S_rct(:,2), S_rct(:,3), 'Linewidth', 0.9); 
+plot3(S_rge(:,1), S_rge(:,2), S_rge(:,3), 'Linewidth', 0.9); 
 hold off
-legend('True trajectory', 'Newton', 'Encke', 'Linear', 'Second order', 'Third order', 'Location', 'northeast'); 
+legend('True trajectory', 'Newton', 'Encke', 'Linear', 'Second order', 'Third order', 'Geometrical', 'Location', 'northeast'); 
 xlabel('$x$');
 ylabel('$y$');
 zlabel('$z$');
@@ -162,17 +181,13 @@ grid on;
 
 figure 
 hold on
-plot(t, log(e(:,1)), 'b'); 
-plot(t, log(e(:,2)), 'r');
-plot(t, log(e(:,3)));
-plot(t, log(e(:,4)));
-plot(t, log(e(:,5)));
+plot(t, log(e))
 % plot(tspan, log(e(:,3)), 'k');
 hold off
 grid on
 xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
-legend('Encke', 'Newton', 'Linear', 'Second order', 'Third order');
+legend('Encke', 'Newton', 'Linear', 'Second order', 'Third order', 'Geometrical');
 
 % Relative orbit plots
 if (false)

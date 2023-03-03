@@ -68,7 +68,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     switch (method_ID)
         % Deterministic models
         case 'Encke'
-            drho = Encke_method(mu, s_t, s_r, varargin);          % Relative motion equations
+            drho = Encke_method(mu, s_t, s_r);                    % Relative motion equations
         case 'Full nonlinear'
             drho = full_model(mu, s_t, s_r);                      % Relative motion equations
         case 'Linear' 
@@ -77,6 +77,8 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
             drho = second_order_model(mu, 0, s_t, s_r);           % Relative motion equations 
         case 'Third order'
             drho = third_order_model(mu, 0, s_t, s_r);            % Relative motion equations
+        case 'Geometrical'
+            drho = geometrical_model(mu, omega, theta, g, s_r);   % Relative motion equations
 
         % Uncertainty models 
         case 'Two body'
@@ -95,7 +97,7 @@ function [ds] = nlr_model(mu, direction, flagVar, relFlagVar, method_ID, t, s, v
     if (~isempty(GNC))
         % GNC scheme
         [~, ~, u] = GNC_handler(GNC, s_t(1:6).', s_r.', t);         % Compute the control law
-        drho(4:6) = drho(4:6)+u;                                         % Add the control vector       
+        drho(4:6) = drho(4:6)+u;                                    % Add the control vector       
     end
     
     % Relative variational equations
@@ -251,7 +253,7 @@ function [drho] = third_order_model(mu, order_flag, s_t, s_r)
 end
 
 % Full nonlinear relative motion equations via Encke's method
-function [drho] = Encke_method(mu, s_t, s_r, varargin)
+function [drho] = Encke_method(mu, s_t, s_r)
     % Constants of the system 
     mu_r(1) = 1-mu;               % Reduced gravitational parameter of the first primary 
     mu_r(2) = mu;                 % Reduced gravitational parameter of the second primary 
