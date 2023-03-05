@@ -81,9 +81,12 @@ for i = 1:num
     plot3(S(:,7), S(:,8), S(:,9), 'b', 'Linewidth', 0.5); 
 end
 hold off
-xlabel('$\chi$');
-ylabel('$\eta$');
-zlabel('$\xi$');
+% xlabel('$\xi$');
+% ylabel('$\eta$');
+% zlabel('$\zeta$';
+xlabel('$x$');
+ylabel('$y$');
+zlabel('$z$');
 grid on;
 %axis('equal')
 % title('Family of relative periodic halo orbits');
