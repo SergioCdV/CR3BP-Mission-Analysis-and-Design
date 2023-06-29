@@ -263,11 +263,11 @@ function [tspan, Sc, dV, state] = MISG_control(mu, Ln, TOF, s0, method, integrat
                 epsilon = -s(end,m+1:2*m).';                    % Rendezvous error
         
                 % Solve the optimal problem
-                [dv, ~, ~] = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e2, 1e3, 1e-4);
+                [dv, ~, ~] = ADMM_sequence(s(i:end,2*m+1:end), M, B, epsilon, 'L1', 1e3, 5e2, 1e-3);
 
                 % Pruning
                 dv = reshape(dv, 3, []);
-                [dv, ~] = ISP_control(s(i:end,2*m+1:end), B, dv);
+                % [dv, ~] = ISP_control(s(i:end,2*m+1:end), B, dv);
                 sol(1+3*(i-1):3*i) = dv(1:3);
         
                 % Update the propagation 
@@ -355,36 +355,34 @@ function [dV, lambda, cost] = ADMM_sequence(S, M, B, epsilon, cost_norm, maxIter
 
     % ADMM optimization
     while (GoOn && iter < maxIter)
+        % Proximal operator 
+        V = zeros(1,(size(S,1)-1));
+        for i = 1:(size(S,1)-1)
+            dV(1+3*(i-1):3*i,iter+1) = proximal_operator(y(1+3*(i-1):3*i,iter)-mu(1+3*(i-1):3*i,iter), 1/rho, cost_norm);
+            V(i) = norm(dV(1+3*(i-1):3*i,iter+1));
+        end
+
         % Quadratic convex optimization 
         epsilon_m = epsilon;
         for i = 1:(size(S,1)-1)
-            Phi = M*reshape(S(i,:), [m m])^(-1)*B;
-            epsilon_m = epsilon_m-Phi*rho/(2+rho)*(mu(1+3*(i-1):3*i,iter)+dV(1+3*(i-1):3*i,iter));
+            Phi = M * reshape(S(i,:), [m m])^(-1) * [zeros(3); eye(3)];
+            epsilon_m = epsilon_m - Phi * (rho/(1+rho)) * (mu(1+3*(i-1):3*i,iter)+dV(1+3*(i-1):3*i,iter+1));
         end
         [y(:,iter+1), lambda, ~] = lagrange_sequence(S, M, B, epsilon_m);
 
         % Feedforward term
-        y(:,iter+1) = y(:,iter+1)+rho/(2+rho)*(mu(:,iter)+dV(:,iter));
         dVy = reshape(y, 3, []); 
         cost = sum(dot(dVy,dVy,1));
 
-        % Proximal operator 
-        V = zeros(1,(size(S,1)-1));
-        for i = 1:(size(S,1)-1)
-            dV(1+3*(i-1):3*i,iter+1) = proximal_operator(y(1+3*(i-1):3*i,iter+1)-mu(1+3*(i-1):3*i,iter), 1/rho, cost_norm);
-            V(i) = norm(dV(1+3*(i-1):3*i,iter+1));
-        end
-
         % Lagrange multiplier update
-        mu(:,iter+1) = mu(:,iter) + dV(:,iter)-y(:,iter);
+        mu(:,iter+1) = mu(:,iter) + dV(:,iter+1)-y(:,iter+1);
 
         % Total cost 
-        res = reshape(dV(:,iter+1)-y(:,iter+1), [3 (size(S,1)-1)]);
-        J(iter+1) = sum(V)+cost+rho/2*sum(sqrt(dot(res,res,1)))+dot(mu(:,iter+1),dV(:,iter+1)-y(:,iter+1));
+        J(iter+1) = sum(V) + cost;
         cost = sum(V);
 
         % Convergence analysis 
-        if (abs(J(iter+1)-J(iter)) < tol)
+        if (norm(y(:,iter+1)-dV(:,iter+1)) < tol)
             GoOn = false;
         else
             iter = iter+1;

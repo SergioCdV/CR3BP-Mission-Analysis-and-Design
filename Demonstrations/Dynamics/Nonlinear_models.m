@@ -183,13 +183,13 @@ grid on;
 
 figure 
 hold on
-plot(t, log(e(:, [2 3 4 5])))
+plot(t, log(e(:, [3 4 5])))
 hold off
 grid on
 xlabel('$t$'); 
 ylabel('Absolute error $\log{e}$');
 % legend('Newton', 'Encke', 'Linear', 'Second order', 'Third order', 'Geometrical');
-legend('Full', 'Linear', 'Second order', 'Third order');
+legend('Linear', 'Second order', 'Third order');
 
 % Relative orbit plots
 if (false)

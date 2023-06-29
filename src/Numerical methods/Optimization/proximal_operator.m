@@ -26,13 +26,7 @@ function [x] = proximal_operator(v, lambda, cost_norm)
         case 'L1'
             x = v; 
             for i = 1:size(v,1)
-                if (v(i) >= lambda)
-                    x(i) = x(i)-lambda;
-                elseif (abs(v(i)) <= lambda) 
-                    x(i) = 0;
-                elseif (v(i) <= -lambda)
-                    x(i) = x(i)+lambda;
-                end
+                x(i) = max(0, v(i)-lambda) - max(0, -v(i)-lambda);
             end
 
         case 'Linfty'
