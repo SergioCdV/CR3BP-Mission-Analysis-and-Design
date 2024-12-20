@@ -74,9 +74,13 @@ function [Lp, L] = LibrationPoints(mu, R)
     % Save results in the ouput 
     L = [colL equiL];
 
+    state = [L; zeros(3, size(L,2))];
+    E = src.Systems.CR3BPSystem.JacobiConstant( mu, state );
+
     % Create the structure 
     Lp.ID = 1:5;                    % Index of each libration point
     Lp.r = L(1:3,:);                % Position vector of all libration points in Howell's synodic frame
     Lp.gamma = L(end,:);            % Distance to the second primary in normalized units
-    Lp.tol = [dn zeros(1,2)];
+    Lp.J = E;                       % Jacobi constant associated to each of the different libration points
+    Lp.tol = [dn zeros(1,2)];       % Error in the computation of the libration points
 end

@@ -1,11 +1,11 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 09/02/22
-% File: libration_potential.m 
+% Date: 20/12/24
+% File: LagrangianExpansion.m 
 % Issue: 0 
 % Validated: 
 
-%% Libration potential %%
+%% Lagrangian Expansion %%
 % For a given gravitational parameter mu and position vector r, this function computes the 
 % Lagrangian function associated to a given libration point, together with
 % the associated high order potential
@@ -26,20 +26,20 @@
 
 function [L, U, Uh] = lagrangian(mu, L, s, order)
     % Constants of the problem 
-    mu_r(1) = 1-mu;                     % Gravitational parameters of the most massive primary
-    mu_r(2) = mu;                       % Gravitational parameters of the least massive primary
+    mu_r(1) = 1 - mu;                   % Gravitational parameters of the first primary
+    mu_r(2) = mu;                       % Gravitational parameters of the second primary
     
-    % Location of the unsteady primaries 
+    % Location of the primaries 
     R(1:3,1) = [-mu; 0; 0];             % Location of the first primary
     R(1:3,2) = [1-mu; 0; 0];            % Location of the second primary
 
     % State variables 
-    r = s(1:3);                         % Position vector
-    v = s(4:6);                         % Velocity vector
+    r = s(1:3,:);                       % Synodic position vector
+    v = s(4:6,:);                       % Synodic velocity vector
 
     % High order potential energy 
     Uh = [0; 0];                        % High order potential initialization
-    rmag = norm(r);                     % Norm of the position vector
+    rmag = sqrt( dot(r, r, 1) );        % Norm of the position vector
     Rmag(1) = norm(R(:,1));             % Norm of the first primary position vector
     Rmag(2) = norm(R(:,2));             % Norm of the second primary position vector
 
@@ -95,9 +95,9 @@ function [L, U, Uh] = lagrangian(mu, L, s, order)
     end
 
     % Total kinetic energy
-    v = v + [-r(2); r(1); 0];           % Total velocity vector    
-    T = (1/2)*dot(v,v);
+    v = v + [-r(2,:); r(1,:); zeros(1,size(r,2))];           % Total velocity vector    
+    T = 0.5 * dot(v, v, 1);                                  % Kinetic energy
 
-    % Relative potential function 
-    L = T-U;
+    % Lagrangian function
+    L = T - U;
 end
