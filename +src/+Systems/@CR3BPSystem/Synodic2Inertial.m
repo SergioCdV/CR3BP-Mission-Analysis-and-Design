@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
 % Date: 17/06/24
-% File: SynodicTransformation.m 
+% File: Synodic2Inertial.m 
 % Issue: 0 
 % Validated: 
 
@@ -9,8 +9,7 @@
 % For a given CR3BP, this function computes the homogeneous transformation
 % (4x4) to transform from the synodic to the inertial reference frame
 
-% Inputs: - scalar mu, the parameter of the system
-%         - vector theta, 1xm, the variable describing the motion of the second
+% Inputs: - vector theta, 1xm, the variable describing the motion of the second
 %           primary with respect to the primary
 %         - boolean direction, denoting the direction of the transformation
 %           (true for synodic to inertial)
@@ -20,7 +19,7 @@
 
 % New versions: 
 
-function [T] = Synodic2Inertial(mu, theta, direction)
+function [T] = Synodic2Inertial(theta, direction)
     % Preallocation 
     T = zeros(4, 4 * size(theta,2));
 
@@ -36,7 +35,7 @@ function [T] = Synodic2Inertial(mu, theta, direction)
         T(4,4 * i) = 1;
 
         % Consider the direction of the transformation
-        if ~direction
+        if ( ~direction )
             T(1:3, 1+3*(i-1):3*i) = T(1:3,1+3*(i-1):3*i).';      % Inverse of the rotation matrix
         end
     end

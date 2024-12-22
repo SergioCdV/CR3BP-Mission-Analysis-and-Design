@@ -59,11 +59,22 @@ zlabel('$\tilde{U}$');
 alpha(0.9);
 
 %% Zero-surface manifolds
-% Compute the Zero Velocity Surface 
-r = src.Systems.CR3BPSystem.ZeroVelocitySurface(mu, 3.1776, false);
-
 % Compute the Zero Velocity Curve
 r = src.Systems.CR3BPSystem.ZeroVelocityCurve(mu, 3.1776, false);
 
+% Compute the Zero Velocity Surface 
+r = src.Systems.CR3BPSystem.ZeroVelocitySurface(mu, 3.1776, false);
+
 % Compute the Complementary Zero Surface 
-s = src.Systems.CR3BPSystem.ComplementaryZeroSurface(mu, 3.1776, true);
+s = src.Systems.CR3BPSystem.ComplementaryZeroSurface(mu, 3.1776, false);
+
+%% Transformation between reference frames 
+T = src.Systems.CR3BPSystem.Kepler2Synodic(mu, 1, 0, false);
+
+% Transformation of the vector
+r_earth = T * [r; ones(1,size(r,2))];
+
+T = src.Systems.CR3BPSystem.Kepler2Synodic(mu, 1, 0, true);
+
+% Transformation of the vector
+r_syn = T * r_earth;

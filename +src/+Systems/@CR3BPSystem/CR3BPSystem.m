@@ -13,7 +13,8 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
 
     properties
         % Additional properties of the system 
-        LP;         % Libration points of the system 
+        LP;                 % Libration points of the system 
+        ForceModel;         % Function handle for the perturbations model
     end
 
     methods
@@ -30,17 +31,28 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
 
            % Compute the libration points of the system 
            obj.LP = src.Systems.CR3BPSystem.LibrationPoints(obj.mu, obj.R);
+
+           obj.R(:,1) = [-obj.mu; 0; 0];
+           obj.R(:,2) = [1 - obj.mu; 0; 0];
+
+           % Complete the system 
+           obj.StateDim = 6;        % The statae vector is 3 position + 3 velocity
+           obj.ControlDim = 3;      % The control dimension is 3 (acceleration)
+           obj.ParamsDim = 7;       % The dynamics depend only on mu
+
+           obj.params = [obj.mu; reshape(obj.R, [], 1)];
         end
     end
 
     methods (Static)
-        [Lp] = LibrationPoints(mu, R);              % Function to compute the libration points of the system
-        [theta] = TimeLaw(T, t0, t);                % Time law describing the motion of the system
-        [T] = Synodic2Inertial(theta);              % Homogeneous matrix (4x4) to transform from the inertial to the synodic reference frame
-        [T] = Kepler2Synodic(idx, theta);           % Homogeneous matrix (4x4) to transform from the synodic barycentric to the synodic reference frame centered at one of the primaries
+        [theta] = TimeLaw(T, t0, t);                            % Time law describing the motion of the system
+        [T] = Synodic2Inertial(theta, direction);               % Homogeneous matrix (4x4) to transform from the inertial to the synodic reference frame
+        [T] = Kepler2Synodic(mu, idx, theta, direction);        % Homogeneous matrix (4x4) to transform from the synodic barycentric to the synodic reference frame centered at one of the primaries
         
-        [J, H] = JacobiConstant(mu, s);                         % Jacobi constant of the system 
+        [Lp] = LibrationPoints(mu, R);                          % Function to compute the libration points of the system
+
         [U] = AugmentedPotential(mu, r);                        % Augmented potential of the system 
+        [J, H] = JacobiConstant(mu, s);                         % Jacobi constant of the system 
         [r] = ZeroVelocitySurface(mu, C, display_flag);         % Compute the ZVS associated to a given energy C 
         [r] = ZeroVelocityCurve(mu, C, display_flag);           % Compute the ZVC associated to a given energy C 
         [s] = ComplementaryZeroSurface(mu, C, display_flag);    % Compute the ZVC associated to a given energy C

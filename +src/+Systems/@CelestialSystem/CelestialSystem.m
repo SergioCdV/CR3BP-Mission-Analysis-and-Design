@@ -9,7 +9,7 @@
 % This class implements the definition of a two body system, under whose
 % influential gravity a third spacecraft moves (in the ballistic regime)
 
-classdef (Abstract) CelestialSystem 
+classdef (Abstract) CelestialSystem < src.DynamicalSystems.ContinuousSystem
 
     properties
         % Gravitational constants
@@ -37,6 +37,9 @@ classdef (Abstract) CelestialSystem
             
         % Output: - system object
         function [obj] = CelestialSystem(varargin)
+           % Parent initialization 
+           obj@src.DynamicalSystems.ContinuousSystem( 6, 0 );
+
            % Compute the reduced gravitational mass of the system
            if ( length(varargin) >= 2 )
 
@@ -63,10 +66,6 @@ classdef (Abstract) CelestialSystem
                error('Input parameters for the system are not supported. Aborting...');
 
            end
-
-           % Follow up with the rest of the initialization 
-           [obj] = InitializeSystem(obj);
-
         end
 
         % Function to initialize the rest of the parameters of the system 
@@ -78,24 +77,21 @@ classdef (Abstract) CelestialSystem
             obj.R(1,:) = [-obj.mu 1-obj.mu];
 
             % Initialize characteristic quantities
-            obj.Tc = obj.Fc;                            % Characteristic time
-            obj.Vc = obj.Lc / obj.Tc;                   % Characteristic velocity
-            obj.Ac = obj.Lc / obj.Tc^2;                 % Characteristic acceleration
+            obj.Vc = 2*pi * obj.Lc / obj.Tc;            % Characteristic velocity
+            obj.Ac = (2*pi)^2 * obj.Lc / obj.Tc^2;      % Characteristic acceleration
         end
-    end
 
-    methods (Access = private)
         % Function to check if the masses of the primaries match its
         % parameters 
         % Inputs:       - obj, the CelestialSystem object
         % Outputs:      - check_flag, a boolean to output the result of the
         %                 test
-        function [check_flag] = check_system(obj)
-            if ( sum(obj.M) == obj.mu )
+        function [check_flag] = CheckSystem(obj)
+            if ( abs( obj.M(2) / sum(obj.M) - obj.mu ) < 1E-5 )
                 check_flag = true;
             else
                 check_flag = false; 
-                warning('The masses of the primaries do not correspond to the input system');
+                warning('The masses of the primaries do not correspond to the input system...');
             end
         end
     end

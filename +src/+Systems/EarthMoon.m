@@ -27,8 +27,9 @@ classdef EarthMoon < src.Systems.CR3BPSystem
            obj.Lc = 384399e3;                     % Mean distance from the Earth to the Moon [m]
            obj.Tc = 2.361e6;                      % Mean period of the Moon around the Earth [s]
            obj.Fc = 1 / obj.Tc;                   % Mean frequency of the Moon around the Earth [Hz]
-           obj.Vc = 2*pi * obj.Lc / obj.Tc;       % Characteristic velocity of the system [m/s]
-           obj.Ac = (2*pi)^2 * obj.Lc / obj.Tc^2; % Characteristic acceleration of the system [m/s]
+
+           obj.CheckSystem(); 
+           obj = obj.InitializeSystem();
         end
     end
 end
