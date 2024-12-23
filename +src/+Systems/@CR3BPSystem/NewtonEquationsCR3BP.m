@@ -41,12 +41,12 @@ function [ds] = NewtonEquationsCR3BP(t, j, s, u, params)
     ds = [V; gamma]; 
 
     % Gravitational forces
-    ds(4:6,:) = ds(4:6,:) - (mup(1) ./ R(1,:)).^3 .* r(1:3,:) - (mup(2) ./ R(2,:)).^3 .* r(4:6,:);
+    ds(4:6,:) = ds(4:6,:) - mup(1) ./ R(1,:).^3 .* r(1:3,:) - mup(2) ./ R(2,:).^3 .* r(4:6,:);
 
     % Control force 
     ds(4:6,:) = ds(4:6,:) + u;
-
-%     if (direction == -1)
+% 
+%     if (0)
 %         gamma = [x-2*V(2); y+2*V(1); 0];                                % Inertial acceleration
 %     else
 %         gamma = [x+2*V(2); y-2*V(1); 0];                                % Inertial acceleration

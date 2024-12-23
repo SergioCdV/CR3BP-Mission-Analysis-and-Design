@@ -16,7 +16,7 @@ classdef IVP
         % Basic constructor 
         function [obj] = IVP(mySystem, myICs, myt0)
             % Sanity checks 
-            if ( ~isa(mySystem, "DynamicalSystems.HybridSystem") )
+            if ( ~isa(mySystem, "src.DynamicalSystems.HybridSystem") )
                 error('The input dynamical system for the IVP is not supported... Aborting');
             else
                 obj.System = mySystem;

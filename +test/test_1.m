@@ -14,7 +14,7 @@
 
 %% Input parameters 
 % System characteristics
-mu = 0.0121505856;                       % Mass parameter for the Earth-Moon system
+mu = 0.3;%0121505856;                       % Mass parameter for the Earth-Moon system
 
 %% Basic system 
 % Create a CR3BP system 

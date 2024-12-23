@@ -25,3 +25,34 @@ J = EarthMoon.JacobianCR3BP(EarthMoon.mu, s);
 %% Evaluation of the vector field of the absolute dynamics
 s = [r; zeros(3, size(r,2))];
 ds = EarthMoon.Dynamics(0, 0, s, zeros(3,size(s,2)), EarthMoon.params);
+
+%% Solving of an IVP
+s0 = [0.8431 0 0 0 0.1874 0.4000].';         % State vector of a vertical orbit
+t0 = 0;                                      % Initial clock
+tf = 2*pi;                                   % Final clock
+
+%% System definition 
+% Initial Value Problem 
+CR3BPIVP = src.DynamicalSystems.IVP( EarthMoon, s0, t0 );
+
+% Integrator 
+options = odeset('AbsTol', 1E-22, 'RelTol', 2.25E-14 );
+integrator = src.DynamicalSystems.HybridSolver( @ode113, options );
+
+%% Integration
+% Configuration 
+Solver = integrator.configure( CR3BPIVP );
+
+% Integration 
+dt = .001;                               % Maximum time step
+tspan = [t0 tf dt];                     % Continuous horizon
+
+[t, y, stats] = Solver.solve( tspan );
+
+%% Results 
+figure 
+plot3(y(1,:), y(2,:), y(3,:))
+grid on; 
+xlabel('$x$')
+ylabel('$y$')
+zlabel('$z$')

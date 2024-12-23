@@ -31,7 +31,6 @@ function [Lp, L] = LibrationPoints(mu, R)
 
     % Equilateral libration points positions
     equiL = primR + [cos(alpha) cos(alpha); sin(alpha) -sin(alpha); 0 0];
-    equiL = [equiL; sqrt( dot(equiL-R(:,2), equiL-R(:,2), 1) )];
     
     % Set up the Newton loop for L1/L2/L3
     rh = mu^(1/3);                                              % Hill radius
@@ -69,7 +68,7 @@ function [Lp, L] = LibrationPoints(mu, R)
     end
     
     % Save the converged collinear point position in an array
-    colL = [(1-mu) + ((-1).^(1:2)) .* lambda(1:2) -(mu+lambda(end)); zeros(2,3); lambda];
+    colL = [(1 - mu) + ((-1).^(1:2)) .* lambda(1:2) (-mu - lambda(end)); zeros(2,3)];
             
     % Save results in the ouput 
     L = [colL equiL];
@@ -80,7 +79,7 @@ function [Lp, L] = LibrationPoints(mu, R)
     % Create the structure 
     Lp.ID = 1:5;                    % Index of each libration point
     Lp.r = L(1:3,:);                % Position vector of all libration points in Howell's synodic frame
-    Lp.gamma = L(end,:);            % Distance to the second primary in normalized units
+    Lp.gamma = [lambda 1 1];        % Distance to the second primary in normalized units
     Lp.J = E;                       % Jacobi constant associated to each of the different libration points
     Lp.tol = [dn zeros(1,2)];       % Error in the computation of the libration points
 end

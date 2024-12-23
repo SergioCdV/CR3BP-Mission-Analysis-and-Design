@@ -97,7 +97,7 @@ classdef HybridSolver
                 end
 
                 % Check if we are in the jump set or flow set
-                controller = obj.problem.System.InputSignal(t(step), j(step), x(:,step), obj.problem.System.params);
+                controller = obj.problem.System.ExogenousInput(t(step), j(step), x(:,step), obj.problem.System.params);
                 flow_flag = obj.problem.System.inFlowSet( t(step), j(step), x(:,step), controller, obj.problem.System.params );
                 jump_flag = obj.problem.System.inJumpSet( t(step), j(step), x(:,step), controller, obj.problem.System.params );
 
@@ -106,7 +106,7 @@ classdef HybridSolver
 
                 if ( flowing )
                     % Function handle for the controller 
-                    controller = @(t,x)obj.problem.System.InputSignal(t, j(step), x, obj.problem.System.params);
+                    controller = @(t,x)obj.problem.System.ExogenousInput(t, j(step), x, obj.problem.System.params);
 
                     % Prepare the integration 
                     obj.int_options = odeset(obj.int_options, 'Events', @(t, x)obj.event(t, j(step), x, controller(t, x), obj.problem.System.params));
@@ -117,7 +117,7 @@ classdef HybridSolver
                     x_aux = x_aux.';
                 
                     % Check if the event takes at the second step 
-                    controller = obj.problem.System.InputSignal(t_aux(2), j(step), x_aux(:,2), obj.problem.System.params);
+                    controller = obj.problem.System.ExogenousInput(t_aux(2), j(step), x_aux(:,2), obj.problem.System.params);
                     missed_flow = obj.problem.System.inFlowSet( t_aux(2), j(step), x_aux(:,2), controller, obj.problem.System.params );
                     missed_jump = obj.problem.System.inJumpSet( t_aux(2), j(step), x_aux(:,2), controller, obj.problem.System.params );
                     missed_event = missed_flow && ~(missed_jump && obj.problem.System.PriorityRule == 1);
@@ -146,7 +146,7 @@ classdef HybridSolver
                             else
                                 % Euler forward 
                                 t_plus = t(step) + delta(iter);
-                                controller = obj.problem.System.InputSignal(t_plus, j(step), x(:,step), obj.problem.System.params);
+                                controller = obj.problem.System.ExogenousInput(t_plus, j(step), x(:,step), obj.problem.System.params);
                                 x_plus = x(:,step) + delta(iter) * obj.problem.System.Dynamics(t_plus, j(step), x(:,step), controller, obj.problem.System.params);
     
                                 % Check if we are leaving the flow set
@@ -172,7 +172,7 @@ classdef HybridSolver
                 % Check if we are in the jump set
                 elseif ( jumping )
                     % Jump
-                    controller = obj.problem.System.InputSignal( t(step), j(step), x(:,step), obj.problem.System.params );
+                    controller = obj.problem.System.ExogenousInput( t(step), j(step), x(:,step), obj.problem.System.params );
                     [~, xp] = obj.problem.System.Jump( t(step), j(step), x(:,step), controller, obj.problem.System.params );
 
                     % Save the values

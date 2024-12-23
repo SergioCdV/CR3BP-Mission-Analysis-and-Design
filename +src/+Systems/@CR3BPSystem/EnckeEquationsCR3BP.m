@@ -31,7 +31,7 @@ function [ds] = EnckeEquationsCR3BP(t, j, s, u, params)
     mup(1) = 1 - mu;                        % First primary normalized position
     mup(2) = mu;                            % Second primary normalized position
     R(:,1) = reshape(params(2:4), [], 1);   % Position vector of the first primary
-    R(:,2) = reshape(params(2:4), [], 1);   % Position vector of the second primary
+    R(:,2) = reshape(params(5:7), [], 1);   % Position vector of the second primary
 
     % Inertial acceleration field
     gamma = [x; y; zeros(1,size(x,2))];                    

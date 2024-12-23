@@ -34,10 +34,10 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
            obj@src.Systems.CelestialSystem( varargin{:} );
 
            % Compute the libration points of the system 
-           obj.LP = src.Systems.CR3BPSystem.LibrationPoints(obj.mu, obj.R);
-
            obj.R(:,1) = [-obj.mu; 0; 0];
            obj.R(:,2) = [1 - obj.mu; 0; 0];
+
+           obj.LP = src.Systems.CR3BPSystem.LibrationPoints(obj.mu, obj.R);
 
            % Complete the system 
            obj.StateDim = 6;        % The statae vector is 3 position + 3 velocity
@@ -49,7 +49,7 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
            obj.params{2} = [obj.mu; reshape(obj.R, [], 1)];
 
            % Function handles 
-           obj.ForceModel =   @(t, j, x, params)( zeros(obj.StateDim, 1) );
+           obj.ForceModel =   @(t, j, x, params)( zeros(obj.ControlDim, 1) );
            obj.ControlInput = @(t, j, x, params)( zeros(obj.ControlDim, 1) );
            obj.Dynamics = @(t, j, s, u, params)obj.DynamicsCR3BP(t, j, s, u, params);
         end
