@@ -15,6 +15,10 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
         % Additional properties of the system 
         LP;                 % Libration points of the system 
         ForceModel;         % Function handle for the perturbations model
+        ControlInput;       % Control signal to the system 
+    end
+
+    properties (Access = private)
     end
 
     methods
@@ -40,8 +44,38 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
            obj.ControlDim = 3;      % The control dimension is 3 (acceleration)
            obj.ParamsDim = 7;       % The dynamics depend only on mu
 
-           obj.params = [obj.mu; reshape(obj.R, [], 1)];
+           model = src.Systems.ModelsCR3BP.Newton;
+           obj.params{1} = model;
+           obj.params{2} = [obj.mu; reshape(obj.R, [], 1)];
+
+           % Function handles 
+           obj.ForceModel =   @(t, j, x, params)( zeros(obj.StateDim, 1) );
+           obj.ControlInput = @(t, j, x, params)( zeros(obj.ControlDim, 1) );
+           obj.Dynamics = @(t, j, s, u, params)obj.DynamicsCR3BP(t, j, s, u, params);
         end
+
+        % Setters 
+        function [obj] = set.ForceModel(obj, myForceModel)
+            if ( ~isa(myForceModel, 'function_handle') )
+                error('The force model function needs to be a function handle... Aborting')
+            else
+                obj.ForceModel = myForceModel;
+                obj.ExogenousInput = @(t, j, s, params)( obj.ForceModel(t, j, s, params) + obj.ControlInput(t, j, s, params) );
+            end
+        end
+
+        % Input signal 
+        function [obj] = set.ControlInput(obj, myControlSignal)
+            if ( ~isa(myControlSignal, 'function_handle') )
+                error('The control signal map needs to be a function handle... Aborting')
+            else
+                obj.ControlInput = myControlSignal;
+                obj.ExogenousInput = @(t, j, s, params)( obj.ForceModel(t, j, s, params) + obj.ControlInput(t, j, s, params) );
+            end
+        end
+        
+        % Propagation of the CR3BP dynamics
+        [ds] = DynamicsCR3BP(obj, t, j, s, u, params);          % Vector field of the system
     end
 
     methods (Static)
@@ -56,6 +90,10 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
         [r] = ZeroVelocitySurface(mu, C, display_flag);         % Compute the ZVS associated to a given energy C 
         [r] = ZeroVelocityCurve(mu, C, display_flag);           % Compute the ZVC associated to a given energy C 
         [s] = ComplementaryZeroSurface(mu, C, display_flag);    % Compute the ZVC associated to a given energy C
+
+        [ds] = NewtonEquationsCR3BP(t, j, s, u, params);        % Newton's description of the CR3BP dynamics
+        [ds] = EnckeEquationsCR3BP(t, j, s, u, params);         % Encke's description of the CR3BP dynamics
+        [J] = JacobianCR3BP(mu, s);                             % Jacobian of the absolute dynamics vector field
     end
 
     methods (Access = private)

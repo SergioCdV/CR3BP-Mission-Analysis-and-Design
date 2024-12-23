@@ -18,7 +18,7 @@ classdef HybridSystem
         
         Dynamics;           % Dynamics in the flow set
         Jump;               % Set-value map in the jump set
-        InputSignal;        % Handler for the controller
+        ExogenousInput;     % Handler for the controller
 
         PriorityRule = 1;   % Used to prioritize jumps or flows; default, prioritizes jumps
 
@@ -45,7 +45,7 @@ classdef HybridSystem
 
             % Default input signal
             obj.ControlDim = obj.StateDim;
-            obj.InputSignal = @(t, j, x, params)( zeros(obj.ControlDim, 1) );
+            obj.ExogenousInput = @(t, j, x, params)( zeros(obj.ControlDim, 1) );
         end
 
         % Check if the state is in the flow set
@@ -100,11 +100,11 @@ classdef HybridSystem
         end
 
         % Input signal 
-        function [obj] = set.InputSignal(obj, myInputSignal)
+        function [obj] = set.ExogenousInput(obj, myInputSignal)
             if ( ~isa(myInputSignal, 'function_handle') )
                 error('The input signal map needs to be a function handle... Aborting')
             else
-                obj.InputSignal = myInputSignal;
+                obj.ExogenousInput = myInputSignal;
             end
         end
 
