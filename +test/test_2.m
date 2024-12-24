@@ -50,9 +50,17 @@ tspan = [t0 tf dt];                     % Continuous horizon
 [t, y, stats] = Solver.solve( tspan );
 
 %% Results 
-figure 
-plot3(y(1,:), y(2,:), y(3,:))
-grid on; 
-xlabel('$x$')
-ylabel('$y$')
-zlabel('$z$')
+if 0
+    figure 
+    plot3(y(1,:), y(2,:), y(3,:))
+    grid on; 
+    xlabel('$x$')
+    ylabel('$y$')
+    zlabel('$z$')
+end
+
+%% Variational equations 
+s = [y(:,1); reshape(eye(6), [], 1)];
+[ds] = src.Systems.VariationalCR3BP.VariationalEquationsCR3BP(0, 0, s, [6; EarthMoon.mu]);
+
+%% Integration of the full system 
