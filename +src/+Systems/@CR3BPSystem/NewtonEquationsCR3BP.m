@@ -39,19 +39,18 @@ function [ds] = NewtonEquationsCR3BP(t, j, s, u, params)
     gamma = [x; y; zeros(1,size(x,2))];                     % Inertial acceleration terms
     gamma = gamma + [0 2 0; -2 0 0; 0 0 0] * V;
     ds = [V; gamma]; 
+ 
+%     if (0)
+%         gamma = [x-2*V(2); y+2*V(1); 0];                                % Inertial acceleration
+%     else
+%         gamma = [x+2*V(2); y-2*V(1); 0];                                % Inertial acceleration
+%     end
 
     % Gravitational forces
     ds(4:6,:) = ds(4:6,:) - mup(1) ./ R(1,:).^3 .* r(1:3,:) - mup(2) ./ R(2,:).^3 .* r(4:6,:);
 
     % Control force 
     ds(4:6,:) = ds(4:6,:) + u;
-% 
-%     if (0)
-%         gamma = [x-2*V(2); y+2*V(1); 0];                                % Inertial acceleration
-%     else
-%         gamma = [x+2*V(2); y-2*V(1); 0];                                % Inertial acceleration
-%     end
-%     F = [V; gamma-(mup(1)/R(1)^3*r(:,1))-(mup(2)/R(2)^3*r(:,2))];       % Time flow of the system
     
     % Compute the GNC requirements 
 %     if (~isempty(varargin))
@@ -77,22 +76,7 @@ function [ds] = NewtonEquationsCR3BP(t, j, s, u, params)
 %             end
 %         end
 %     end
-    
-    % Compute the variational equations if needed
-%     if (flagVar)
-%         % Compute the initial STM
-%         Phi = reshape(s(n+1:end), [n n]);       % State Transition Matrix
-%         J = abs_jacobian(mu,s);                 % Jacobian of the system 
-%         dphi = J*Phi;                       	% Variational equations
-%         dphi = reshape(dphi, [n^2 1]); 
-%         
-%         % Update the differential configuration space vector
-%         dr = [F; dphi];
-%     else
-%         % Update the differential configuration space vector
-%         dr = F;  
-%     end
-    
+        
     % Reverse the flow for backward integration
 %     if (direction == -1)
 %         dr = -dr;

@@ -70,22 +70,7 @@ function [ds] = EnckeEquationsCR3BP(t, j, s, u, params)
 %             end
 %         end
 %     end
-%     
-%     % Compute the variational equations if needed
-%     if (flagVar)
-%         % Compute the initial STM
-%         Phi = reshape(s(n+1:end), [n n]);       % State transition matrix
-%         J = abs_jacobian(mu,s);                 % Jacobian of the system 
-%         dphi = J*Phi;                       	% Variational equations
-%         dphi = reshape(dphi, [n^2 1]); 
-%         
-%         % Update the differential configuration space vector
-%         dr = [F; dphi];
-%     else
-%         % Update the differential configuration space vector
-%         dr = F;  
-%     end
-%     
+  
 %     % Reverse the flow for backward integration
 %     if (direction == -1)
 %         dr = -dr;

@@ -13,12 +13,12 @@ classdef VariationalCR3BP < src.DynamicalSystems.ContinuousSystem
 
     methods
         % Constructor of the class
-        function [obj] = VariationalCR3BP(varargin)
+        function [obj] = VariationalCR3BP(n)
            % Constructor of the super class
-           obj@src.DynamicalSystems.ContinuousSystem(36, 0);
+           obj@src.DynamicalSystems.ContinuousSystem(n^2, 0);
            
            % Dynamics of the problem
-           obj.Dynamics = @(t, j, s, u, params)src.Systems.VariationalCR3BP.VariationalEquations(t, j, s, params);
+           obj.Dynamics = @(t, j, s, u, params)src.Systems.VariationalCR3BP.VariationalEquationsCR3BP(t, j, s, params);
         end
     end
 
