@@ -54,12 +54,13 @@ function [J] = JacobianCR3BP(mu, s)
     G(6,:) = 3 * r(2,:) .* ( ( mup(1) ./ R(1,:).^5 ) .* r(3,:) + ( mup(2) ./ R(2,:).^5 ) .* r(3,:) );
 
     G(7,:) = G(3,:); 
-    G(8,:) = G(5,:);
+    G(8,:) = G(6,:);
     G(9,:) = 0 - ( mup(1) ./ R(1,:).^3) .* ( 1 - 3 .* ( r(3,:) ./ R(1,:) ).^2 ) - ( mup(2) ./ R(2,:).^3 ) .* (1 - 3 .* ( r(6,:) ./ R(2,:) ).^2 );
 
     % Compute the first variational equations evaluated at the reference
     for i = 1:size(s,2)
         % Jacobian of the system 
-        J(:, 1 + 6 * (i - 1) : 6 * i) = [O I; reshape(G(:,i), 3, 3) K];             
+        idx = 1 + 6 * (i - 1) : 6 * i;
+        J(:,idx) = [O I; reshape(G(:,i), 3, 3) K];             
     end
 end

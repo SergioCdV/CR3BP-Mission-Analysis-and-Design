@@ -13,6 +13,8 @@ classdef STM
    properties
        StateDim;            % Dimension of the STM
        Phi;                 % State transition matrix per se 
+       Eigenvalues;         % Floquet multipliers of the STM
+       Eigenvectors;        % Floque eigenvectors of the STM
        StabilityIndex;      % Henon stability index of the STM
    end
 
@@ -23,25 +25,34 @@ classdef STM
             obj.StateDim = myStateDim;
             obj.StabilityIndex = 1; 
             obj.Phi = eye(obj.StateDim);
+
+            obj.Eigenvalues =  zeros(obj.StateDim,1);
+            obj.Eigenvectors = zeros(obj.StateDim,obj.StateDim);
        end
 
        % Setters 
        function [obj] = set.Phi( obj, myPhi )
 
-           if ( size(myPhi,2) == 1 )
-               obj.Phi = reshape( myPhi, obj.StateDim, [] );
+           if ( size(myPhi,1) ~= obj.StateDim )
+               PhiAux = reshape( myPhi, [], 1 );
+               obj.Phi = reshape( PhiAux, obj.StateDim, [] );
            else
                obj.Phi = myPhi;
            end
-           
-           obj.StabilityIndex = obj.HenonStabilityIndex( obj.Phi );
+
+           % Auxiliary results
+           [obj.Eigenvalues, obj.Eigenvectors] = obj.EigenDecomposition( obj.Phi );
+           obj.StabilityIndex = obj.HenonStabilityIndex( obj.Eigenvalues );
        end
    end
 
    methods (Static)
-       [nu] = HenonStabilityIndex(STM);     % Stability index of the STM
-       [CG] = CauchyGreenTensor(STM);       % Compute the Cauchy-Green tensor from a STM
-       [lambda] = LyapunovExponent();       % Compute the Lyapunov exponent of the STM 
+       [lambda, v] = EigenDecomposition(STM);   % Eigendecomposition of the STM
+       [nu] = HenonStabilityIndex(lambda);      % Stability index of the STM
+       [CG] = CauchyGreenTensor(STM);           % Compute the Cauchy-Green tensor from a STM
+
+       
+       [lambda] = LyapunovExponent();           % Compute the Lyapunov exponent of the STM 
        
    end
 end

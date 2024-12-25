@@ -8,39 +8,38 @@
 % This script contains the function to compute the Henon stability index
 % associated with a dynamical solution of the problem
 
-% Inputs: - array STM [nxnN], whose eigenvalues are to be analyzed
+% Inputs: - array lambda [nxN], the eigenvalues are to be analyzed
 
-% Output: - vector nu [1xN], containing information about close bifurcations around the solution associated with the STM
+% Output: - vector s [3xN], containing information about close bifurcations around the solution associated with the STM
 
 % New versions: use symplecticity to correct computational error
 
-function [s] = HenonStabilityIndex(STM)
+function [s] = HenonStabilityIndex(lambda)
     % Sanity checks and constants 
-    n = size(STM,1);                    % State dimension 
-
-    if ( mod(size(STM,2), n) == 0 )
-        N = size(STM,2) / n;            % Number of STM 
+    N = size(lambda, 2);                 % State dimension 
     
-        % Pre-allocation 
-        s = zeros(1, N);
-        
-        for i = 1:N
-            idx = 1 + n * (i-1) : n * i;
+    % Pre-allocation 
+    s = zeros(3, N);
+    
+    for i = 1:N
+        lambda_aux = lambda(:,i);
+        idx = imag(lambda_aux) == 0;
 
-            % Compute the eigenspectrum of the STM 
-            [V, D] = eig( STM(:,idx) );
-                       
-            % Henon stability indices
-            if (flag)
-                s(1) = (1/2) * ( eig(1,1)+eig(6,6) );    % Sum of the reciprocal pair
-                s(2) = (1/2) * ( eig(2,2)+eig(3,3) );    % Sum of the neutrally stable pair
-                s(3) = (1/2) * ( eig(4,4)+eig(5,5) );    % Sum of the remaining pair
-            else
-                s(i) = 0;
-            end
+        % Neutrally stable Floquet multipliers
+        if ( any(~idx) )
+            s(3,i) = 0.5 * max( lambda_aux(~idx) + 1 ./ lambda_aux(~idx) );
         end
-    else
-        warning('The second dimension of the STM does not match the expected value...');
-        s = 0;
+
+        % Unstable Floquet multipliers
+        uns_idx = idx & ( abs(lambda_aux) > 1 );
+        if ( any(uns_idx) )
+            s(1,i) = 0.5 * max( lambda_aux(uns_idx) + 1 ./ lambda_aux(uns_idx) );
+        end
+
+        % Stable Floquet multipliers
+        sta_idx = idx & ( abs(lambda_aux) < 1 );
+        if ( any(sta_idx) )
+            s(2,i) = 0.5 * max( lambda_aux(sta_idx) + 1 ./ lambda_aux(sta_idx) );   
+        end
     end
 end
