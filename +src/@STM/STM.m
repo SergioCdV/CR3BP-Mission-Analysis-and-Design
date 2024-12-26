@@ -49,10 +49,6 @@ classdef STM
    methods (Static)
        [lambda, v] = EigenDecomposition(STM);   % Eigendecomposition of the STM
        [nu] = HenonStabilityIndex(lambda);      % Stability index of the STM
-       [CG] = CauchyGreenTensor(STM);           % Compute the Cauchy-Green tensor from a STM
-
-       
-       [lambda] = LyapunovExponent();           % Compute the Lyapunov exponent of the STM 
-       
+       [CG] = CauchyGreenTensor(STM);           % Compute the Cauchy-Green tensor from a STM       
    end
 end

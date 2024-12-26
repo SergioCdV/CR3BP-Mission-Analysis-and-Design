@@ -1,15 +1,15 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 20/12/24
-% File: test_2.m 
+% Date: 25/12/24
+% File: test_3.m 
 % Issue: 0 
 % Validated: 
 
-%% Test 2 %%
+%% Test 3 %%
 % This scripts provides a test interface for the rest of the library
 % functions
 
-% Test 2 is concerned with the generation of the basic objects representing
+% Test 3 is concerned with the generation of the basic objects representing
 % periodic orbits in a CR3BP system
 
 src.graphics.set_graphics()
@@ -26,8 +26,11 @@ CompleteSystem = EarthMoon .* VarSystem;
 
 %% Solving of an IVP
 s0 = [0.8431 0 0 0 0.1874 0.4000].';         % State vector of a vertical orbit
+n = length(s0);                              % Dimensionality of the problem
 
-STM = src.Systems.STM( length(s0) );         % Initial conditions of the STM
+myOrbit = src.Systems.Orbit(n, EarthMoon);
+
+STM = src.Systems.STM( n );                  % Initial conditions of the STM
 Phi = reshape(STM.Phi, [], 1);              
 
 t0 = 0;                                      % Initial clock
@@ -59,6 +62,15 @@ if 1
     ylabel('$y$')
     zlabel('$z$')
 end
+
+%% Tests on the methods of the Orbit object 
+% Add the phase space trajectory to the Orbit 
+trajectory{1} = t; 
+trajectory{2} = y(1:n,:);
+myOrbit.State = trajectory;
+
+% Add the STM to the Orbit 
+myOrbit.STM = STM;
 
 %% Tests on the methods of the STM object 
 STM.Phi = y(7:end,:);
