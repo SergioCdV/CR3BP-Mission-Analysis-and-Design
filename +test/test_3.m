@@ -28,9 +28,9 @@ CompleteSystem = EarthMoon .* VarSystem;
 s0 = [0.8431 0 0 0 0.1874 0.4000].';         % State vector of a vertical orbit
 n = length(s0);                              % Dimensionality of the problem
 
-myOrbit = src.Systems.Orbit(n, EarthMoon);
+myOrbit = src.Orbit(n, EarthMoon);           % Basic orbit
 
-STM = src.Systems.STM( n );                  % Initial conditions of the STM
+STM = src.STM( n );                          % Initial conditions of the STM
 Phi = reshape(STM.Phi, [], 1);              
 
 t0 = 0;                                      % Initial clock

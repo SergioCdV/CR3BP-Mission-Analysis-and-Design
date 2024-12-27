@@ -63,7 +63,7 @@ classdef Orbit
         end
 
         function [obj] = set.STM(obj, mySTM)
-            if ( isa(mySTM, "src.Systems.STM") )
+            if ( isa(mySTM, "src.STM") )
                 obj.STM = mySTM;
             else
                 warning('The input State Transition Matrix shall be an STM object...');

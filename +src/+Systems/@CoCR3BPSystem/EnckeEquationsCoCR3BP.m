@@ -1,15 +1,12 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 23/12/24
-% File: EnckeEquationsCR3BP.m 
+% Date: 27/12/24
+% File: EnckeEquationsCoCR3BP.m 
 % Issue: 0 
 % Validated: 
 
-%% CR3BP Dynamics in Encke form %%
-% This function contains the description of the CR3BP dynamics vector field. It accounts for a infinitesimal mass
-% moving in the normalized, non dimensional synodic frame define by the two primaries, which
-% are assumed to be in the same plane and in circular orbits. It also
-% contains the integration of the first variational equations of the flow
+%% Co-orbital CR3BP Dynamics in Encke form %%
+% This function contains the description of the co-orbital CR3BP dynamics vector field
 
 % Inputs: 
 % Outputs: - vector ds, the differential vector field
@@ -17,14 +14,13 @@
 % New versions: 
 
 % Battin propagator for the three-body problem
-function [ds] = EnckeEquationsCR3BP(t, j, s, u, params)
+function [ds] = EnckeEquationsCoCR3BP(t, j, s, u, params)
     % Define the initial phase space vector
-    L = s(1:3,:);                           % Relative position of the target 
-    s = s(4:end,:);                         % Relative state vector
-    r = s(1:3,:);                           % Synodic position vector
-    V = s(4:6,:);                           % Synodic velocity vector
-    x = r(1,:);                             % Synodic x coordinate
-    y = r(2,:);                             % Synodic y coordinate 
+    tgt = s(1:3,:);                         % Target synodic position vector
+    r = s(7:9,:);                           % Relative synodic position vector
+    x = r(1,:);                             % Relative synodic x coordinate
+    y = r(2,:);                             % Relative synodic y coordinate 
+    V = s(10:12,:);                         % Relative synodic velocity vector
     
     % Relevant system parameters
     mu = params(1);                         % Gravitational parameter of the system
@@ -40,8 +36,8 @@ function [ds] = EnckeEquationsCR3BP(t, j, s, u, params)
 
     % Gravitational forces, 
     for i = 1:length(mup)
-        r_t = L - R(:,i);
-        q = -dot((r + 2 * r_t), r, 1) ./ dot( r + r_t, r + r_t, 1);
+        r_t = tgt - R(:,i);
+        q = -dot((r + 2 * r_t), r, 1) ./ dot(r + r_t, r + r_t, 1);
         f = q .* (3 * (1 + q) + q.^2) ./ ( 1 + (1 + q).^(3/2) );
 
         % Encke acceleration method

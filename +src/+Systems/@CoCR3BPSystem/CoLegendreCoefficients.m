@@ -1,7 +1,7 @@
 %% CR3BP Library %% 
 % Sergio Cuevas del Valle
-% Date: 21/03/20
-% File: relegendre_coefficients.m 
+% Date: 27/12/2024
+% File: CoLegendreCoefficients.m 
 % Issue: 0 
 % Validated: 
 
@@ -9,16 +9,12 @@
 % This function computes the Legendre coefficients of the Legendre expasion of the relative motion 
 
 % Inputs: - scalar mu, the reduced gravitational parameter of the system 
-%         - vector r_t, the target spacecraft synodic position vector
+%         - array r_t [3 x N], the target spacecraft synodic position vector
 %         - scalar order, the order of the expansion
 
-% Outputs: - vector cn, containing the Legendre coefficients up to order
+% Outputs: - vector cn [order+1xN], containing the Legendre coefficients up to order
 
-% Methods:  
-
-% New versions: 
-
-function [cn] = relegendre_coefficients(mu, r_t, order)
+function [cn] = CoLegendreCoefficients(mu, r_t, order)
     % Characteristics of the system 
     mup(1) = 1-mu;                         % Reduced gravitational parameter of the first primary
     mup(2) = mu;                           % Reduced gravitational parameter of the second primary
@@ -26,10 +22,8 @@ function [cn] = relegendre_coefficients(mu, r_t, order)
     R(:,2) = [1-mu; 0; 0];                 % Synodic position of the second primary
     
     % Preallocation of the coefficients 
-    cn = zeros(1, order);
-    
-    % Main computation
-    for i = 2:order
-        cn(i) = (mup(1)/norm(R(:,1)-r_t)^(i+1))+(mup(2)/norm(R(:,2)-r_t)^(i+1));
-    end
+    Rr(1:3,:) = R(:,1) - r_t;              % Synodic relative position of the target to the first primary
+    Rr(4:6,:) = R(:,2) - r_t;              % Synodic relative position of the target to the second primary
+
+    cn = mup(1) ./ sqrt( dot(Rr(1:3,:), Rr(1:3,:), 1) ).^( (0:order).' + 1 ) + mup(2) ./ sqrt( dot(Rr(4:6,:), Rr(4:6,:), 1) ).^( (0:order).' + 1 );
 end

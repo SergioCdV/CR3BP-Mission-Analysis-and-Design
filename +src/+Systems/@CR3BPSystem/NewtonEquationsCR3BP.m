@@ -19,9 +19,9 @@
 
 function [ds] = NewtonEquationsCR3BP(t, j, s, u, params)
     % Define the initial phase space vector
-    x = s(1,:);                       % Synodyc x coordinate
-    y = s(2,:);                       % Synodyc y coordinate 
-    z = s(3,:);                       % Synodyc z coordinate 
+    x = s(1,:);                       % Synodic x coordinate
+    y = s(2,:);                       % Synodic y coordinate 
+    z = s(3,:);                       % Synodic z coordinate 
     V = s(4:6,:);                     % Synodic velocity vector
     
     % Relevant system parameters
@@ -39,46 +39,10 @@ function [ds] = NewtonEquationsCR3BP(t, j, s, u, params)
     gamma = [x; y; zeros(1,size(x,2))];                     % Inertial acceleration terms
     gamma = gamma + [0 2 0; -2 0 0; 0 0 0] * V;
     ds = [V; gamma]; 
- 
-%     if (0)
-%         gamma = [x-2*V(2); y+2*V(1); 0];                                % Inertial acceleration
-%     else
-%         gamma = [x+2*V(2); y-2*V(1); 0];                                % Inertial acceleration
-%     end
 
     % Gravitational forces
     ds(4:6,:) = ds(4:6,:) - mup(1) ./ R(1,:).^3 .* r(1:3,:) - mup(2) ./ R(2,:).^3 .* r(4:6,:);
 
     % Control force 
     ds(4:6,:) = ds(4:6,:) + u;
-    
-    % Compute the GNC requirements 
-%     if (~isempty(varargin))
-%         if (~isempty(varargin{1}))
-%             GNC = varargin{1};                      % GNC handling structure
-%             if (iscell(GNC))
-%                 GNC = GNC{1};
-%             end
-% 
-%             % Include the GNC chain in the integration of the equations of motion
-%             if (isfield(GNC.Algorithms, 'Control'))
-%                 switch (GNC.Algorithms.Control)
-%                     case 'MFKS'
-%                         error('MFSK stationkeeping is not available for integration purposes')
-%                     case 'HSK'
-%                     otherwise
-%                         error('No valid GNC algorithm was selected')
-%                 end
-%     
-%                 % GNC scheme
-%                 [~, ~, u] = GNCt_handler(GNC, s.', t);            % Compute the control law
-%                 F(4:6) = F(4:6)+u;                                % Add the control vector 
-%             end
-%         end
-%     end
-        
-    % Reverse the flow for backward integration
-%     if (direction == -1)
-%         dr = -dr;
-%     end
 end
