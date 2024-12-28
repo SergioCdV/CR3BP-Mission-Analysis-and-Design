@@ -12,13 +12,14 @@
 % Output: - array ds [36xN], the differential equations of the problem 
 
 function [ds] = VariationalEquationsCoCR3BP(t, j, s, params)
-    % Arrange the STM
-    s = reshape(s, params(1) + params(1)^2, []);        % Arrange the state
-    x_ref = s(1:params(1), :);                          % Reference trajectory
-
     % State transition matrix of the system 
-    Phi = s(params(1)+1:end,:);                           
-    Phi = reshape(Phi, params(1), params(1) * size(x_ref,2));
+    idx = size(s,1) - params(1)^2 + 1;
+
+    Phi = s(idx:end,:);                           
+    Phi = reshape(Phi, params(1), params(1) * size(s,2));
+
+    % Reference trajectory 
+    x_ref = s(1:idx, :);                          % Reference trajectory
 
     % Compute the first order variational equations 
     J = src.Systems.CoCR3BPSystem.JacobianCoCR3BP(params(2), x_ref);

@@ -15,11 +15,13 @@
 % New versions: 
 
 function [ds] = DynamicsCoCR3BP(obj, t, j, s, u, params)
+    % Re-shaping of s 
+    s = reshape(s, obj.StateDim, []);
     
     % Restrict the state to the right components 
     if ( obj.VariationalProblem(1) || obj.VariationalProblem(2) )
         tgt_idx = 1:obj.PhaseSpaceDim(1);
-        cor_idx = (obj.OriginalStateDim(1) + 1) : (obj.OriginalStateDim(1) + obj.PhaseSpaceDim(2));
+        cor_idx = (obj.OriginalStateDim(1) + 1) : obj.StateDim;
         s = s([tgt_idx cor_idx],:);
 
     else

@@ -76,6 +76,7 @@ chs_y = tgt_y + y(CoOrbitalCompleteSystem.OriginalStateDim(1) + 1:CoOrbitalCompl
 
 if 1
     figure 
+    view(3)
     hold on
     plot3(tgt_y(1,:), tgt_y(2,:), tgt_y(3,:))
     plot3(chs_y(1,:), chs_y(2,:), chs_y(3,:))

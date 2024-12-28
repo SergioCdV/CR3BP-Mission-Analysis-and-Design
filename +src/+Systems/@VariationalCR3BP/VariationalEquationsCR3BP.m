@@ -13,7 +13,6 @@
 
 function [ds] = VariationalEquationsCR3BP(t, j, s, params)
     % Arrange the STM
-    s = reshape(s, params(1) + params(1)^2, []);        % Arrange the state
     x_ref = s(1:params(1), :);                          % Reference trajectory
 
     % State transition matrix of the system 

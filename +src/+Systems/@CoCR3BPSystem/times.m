@@ -19,24 +19,32 @@ function [OutSystem] = times(System1, System2)
         OutSystem.ParamsDim = 1; 
         OutSystem.params{2} = System2.params{2};
 
-        OutSystem.VariationalProblem = [OutSystem.VariationalProblem; System2.VariationalProblem];
+        OutSystem.VariationalProblem = [System2.VariationalProblem; OutSystem.VariationalProblem];
     
         % Dynamics
-        OutSystem.Dynamics = @(t, j, s, u, params)[System2.Dynamics(t, j, s(1:System2.StateDim,:), System2.ExogenousInput(t, j, s(1:System2.StateDim,:), System2.params), System2.params); ...
-                                                   OutSystem.DynamicsCoCR3BP(t, j, s, u, params)];
+        if ( ~OutSystem.VariationalProblem(2) )
+            OutSystem.Dynamics = @(t, j, s, u, params)[System2.Dynamics(t, j, s(1:System2.StateDim,:), System2.ExogenousInput(t, j, s(1:System2.StateDim,:), System2.params), System2.params); ...
+                                                       OutSystem.DynamicsCoCR3BP(t, j, s, u, params)];
+        else
+            OutSystem.Dynamics = @(t, j, s, u, params)[System2.Dynamics(t, j, s(1:System2.StateDim,:), System2.ExogenousInput(t, j, s(1:System2.StateDim,:), System2.params), System2.params); ...
+                                                       OutSystem.DynamicsCoCR3BP(t, j, s, u, params); ...
+                                                       src.Systems.VariationalCoCR3BP.VariationalEquationsCoCR3BP(t, j, s, [OutSystem.PhaseSpaceDim(2); params{2}])];
+        end
 
     elseif ( isa(System2, "src.Systems.VariationalCoCR3BP") )
+        % Pre-allocation
         OutSystem = System1;
+
+        % Dynamics
+        OutSystem.Dynamics = @(t, j, s, u, params)[OutSystem.Dynamics(t, j, s(1:System1.StateDim,:), u, params); System2.Dynamics(t, j, s, u, [System1.StateDim; params{2}])];
         
+        % Final properties
         if (System1.StateDim^2 ~= System2.StateDim)
             error('The dimension of the variational problem does not match that of the original system. Aborting...');
         else
-            OutSystem.StateDim = System1.StateDim + System1.StateDim^2;        % Total state space dimension
+            OutSystem.StateDim = System1.StateDim + System2.StateDim;        % Total state space dimension
         end
     
-        % Dynamics
-        OutSystem.Dynamics = @(t, j, s, u, params)[OutSystem.Dynamics(t, j, s(1:System1.StateDim,:), u, params); System2.Dynamics(t, j, s, u, [System1.StateDim; params{2}])];
-
         OutSystem.VariationalProblem(1) = true;
 
     else

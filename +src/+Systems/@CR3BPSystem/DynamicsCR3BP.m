@@ -18,6 +18,9 @@
 % New versions: 
 
 function [ds] = DynamicsCR3BP(obj, t, j, s, u, params)
+    % Re-shaping of s 
+    s = reshape(s, obj.StateDim, []);
+    
     % Equations of motion of the CR3BP
     model = params{1};
 
