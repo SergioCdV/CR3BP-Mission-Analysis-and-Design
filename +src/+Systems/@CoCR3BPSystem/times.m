@@ -11,14 +11,19 @@ function [OutSystem] = times(System1, System2)
     if ( isa(System2, "src.Systems.CR3BPSystem") )
         % Pre-allocation
         OutSystem = System1;
-        OutSystem.StateDim = System1.StateDim + System2.StateDim;        % Total state space dimension
+    
+        OutSystem.PhaseSpaceDim = [System2.PhaseSpaceDim; System1.PhaseSpaceDim];
+        OutSystem.OriginalStateDim = [System2.StateDim; System1.StateDim];
+        OutSystem.StateDim = System1.StateDim + System2.StateDim;                       % Total state space dimension
         
         OutSystem.ParamsDim = 1; 
         OutSystem.params{2} = System2.params{2};
+
+        OutSystem.VariationalProblem = [OutSystem.VariationalProblem; System2.VariationalProblem];
     
         % Dynamics
         OutSystem.Dynamics = @(t, j, s, u, params)[System2.Dynamics(t, j, s(1:System2.StateDim,:), System2.ExogenousInput(t, j, s(1:System2.StateDim,:), System2.params), System2.params); ...
-                                                   OutSystem.Dynamics(t, j, s, u, params)];
+                                                   OutSystem.DynamicsCoCR3BP(t, j, s, u, params)];
     else
         warning('The two input systems cannot be concatenated...')
     end

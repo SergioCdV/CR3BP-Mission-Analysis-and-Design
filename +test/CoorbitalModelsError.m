@@ -77,7 +77,7 @@ CoProblem = src.Systems.CoCR3BPSystem();
 CoProblem = CoProblem .* EarthMoon;
 
 %% Integration with the Newton model 
-coCR3BPIVP = src.DynamicalSystems.IVP( CoProblem, [tgt_y(:,1); rel_state(:,1)], t0 );
+coCR3BPIVP = src.DynamicalSystems.IVP( CoProblem, [tgt_y(:,1); rel_state(1:6,1)], t0 );
 
 Solver = integrator.configure( coCR3BPIVP );
 [t, rel_y, stats] = Solver.solve( tspan );

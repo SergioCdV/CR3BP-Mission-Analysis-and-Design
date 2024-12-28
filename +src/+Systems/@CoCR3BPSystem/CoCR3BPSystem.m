@@ -13,11 +13,14 @@ classdef CoCR3BPSystem < src.DynamicalSystems.ContinuousSystem
 
     properties
         % Additional properties of the system 
-        ForceModel;         % Function handle for the perturbations model
-        ControlInput;       % Control signal to the system 
+        ForceModel;                     % Function handle for the perturbations model
+        ControlInput;                   % Control signal to the system 
     end
 
-    properties (Access = private)
+    properties (Hidden)
+        PhaseSpaceDim = 6;              % Dimension of the phase space
+        VariationalProblem = false;     % Boolean flag to indicate if the system is augmented with the variational problem
+        OriginalStateDim; 
     end
 
     methods

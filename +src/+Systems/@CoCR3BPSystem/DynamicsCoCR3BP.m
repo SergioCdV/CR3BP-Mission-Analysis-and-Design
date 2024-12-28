@@ -17,22 +17,14 @@
 function [ds] = DynamicsCoCR3BP(obj, t, j, s, u, params)
     
     % Restrict the state to the right components 
-    if ( obj.StateDim > 6 )
-        if ( obj.StateDim == 12 )
-            % Do nothing, the state is target + co-orbital state
+    if ( obj.VariationalProblem(1) || obj.VariationalProblem(2) )
+        tgt_idx = 1:obj.PhaseSpaceDim(1);
+        cor_idx = (obj.OriginalStateDim(1) + 1) : (obj.OriginalStateDim(1) + obj.PhaseSpaceDim(2));
+        s = s([tgt_idx cor_idx],:);
 
-        elseif ( obj.StateDim == 72 )
-            % For the dynamics, s should be target + co-orbital state (no variational components)
-            tgt_idx = 1:obj.StateDim;
-            cor_idx = (obj.StateDim^2 + obj.StateDim + 1) : (obj.StateDim^2 + 2 * obj.StateDim);
-            s = s([tgt_idx cor_idx],:);
-
-        else
-            % For the dynamics, s should be target + co-orbital state (no variational components)
-            tgt_idx = obj.StateDim + 1 : 2 * obj.StateDim;
-            cor_idx = 1:obj.StateDim : (obj.StateDim^2 + 2 * obj.StateDim);
-            s = s([tgt_idx cor_idx],:);
-        end
+    else
+        % Do nothing, the state is target + co-orbital state
+        
     end
 
     % Equations of motion of the CR3BP

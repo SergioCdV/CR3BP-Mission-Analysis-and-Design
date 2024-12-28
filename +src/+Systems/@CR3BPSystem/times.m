@@ -15,6 +15,8 @@ function [OutSystem] = times(System1, System2)
     
         % Dynamics
         OutSystem.Dynamics = @(t, j, s, u, params)[OutSystem.Dynamics(t, j, s(1:System1.StateDim,:), u, params); System2.Dynamics(t, j, s, u, [System1.StateDim; params{2}])];
+
+        OutSystem.VariationalProblem = true;
     else
         warning('The two input systems cannot be concatenated...')
     end

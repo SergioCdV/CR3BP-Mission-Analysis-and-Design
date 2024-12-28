@@ -18,7 +18,9 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
         ControlInput;       % Control signal to the system 
     end
 
-    properties (Access = private)
+    properties (Hidden)
+        PhaseSpaceDim = 6;                  % Dimension of the phase space
+        VariationalProblem = false;         % Boolean flag to indicate if the problem is augmented with the variational system 
     end
 
     methods
