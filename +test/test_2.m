@@ -48,7 +48,7 @@ Solver = integrator.configure( CR3BPIVP );
 dt = .001;                               % Maximum time step
 tspan = [t0 tf dt];                     % Continuous horizon
 
-[t, y, stats] = Solver.solve( tspan );
+[t, j, y, stats] = Solver.solve( tspan );
 
 %% Results 
 if 0
@@ -76,7 +76,7 @@ VarCR3BPIVP = src.DynamicalSystems.IVP( CompleteSystem, [s0; reshape(eye(size(s0
 Solver = integrator.configure( VarCR3BPIVP );
 
 % Solve the system 
-[t, y, stats] = Solver.solve( tspan );
+[t, j, y, stats] = Solver.solve( tspan );
 
 %% Results 
 if 1

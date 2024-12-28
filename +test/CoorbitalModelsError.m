@@ -49,10 +49,10 @@ dt = .001;                              % Maximum time step
 tspan = [t0 tf dt];                     % Continuous horizon
 
 Solver = integrator.configure( targetCR3BPIVP );
-[t, tgt_y, stats] = Solver.solve( tspan );
+[t, j, tgt_y, stats] = Solver.solve( tspan );
 
 Solver = integrator.configure( chaserCR3BPIVP );
-[t, chs_y, stats] = Solver.solve( tspan );
+[t, j, chs_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -80,7 +80,7 @@ CoProblem = CoProblem .* EarthMoon;
 coCR3BPIVP = src.DynamicalSystems.IVP( CoProblem, [tgt_y(:,1); rel_state(1:6,1)], t0 );
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -102,7 +102,7 @@ error(1,:) = sqrt( dot(dstate, dstate, 1) );
 coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Encke;
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -124,7 +124,7 @@ error(2,:) = sqrt( dot(dstate, dstate, 1) );
 coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Linear;
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -146,7 +146,7 @@ error(3,:) = sqrt( dot(dstate, dstate, 1) );
 coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Order2;
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -168,7 +168,7 @@ error(4,:) = sqrt( dot(dstate, dstate, 1) );
 coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Order3;
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 1
     figure 
@@ -190,7 +190,7 @@ error(5,:) = sqrt( dot(dstate, dstate, 1) );
 coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Libration;
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 
@@ -214,7 +214,7 @@ coCR3BPIVP.System.params{1} = src.Systems.ModelsCoCR3BP.Richardson;
 coCR3BPIVP.System.params{2} = [coCR3BPIVP.System.params{2}; cn(end)];
 
 Solver = integrator.configure( coCR3BPIVP );
-[t, rel_y, stats] = Solver.solve( tspan );
+[t, j, rel_y, stats] = Solver.solve( tspan );
 
 if 0
     figure 

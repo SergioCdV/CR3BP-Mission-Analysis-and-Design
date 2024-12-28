@@ -52,7 +52,7 @@ tspan = [t0 tf dt];                     % Continuous horizon
 
 %% Integration
 % Solve the system 
-[t, y, stats] = Solver.solve( tspan );
+[t, j, y, stats] = Solver.solve( tspan );
 
 if 1
     figure 
