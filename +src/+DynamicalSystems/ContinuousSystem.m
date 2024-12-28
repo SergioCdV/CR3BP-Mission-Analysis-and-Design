@@ -32,9 +32,16 @@ classdef ContinuousSystem < src.DynamicalSystems.HybridSystem
             % Overall setting
             FlowSet = @(t, j, x, u, params)( 1 );
             JumpSet = @(t, j, x, u, params)( 0 );
+            JumpMap = @(t, j, x, u, params)( obj.NoJump(t, j, x, u) );
 
             obj.FlowSet = FlowSet;
             obj.JumpSet = JumpSet; 
+            obj.Jump = JumpMap;
+        end
+
+        % Default jump mode
+        function [t, x] = NoJump(obj, t, j, x, u)
+            % Do nothing
         end
     end
 end

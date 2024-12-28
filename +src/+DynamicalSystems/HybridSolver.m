@@ -43,24 +43,16 @@ classdef HybridSolver
         end
 
         % Solver 
-        function [t, x, stats] = solve(obj, tspan, jspan) 
-            % Sanity checks 
-            if (~exist('tspan', 'var') )
-                tspan = [obj.problem.t0 1E5];
-            else
-                time_span = tspan(1):tspan(3):tspan(2);
-                t = zeros(1, length(time_span) + 1);                       % Independent variable 
-                x = zeros( obj.problem.System.StateDim, length(t) );       % State of the system
-            end
+        function [t, j, x, stats] = solve(obj, tspan, jspan) 
+            % Sanity checks
+            time_span = tspan(1):tspan(3):tspan(2);
+            t = zeros(1, length(time_span) + 1);                       % Independent variable 
+            x = zeros( obj.problem.System.StateDim, length(t) );       % State of the system
 
-            if (~exist('jspan', 'var') )
+            if ( ~exist('jspan', 'var') )
                 jspan = [0 1E5];
+                j = zeros( size(t) ); 
 
-                if (~exist('tspan', 'var') )
-                    error('Either the continuous horizon or the jump horizon must be definite... Aborting');
-                else
-                    j = zeros( size(t) ); 
-                end
             else 
                 index_span = 1:jspan(end);
                 j = zeros(1, length(index_span) + 1);                      % Independent counter 
@@ -71,11 +63,21 @@ classdef HybridSolver
                 else
                     max_steps = min(length(t), length(j));
                     x = x(:,1:max_steps);                                  % State of the system
+                    t = t(1, max_steps);                                   % Independent variable
                 end
             end
 
             % Pre-allocation 
             stats = [];
+            if ( ~isempty(obj.int_options.Events) )
+                add_event = obj.int_options.Events;
+                stats.EventValue = [];
+                event_cnt = 0;
+            else
+                add_event = [];
+                stats.EventValue = [];
+                event_cnt = 0;
+            end
 
             % Initialization 
             step = 1; 
@@ -101,6 +103,11 @@ classdef HybridSolver
                 flow_flag = obj.problem.System.inFlowSet( t(step), j(step), x(:,step), controller, obj.problem.System.params );
                 jump_flag = obj.problem.System.inJumpSet( t(step), j(step), x(:,step), controller, obj.problem.System.params );
 
+                % Check if any additional event has taken place (for example, Poincare maps)
+%                 if ( ~isempty(add_event) )
+%                     flow_flag = flow_flag && add_event(t(step), j(step), x(:,step), controller, obj.problem.System.params);
+%                 end
+
                 flowing = flow_flag && (obj.problem.System.PriorityRule == 2 || (obj.problem.System.PriorityRule == 1 && ~jump_flag));
                 jumping = jump_flag && (obj.problem.System.PriorityRule == 1 || (obj.problem.System.PriorityRule == 2 && ~flow_flag));
 
@@ -109,16 +116,22 @@ classdef HybridSolver
                     controller = @(t,x)obj.problem.System.ExogenousInput(t, j(step), x, obj.problem.System.params);
 
                     % Prepare the integration 
-                    obj.int_options = odeset(obj.int_options, 'Events', @(t, x)obj.event(t, j(step), x, controller(t, x), obj.problem.System.params));
+                    obj.int_options = odeset(obj.int_options, 'Events', @(t, x)obj.event(t, j(step), x, controller(t, x), obj.problem.System.params, add_event));
                     
                     % Integration
                     time_step = t(step) : tspan(3) : (tspan(2) + tspan(3)); 
-                    [t_aux, x_aux, ~, ~, ie] = obj.integrator( @(t,x)obj.problem.System.Dynamics(t, j(step), x, controller(t, x), obj.problem.System.params), time_step, x(:,step), obj.int_options ); 
+                    [t_aux, x_aux, te, xe, ie] = obj.integrator( @(t,x)obj.problem.System.Dynamics(t, j(step), x, controller(t, x), obj.problem.System.params), time_step, x(:,step), obj.int_options ); 
                     x_aux = x_aux.';
-                
-                    % Check if the event takes at the second step 
+
+                    % Check if the event takes place at the second step 
                     controller = obj.problem.System.ExogenousInput(t_aux(2), j(step), x_aux(:,2), obj.problem.System.params);
                     missed_flow = obj.problem.System.inFlowSet( t_aux(2), j(step), x_aux(:,2), controller, obj.problem.System.params );
+
+                    % Check if any additional event has taken place (for example, Poincare maps)
+                    if ( ~isempty(add_event) )
+                        missed_flow = missed_flow && add_event(t_aux(2), j(step), x_aux(:,2), controller, obj.problem.System.params);
+                    end
+
                     missed_jump = obj.problem.System.inJumpSet( t_aux(2), j(step), x_aux(:,2), controller, obj.problem.System.params );
                     missed_event = missed_flow && ~(missed_jump && obj.problem.System.PriorityRule == 1);
 
@@ -134,14 +147,14 @@ classdef HybridSolver
 
                     else
                         dt = t_aux(2) - t_aux(1);
-                        delta = 10^(-9:9);
+                        delta = 10.^(-9:9);
                         GoOn = true; 
                         iter = 1;
 
                         while (GoOn)
                             if (dt <= delta(iter))
                                 t_plus = t_aux(2);
-                                x_plus = x_aux(2);
+                                x_plus = x_aux(:,2);
                                 GoOn = false;
                             else
                                 % Euler forward 
@@ -151,6 +164,12 @@ classdef HybridSolver
     
                                 % Check if we are leaving the flow set
                                 missed_flow = obj.problem.System.inFlowSet( t_plus, j(step), x_plus, controller, obj.problem.System.params );
+
+                                % Check if any additional event has taken place (for example, Poincare maps)
+                                if ( ~isempty(add_event) )
+                                    missed_flow = missed_flow && add_event( t_plus, j(step), x_plus, controller, obj.problem.System.params );
+                                end
+
                                 missed_jump = obj.problem.System.inJumpSet( t_plus, j(step), x_plus, controller, obj.problem.System.params );
                                 missed_event = missed_flow && ~(missed_jump && obj.problem.System.PriorityRule == 1);
     
@@ -161,12 +180,21 @@ classdef HybridSolver
                                 end
                             end
                         end
+                        
+                        % Save results
+                        step = step + 1;
+                        t(step) = t_plus; 
+                        x(:,step) = x_plus;
+                        j(step) = j(step-1);
+                    end
 
-                       % Save results
-                       step = step + 1;
-                       t(step) = t_plus; 
-                       x(:,step) = x_plus;
-                       j(step) = j(step-1);
+                    if ( ie >= 2 )
+                        stats.EventValue{event_cnt + 1} = [ie; te; xe(end,:).'];
+                        event_cnt = event_cnt + 1;
+
+                        if ( contains(func2str(add_event), "SurfaceSection") )
+                            j(step) = j(step) + 1;
+                        end
                     end
 
                 % Check if we are in the jump set
@@ -180,6 +208,8 @@ classdef HybridSolver
                     x(:,step) = xp;
                     t(step) = t(step - 1);
                     j(step) = j(step - 1) + 1;
+                else
+                    error('The flow and jump sets intersect... Aborting')
                 end
             end
 
@@ -190,10 +220,10 @@ classdef HybridSolver
         end
         
         % Halt events
-        function [val, isterminal, direction] = event(obj, t, j, x, u, params)
+        function [val, isterminal, direction] = event(obj, t, j, s, u, params, add_event)
             % Sets of the problem
-            jump = obj.problem.System.inJumpSet(t, j, x, u, params);  
-            flow = obj.problem.System.inFlowSet(t, j, x, u, params);
+            jump = obj.problem.System.inJumpSet(t, j, s, u, params);  
+            flow = obj.problem.System.inFlowSet(t, j, s, u, params);
 
             switch ( obj.problem.System.PriorityRule )
                 case 1
@@ -204,13 +234,20 @@ classdef HybridSolver
                     stop = ~flow;
             end
             
-            if any(isnan(x)) || any(isinf(x))
+            if any(isnan(s)) || any(isinf(s))
                 stop = 1;
             end
 
             val = 1 - stop;     % Value used to terminate the flow
             isterminal = 1;     % Terminate the integration
             direction = -1;     % Terminate for decreasing values
+
+            if ( ~isempty(add_event) )
+                add_val = add_event(t, j, s, u, params);
+                val = [val; add_val];
+                isterminal = [isterminal; ones(size(add_val))]; 
+                direction = [direction; -ones(size(add_val))];
+            end
         end
     end
 end

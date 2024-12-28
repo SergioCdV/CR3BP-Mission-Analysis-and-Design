@@ -33,9 +33,11 @@ classdef DiscreteSystem < src.DynamicalSystems.HybridSystem
             % Overall setting
             FlowSet = @(t, j, x, u, params)( 0 );
             JumpSet = @(t, j, x, u, params)( 1 );
+            Dynamics = @(t, j, x, u, params)( x );
 
             obj.FlowSet = FlowSet;
             obj.JumpSet = JumpSet; 
+            obj.Dynamics = Dynamics;
         end
     end
 end
