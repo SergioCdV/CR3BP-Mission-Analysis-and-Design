@@ -40,62 +40,7 @@ end
 
 %% Auxiliary functions 
 % Lyapunov linear seed orbit 
-function [seed, T] = lyapunov_seed(mu, parameters)
-    % Constants 
-    rho = 10000;            % Number of points per period
-    
-    % Parameters of the Lyapunov orbit
-    Ax = parameters(1);     % In-plane trajectory
-    Az = parameters(2);     % Out-of-plane trajectory     
-    phi = parameters(3);    % In-plane phase
-    psi = parameters(4);    % Out-of-plane phase
-    L = parameters(5);      % Lagrange point identifier
-    gamma = parameters(6);  % Lagrange point coordinate
-    n = parameters(7);      % Number of periods to generate
 
-    % Dimensionalising
-    Ax = Ax/gamma; 
-    Az = Az/gamma; 
-       
-    % Orbit parameters (frequencies)
-    cn = legendre_coefficients(mu, L, gamma, 2);                % Legendre coefficient c_2 (equivalent to mu)
-    c2 = cn(2);                                                 % Legendre coefficient c_2 (equivalent to mu)
-    wp  = sqrt((1/2)*(2-c2+sqrt(9*c2^2-8*c2)));                 % In-plane frequency
-    wv  = sqrt(c2);                                             % Out of plane frequency
-    kap = (wp^2+1+2*c2)/(2*wp);                                 % Contraint on the planar amplitude
-    
-    % Temporal parametrization
-    T = (2*pi)/wp;                     % Period of the orbit 
-    tspan = linspace(0, n*T, rho);     % Integration vector
-    
-    % Seed trajectory
-    x = -Ax*cos(wp*tspan+phi);         % X relative coordinate
-    y = kap*Ax*sin(wp*tspan+phi);      % Y relative coordinate
-    z = Az*sin(wv*tspan+psi);          % Z relative coordinate
-    vx = wp*Ax*sin(wp*tspan+phi);      % Vx relative velocity
-    vy = kap*wp*Ax*cos(wp*tspan+phi);  % Vy relative velocity
-    vz = wv*Az*cos(wv*tspan+psi);      % Vz relative velocity  
-    
-    % Relative to synodic reference frame transformation
-    switch (L)
-        case 1 
-            k = -1; 
-        case 2 
-            k = 1;
-        otherwise
-            error('No valid Lagrange point was selected');
-    end
-     
-    x = gamma*x+(1-mu+k*gamma);             % Synodic X coordinate
-    y = gamma*y;                            % Synodic Y coordinate
-    z = gamma*z;                            % Synodic Z coordinate
-    vx = gamma*vx;                          % Synodic x velocity
-    vy = gamma*vy;                          % Synodic y velocity
-    vz = gamma*vz;                          % Synodic z velocity 
-    
-    % Output seed
-    seed = [x.' y.' z.' vx.' vy.' vz.'];    % Seed trajectory
-end
 
 % Halo third-order seed orbit
 function [seed, T] = halo_seed(mu, parameters)
