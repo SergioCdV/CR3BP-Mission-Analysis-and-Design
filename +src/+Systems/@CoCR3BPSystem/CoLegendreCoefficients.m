@@ -25,5 +25,6 @@ function [cn] = CoLegendreCoefficients(mu, r_t, order)
     Rr(1:3,:) = R(:,1) - r_t;              % Synodic relative position of the target to the first primary
     Rr(4:6,:) = R(:,2) - r_t;              % Synodic relative position of the target to the second primary
 
-    cn = mup(1) ./ sqrt( dot(Rr(1:3,:), Rr(1:3,:), 1) ).^( (0:order).' + 1 ) + mup(2) ./ sqrt( dot(Rr(4:6,:), Rr(4:6,:), 1) ).^( (0:order).' + 1 );
+    cn = mup(1) ./ sqrt( dot(Rr(1:3,:), Rr(1:3,:), 1) ).^( (1:order).' + 1 ) + mup(2) ./ sqrt( dot(Rr(4:6,:), Rr(4:6,:), 1) ).^( (1:order).' + 1 );
+    cn = [zeros(1,size(cn,2)); cn];
 end

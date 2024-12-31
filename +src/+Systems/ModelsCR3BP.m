@@ -13,5 +13,6 @@ classdef ModelsCR3BP < double
    enumeration
        Newton (0)
        Encke  (1)
+       OrderN (2)
    end
 end

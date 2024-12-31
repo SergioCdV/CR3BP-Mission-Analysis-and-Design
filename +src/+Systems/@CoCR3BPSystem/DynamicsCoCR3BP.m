@@ -56,9 +56,7 @@ function [ds] = DynamicsCoCR3BP(obj, t, j, s, u, params)
             ds = src.Systems.CoCR3BPSystem.ThirdOrderEquationsCoCR3BP(t, j, s, u, params{2}); 
 
         case "OrderN"
-            params{2} = [params{2}; 0];         % Do not consider (N+1)-th order effects 
-
-            error('The selected co-orbital dynamics model is not supported yet...');
+            ds = src.Systems.CoCR3BPSystem.NOrderEquationsCoCR3BP(t, j, s, u, params{2});
 
         case "Libration"
             ds = src.Systems.CoCR3BPSystem.LibrationEquationsCoCR3BP(t, j, s, u, params{2}); 

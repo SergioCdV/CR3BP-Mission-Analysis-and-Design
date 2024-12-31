@@ -73,8 +73,9 @@ classdef CoCR3BPSystem < src.DynamicalSystems.ContinuousSystem
     end
 
     methods (Static)
-        [U] = AugmentedPotential(mu, r);                        % Augmented potential of the system 
-        [J, H] = JacobiConstant(mu, s);                         % Jacobi constant of the system 
+        [U] = CoPotentialFunction(mu, s);                           % Co-orbital potential function
+        [U] = AugmentedPotential(mu, r);                            % Augmented potential of the system 
+        [H] = CoHamiltonian(mu, s);                                 % Hamiltonian of the system 
 
         [cn] = CoLegendreCoefficients(mu, r_t, order);              % Legendre coefficients of the co-orbital Hamiltonian
 
@@ -83,6 +84,7 @@ classdef CoCR3BPSystem < src.DynamicalSystems.ContinuousSystem
         [ds] = LinearEquationsCoCR3BP(t, j, s, u, params);          % Linear model of the co-orbital problem
         [ds] = SecondOrderEquationsCoCR3BP(t, j, s, u, params);     % Second order model of the co-orbital problem 
         [ds] = ThirdOrderEquationsCoCR3BP(t, j, s, u, params);      % Third order model of the co-orbital problem
+        [ds] = NOrderEquationsCoCR3BP(t, j, s, u, params);          % N-th order model of the co-orbital problem
         [ds] = LibrationEquationsCoCR3BP(t, j, s, u, params);       % Linear model of the co-orbital problem
         [ds] = RichardsonEquationsCoCR3BP(t, j, s, u, params);      % Linear model of the co-orbital problem around a collinear libration point
         [J] = JacobianCoCR3BP(mu, s);                               % Jacobian of the co-orbital dynamics vector field

@@ -10,9 +10,10 @@
 % augmented potential function associated with that input position vector
 
 % Inputs: - double mu, the reduced gravitational parameter of the system 
-%         - array r [3xN], containing the synodic position vector
+%         - array r [12xN], containing the synodic co-orbital state vectors
 
-% Outputs: - vector U [N], the augmented potential function
+% Outputs: - vector U [N], the augmented potential function associated of
+%            the co-orbital problem
 
 % New versions:
 
@@ -22,6 +23,6 @@ function [U] = AugmentedPotential(mu, r)
     y = r(2,:);                         % Synodic y coordinate 
     
     % Augmented potential function
-    U = src.Systems.CR3BPSystem.PotentialFunction(mu, r);
+    U = src.Systems.CR3BPSystem.CoPotentialFunction(mu, r);
     U = -0.5 * (x.^2 + y.^2) + U;
 end

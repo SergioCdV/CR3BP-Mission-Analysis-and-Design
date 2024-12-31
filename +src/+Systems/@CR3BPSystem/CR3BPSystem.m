@@ -86,7 +86,8 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
         [T] = Kepler2Synodic(mu, idx, theta, direction);        % Homogeneous matrix (4x4) to transform from the synodic barycentric to the synodic reference frame centered at one of the primaries
         
         [Lp] = LibrationPoints(mu, R);                          % Function to compute the libration points of the system
-
+    
+        [U] = PotentialFunction(mu, r);                         % Potential function of the system 
         [U] = AugmentedPotential(mu, r);                        % Augmented potential of the system 
         [J, H] = JacobiConstant(mu, s);                         % Jacobi constant of the system 
         [r] = ZeroVelocitySurface(mu, C, display_flag);         % Compute the ZVS associated to a given energy C 

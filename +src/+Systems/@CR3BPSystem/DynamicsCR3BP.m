@@ -27,7 +27,7 @@ function [ds] = DynamicsCR3BP(obj, t, j, s, u, params)
     switch (model)
         % Deterministic models
         case "Newton"    
-            ds = src.Systems.CR3BPSystem.NewtonEquationsCR3BP(t, j, s, u, params{2});           % Absolute equations of motion
+            ds = src.Systems.CR3BPSystem.NewtonEquationsCR3BP(t, j, s, u, params{2});       
             
         case "Encke"
             % Pre-allocation 
@@ -39,8 +39,11 @@ function [ds] = DynamicsCR3BP(obj, t, j, s, u, params)
 
                 rel_state = [obj.LP.r(:, dist == min(dist)); rel_state(:, dist == min(dist))];
     
-                ds(:,i) = src.Systems.CR3BPSystem.EnckeEquationsCR3BP(t, j, rel_state, u(:,i), params{2});    % Absolute equations of motion
+                ds(:,i) = src.Systems.CoCR3BPSystem.EnckeEquationsCoCR3BP(t, j, rel_state, u(:,i), params{2});    
             end
+
+        case "OrderN"
+            ds = src.Systems.CoCR3BPSystem.NOrderEquationsCoCR3BP(t, j, s, u, params{2});    
 
         otherwise
             error('No valid CR3BP dynamics model has been selected. Aborting...');
