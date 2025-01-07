@@ -76,11 +76,10 @@ end
 HaloOrbit = src.OrbitFamilies.HaloOrbit( EarthMoon, 2, src.OrbitFamilies.HaloBranches.Northern );
 
 % Define the amplitudes
-HaloOrbit.OrbitAmplitudes = [0.01, 0.02];        % Normalized units
+HaloOrbit.OrbitAmplitudes = [0.2, 0.02];        % Normalized units
 
 % Generate the orbit seed 
-theta = linspace(0, 16*pi, 1000);
-theta = HaloOrbit.TimeLaw( theta );
+theta = linspace(0, 2*pi, 1000);
 seed = HaloOrbit.OrbitSeed( HaloOrbit.OrbitAmplitudes, theta );
 seed(1:3,:) = seed(1:3,:) + HaloOrbit.Origin;
 
