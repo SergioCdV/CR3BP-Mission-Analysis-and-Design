@@ -83,6 +83,9 @@ theta = linspace(0, 2*pi, 1000);
 seed = HaloOrbit.OrbitSeed( HaloOrbit.OrbitAmplitudes, theta );
 seed(1:3,:) = seed(1:3,:) + HaloOrbit.Origin;
 
+% Estimate the minimum amplitude 
+minAx = HaloOrbit.MinPlanarAmplitude( EarthMoon.mu, HaloOrbit.LibrationPoint, EarthMoon.LP.gamma(HaloOrbit.LibrationPoint) );
+
 if 1
     figure 
     view(3)

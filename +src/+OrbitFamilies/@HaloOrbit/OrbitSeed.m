@@ -15,8 +15,9 @@
 %         - double kap, the amplitude constraint in the xy plane
 
 % Output: - array seed [6 x N], containing the required initial solution seed
+%         - scalar Ax, the planar amplitude of the orbit
 
-function [seed] = OrbitSeed(obj, Amp, theta, order, freq, kap) 
+function [seed, Ax] = OrbitSeed(obj, Amp, theta, order, freq, kap) 
     % Sanity checks 
     if ( ~exist("freq", "var") )
         freq = obj.OrbitFrequencies;
@@ -42,14 +43,14 @@ function [seed] = OrbitSeed(obj, Amp, theta, order, freq, kap)
     if ( order == 1 )
         % Lissajous seed
         seed = src.OrbitFamilies.LissajousOrbit( obj.System, obj.LibrationPoint ).OrbitSeed( Amp, theta, freq, kap );
-    
+        Ax = Az;
     else
         if ( order ~= 3 )
             warning('The input order of the halo orbit seed is not supported. Generating a 3rd order seed...')
         end
 
         % 3rd order seed 
-        [seed, lambda] = richardson_seed(obj.System.mu, obj.LibrationPoint, obj.System.LP.gamma( obj.LibrationPoint ), obj.Branch, Amp, theta);
+        [seed, Ax] = richardson_seed(obj.System.mu, obj.LibrationPoint, obj.System.LP.gamma( obj.LibrationPoint ), obj.Branch, Amp, theta);
     end
 end
 

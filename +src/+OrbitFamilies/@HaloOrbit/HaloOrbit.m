@@ -29,7 +29,7 @@ classdef HaloOrbit < src.OrbitFamilies.LissajousOrbit
     end
 
     methods (Static)
-        
+        [Ax] = MinPlanarAmplitude(mu, L, gamma);                % Estimate the minimum planar amplitude of the system
     end
 end
 
