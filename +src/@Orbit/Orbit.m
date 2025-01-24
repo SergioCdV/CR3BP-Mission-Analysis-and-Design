@@ -15,7 +15,7 @@ classdef Orbit
         System;             % Dynamical system associated for which the orbit is a solution
 
         State;              % Phase space trajectory
-        t;                  % Independent variable
+        t = 0;              % Independent variable
         STM;                % State transition matrix along the trajectory
 
         EnergyFunction;     % Jacobi constant of the phase trajectory
@@ -36,10 +36,8 @@ classdef Orbit
         % Setter
         function [obj] = set.State(obj, myState)
             % Independent variable and sanity checks 
-            if ( size(myState,2) == 2)
+            if ( size(myState,2) == 2 )
                 obj.t = myState{1};
-            else
-                obj.t = [];
             end
 
             if isa(myState, "cell")
