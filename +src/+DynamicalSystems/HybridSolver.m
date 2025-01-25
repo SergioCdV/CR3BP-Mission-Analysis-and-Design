@@ -43,7 +43,7 @@ classdef HybridSolver
         end
 
         % Solver 
-        function [t, j, x, stats] = solve(obj, tspan, jspan) 
+        function [t, j, x, stats] = solve(obj, tspan, jspan, max_event_cnt) 
             % Sanity checks
             time_span = tspan(1):tspan(3):tspan(2);
             t = zeros(1, length(time_span) + 1);                       % Independent variable 
@@ -65,6 +65,10 @@ classdef HybridSolver
                     x = x(:,1:max_steps);                                  % State of the system
                     t = t(1, max_steps);                                   % Independent variable
                 end
+            end
+
+            if ( ~exist('max_event_cnt', 'var') )
+                max_event_cnt = 1;
             end
 
             % Pre-allocation 
@@ -90,7 +94,7 @@ classdef HybridSolver
             end
             
             % Solving of the problem
-            while ( t(step) < tspan(2) && j(step) < jspan(end) )
+            while ( t(step) < tspan(2) && j(step) < jspan(end) && event_cnt < max_event_cnt )
                 % Check for pre-allocation 
                 if ( step + 1 > min( size(t,2), size(j,2) ) )
                     x = [x zeros( size(x,1), 1E5 )];

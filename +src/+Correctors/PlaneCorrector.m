@@ -52,9 +52,7 @@ classdef PlaneCorrector < src.Correctors.DiffCorrector
 
             % Solve the system 
             tspan = [Orbit.t(1) 2*pi 0.01];
-            jspan = [0 2];
-            max_event_cnt = 1;
-            [t, j, y, ~] = Solver.solve( tspan, jspan, max_event_cnt );
+            [t, j, y, ~] = Solver.solve( tspan );
 
             STM.Phi = y(Orbit.StateDim+1:end,end);          % Monodromy matrix
             Orbit.STM = STM;                                % STM of the system
@@ -75,4 +73,3 @@ classdef PlaneCorrector < src.Correctors.DiffCorrector
         end
     end
 end
-

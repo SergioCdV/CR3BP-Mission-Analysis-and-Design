@@ -32,7 +32,7 @@ function [FinalOrbit, Stats] = SingleShootSolve(obj, InitialGuess)
         ds = -1.0 * pinv(M) * e;
 
         % Convergence analysis 
-        rel_convergence = norm(e - prev_e) / norm(e) <= obj.Config.RelTol;
+        rel_convergence = norm(e - prev_e, 'inf') / norm(e, 'inf') <= obj.Config.RelTol;
         abs_convergence = norm(e) <= obj.Config.AbsTol;
 
         if ( abs_convergence || rel_convergence )
@@ -71,14 +71,18 @@ function [FinalOrbit, Stats] = SingleShootSolve(obj, InitialGuess)
         trajectory{1} = t; 
         trajectory{2} = y(1:FinalOrbit.StateDim,:);
         
-        STM.Phi = y(FinalOrbit.StateDim+1:end,end);          % Monodromy matrix
+        STM.Phi = y(FinalOrbit.StateDim+1:end,:);            % Monodromy matrix
         FinalOrbit.STM = STM;                                % STM of the system
         FinalOrbit.State = trajectory;                       % Final trajectory
+
+        % Final monodromy matrix
+        FinalOrbit.Monodromy = src.Monodromy(6, FinalOrbit.Period);
+        FinalOrbit.Monodromy.Phi = y(FinalOrbit.StateDim+1:end,end);
     end
 
     % Final iterations 
     Stats.Iterations = iter; 
     Stats.Convergence = ~GoOn;
-    Stats.RelError = norm(e - prev_e) / norm(e);
+    Stats.RelError = norm(e - prev_e, 'inf') / norm(e, 'inf');
     Stats.AbsError = norm(e);
 end

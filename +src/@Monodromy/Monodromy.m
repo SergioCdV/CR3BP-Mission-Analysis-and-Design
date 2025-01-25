@@ -9,7 +9,7 @@
 % This class definition provides the definition of several properties and
 % methods associated to a Monodromy matrix
 
-classdef Monodromy < src.Systems.STM
+classdef Monodromy < src.STM
    properties
        Period;                  % Period of the monodromy matrix
        FloquetMultipliers;      % Floquet multipliers of the monodromy matrix 
@@ -18,13 +18,12 @@ classdef Monodromy < src.Systems.STM
 
    methods 
        % Constructor 
-       function [obj] = Monodromy( mySTM, myPeriod )
+       function [obj] = Monodromy( myStateDim, myPeriod )
             % Parent constructor 
-            obj@src.Systems.STM( mySTM.StateDim );
+            obj@src.STM( myStateDim );
 
             % Local properties
             obj.Period = myPeriod;
-            obj.Phi = mySTM.Phi;
        end
    end
 

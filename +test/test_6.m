@@ -55,10 +55,10 @@ end
 
 %% Halo orbit
 % Create the orbit
-HaloOrbit = src.OrbitFamilies.HaloOrbit( EarthMoon, 2, src.OrbitFamilies.HaloBranches.Northern );
+HaloOrbit = src.OrbitFamilies.HaloOrbit( EarthMoon, 2, src.OrbitFamilies.HaloBranches.Southern );
 
 % Define the amplitudes
-HaloOrbit.OrbitAmplitudes = [0.1, 0.02];        % Normalized units
+HaloOrbit.OrbitAmplitudes = 0.05;        % Normalized units
 
 % Generate the orbit seed 
 seed = HaloOrbit.OrbitSeed( HaloOrbit.OrbitAmplitudes );
@@ -70,7 +70,7 @@ HaloOrbit.t = 0;
 myCorrector = src.Correctors.PlaneCorrector();
 
 Config.RelTol = 1E-5; 
-Config.AbsTol = 1E-10;
+Config.AbsTol = 1E-5;
 Config.MaxIter = 100; 
 
 myCorrector = myCorrector.Configure( Config );

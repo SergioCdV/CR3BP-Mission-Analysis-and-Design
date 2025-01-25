@@ -8,10 +8,10 @@
 %% Doubly Differential Corrector %% 
 % This class implements a differential corrector object for orbits doubly symmetric around the XZ %
 
-classdef DoublyCorrector < src.Correctors.DiffCorrector    
+classdef DoublySymCorrector < src.Correctors.DiffCorrector    
     methods
         % Basic constructor
-        function [obj] = DoublyCorrector()
+        function [obj] = DoublySymCorrector()
             % Parent object
             obj@src.Correctors.DiffCorrector( 3, 2 )
 
@@ -52,9 +52,7 @@ classdef DoublyCorrector < src.Correctors.DiffCorrector
 
             % Solve the system 
             tspan = [Orbit.t(1) 2*pi 0.01];
-            jspan = [0 2];
-            max_event_cnt = 1;
-            [t, j, y, ~] = Solver.solve( tspan, jspan, max_event_cnt );
+            [t, j, y, ~] = Solver.solve( tspan );
 
             STM.Phi = y(Orbit.StateDim+1:end,end);          % Monodromy matrix
             Orbit.STM = STM;                                % STM of the system

@@ -51,10 +51,8 @@ classdef AxisCorrector < src.Correctors.DiffCorrector
             Solver = integrator.configure( VarCR3BPIVP );
 
             % Solve the system 
-            tspan = [Orbit.t(1) T 0.01];
-            jspan = [0 2];
-            max_event_cnt = 1;
-            [t, j, y, ~] = Solver.solve( tspan, jspan, max_event_cnt );
+            tspan = [Orbit.t(1) 2*pi 0.01];
+            [t, j, y, ~] = Solver.solve( tspan  );
 
             STM.Phi = y(Orbit.StateDim+1:end,end);          % Monodromy matrix
             Orbit.STM = STM;                                % STM of the system
