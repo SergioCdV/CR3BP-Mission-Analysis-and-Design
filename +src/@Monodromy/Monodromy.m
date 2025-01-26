@@ -28,7 +28,8 @@ classdef Monodromy < src.STM
    end
 
    methods (Static)
-       [f, Vf] = FloquetAnalysis(lambda, v, T);   % Transformation between Floquet multipliers and eigenvectors/eigenvalues
-      [lambda] = LyapunovExponent();              % Compute the Lyapunov exponent of the STM 
+       [V, E] = FloquetAnalysis(lambda, v, T);      % Transformation between Floquet multipliers and eigenvectors/eigenvalues
+       [E] = PropFloquetModes(V, E0, Phi, t, T);    % Propagate the Floquet modes to a given epoch
+      [lambda] = LyapunovExponent();                % Compute the Lyapunov exponent of the STM 
    end
 end
