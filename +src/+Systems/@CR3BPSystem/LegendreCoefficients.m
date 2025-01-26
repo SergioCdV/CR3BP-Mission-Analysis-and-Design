@@ -18,8 +18,6 @@
 
 % Outputs: - array c [1 x order+1], containing the Legendre coefficients
 
-% New versions: 
-
 function [c] = LegendreCoefficients(mu, L, gamma, order)
     % Preallocation 
     c = zeros(1, order+1);
@@ -28,15 +26,18 @@ function [c] = LegendreCoefficients(mu, L, gamma, order)
     % Main computation 
     switch (L)
         case 1
-            c(3:end) = ( mu + (-1).^order_array .* ( (1 - mu) * gamma.^(order_array + 1) ) ./ (1 - gamma).^(order_array + 1) ) / gamma^3;
+            c(3:end) = ( mu + (-1).^order_array .* ( (1 - mu) * gamma.^(order_array + 1) ) ./ (1 - gamma).^(order_array + 1) );
 
         case 2
-            c(3:end) = ( (-1).^order_array / gamma^3 ) .* ( mu + ( (1 - mu) * gamma.^(order_array + 1) ) ./ (1 + gamma).^(order_array + 1) );
+            c(3:end) = (-1).^order_array .* ( mu + ( (1 - mu) * gamma.^(order_array + 1) ) ./ (1 + gamma).^(order_array + 1) );
 
         case 3
-            c(3:end) = ( (-1).^order_array / gamma^3 ) .* ( 1 - mu + ( mu * gamma.^(order_array + 1) ./ (1 + gamma).^(order_array + 1) ) );
+            c(3:end) = (-1).^order_array .* ( (1 - mu) + ( mu * gamma.^(order_array + 1) ./ (1 + gamma).^(order_array + 1) ) );
 
         otherwise
             error('No valid Lagrange point was selected');
     end
+
+    % Scaling 
+    c = c / gamma^3;
 end

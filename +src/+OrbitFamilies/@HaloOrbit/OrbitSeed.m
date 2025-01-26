@@ -72,16 +72,13 @@ function [seed, lambda] = richardson_seed(mu, L, gamma, branch, Amp, tau)
     % Determine some boolean parameters for the halo determination, concerning the nondimensional reference frame used
     switch (L)
         case 1
-            won = 1;            % Associated sign
-            primary = 1-mu;     % Reference primary position
+            won = 1;            % Associated sig
 
         case 2 
             won = -1;           % Associated sign
-            primary = 1-mu;     % Reference primary positio
 
         case 3
             won = 1;            % Associated sign
-            primary = -mu;      % Reference primary position
 
         otherwise 
             error('No valid Lagrange point was selected'); 
@@ -150,8 +147,6 @@ function [seed, lambda] = richardson_seed(mu, L, gamma, branch, Amp, tau)
     % Position vector
     r0 = [x; -y; z];     % Position vector
     r0 = gamma * r0;     % Re-scaled position vector
-
-    r0(1) = r0(1);
 
     % Velocity vector
     v0 = gamma * [dx; dy; dz];                            
