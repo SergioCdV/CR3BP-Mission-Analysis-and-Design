@@ -46,7 +46,7 @@ classdef PlanarCorrector < src.Correctors.DiffCorrector
 
             % Initial Value Problem 
             s0 = [Orbit.State(:,1); reshape(STM.Phi, [], 1)];
-            VarCR3BPIVP = src.DynamicalSystems.IVP( CompleteSystem, s0, Orbit.t );
+            VarCR3BPIVP = src.DynamicalSystems.IVP( CompleteSystem, s0, Orbit.t(1) );
             
             % Configuration 
             Solver = integrator.configure( VarCR3BPIVP );

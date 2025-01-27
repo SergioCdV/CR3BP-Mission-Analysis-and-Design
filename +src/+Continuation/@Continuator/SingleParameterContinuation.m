@@ -15,15 +15,14 @@ function [ObjectFamily] = SingleParameterContinuation(obj, InitialGuess)
     % Initial step length
     ds = 0;
     [e, ~] = obj.ContinuationFunction(InitialGuess, ds);
-    ds = e / obj.Config.MaxIter;
+    ds = e / obj.Config.MaxSteps;
 
     % Main loop 
     iter = 1;               % Number of iterations of the method
-    idx = 1;                % Index of the family
     GoOn = true;            % Convergence boolean
     prev_e = Inf;           % Initialization of the relative error function
 
-    while ( GoOn && iter < obj.Config.MaxIter)
+    while ( GoOn && iter < obj.Config.MaxSteps)
         % Update initial conditions
         [e, UpdatedObject] = obj.ContinuationFunction(InitialGuess, ds);
 
@@ -43,10 +42,10 @@ function [ObjectFamily] = SingleParameterContinuation(obj, InitialGuess)
         else
             prev_e = e;                                 % Update the error
             InitialGuess = RefinedObject;               % New initial guess 
-            ds = e / (obj.Config.MaxIter - iter);       % Update the continuation step
+            ds = e / (obj.Config.MaxSteps - iter);      % Update the continuation step
 
-            ObjectFamily{idx} = RefinedObject;          % Save the object
-            idx = idx + 1;                              % Update the family index
+            ObjectFamily{iter} = RefinedObject;         % Save the object
+            iter = iter + 1;                            % New iteration
         end
     end
 end

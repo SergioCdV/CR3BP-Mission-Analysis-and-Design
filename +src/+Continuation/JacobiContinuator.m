@@ -30,9 +30,6 @@ classdef JacobiContinuator < src.Continuation.Continuator
         % Pre-defined constraint function
         function [e, NewObject] = TargetJacobiValue(TargetValue, InitialObject, ds)
             if ( isa(InitialObject, 'src.PeriodicOrbit') )
-                % Compute the error 
-                e = TargetValue - InitialObject.EnergyFunction(1,1);
-
                 % Update the orbit 
                 NewObject = InitialObject;
 
@@ -40,8 +37,11 @@ classdef JacobiContinuator < src.Continuation.Continuator
                     NewObject.State(1,1) = NewObject.State(1,1) + ds;
 
                 elseif ( isa(InitialObject, "src.OrbitFamilies.HaloOrbit") )
-                    NewObject.State(3,1) = NewObject.State(3,1) + ds;
+                    NewObject.State(1,1) = NewObject.State(1,1) + ds;               % Moving along x to avoid the XZ bifurcation
                 end
+
+                % Compute the error 
+                e = TargetValue - NewObject.EnergyFunction(1,1);
                 
             else
                 error('Continuation along the Jacobi Constant is only supported for periodic orbits. Aborting...');

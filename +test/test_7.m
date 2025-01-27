@@ -37,7 +37,7 @@ myCorrector = src.Correctors.PlanarCorrector();
 
 Config.RelTol = 1E-5; 
 Config.AbsTol = 1E-10;
-Config.MaxIter = 100; 
+Config.MaxSteps = 10; 
 
 myCorrector = myCorrector.Configure( Config );
 
@@ -46,8 +46,8 @@ myCorrector = myCorrector.Configure( Config );
 
 %% Continuation 
 % Define the continuator
-TargetJC = -1.7;
-Continuator = src.Continuation.JacobiContinuator(TargetJC);
+TargetJC = -1.2;
+Continuator = src.Continuation.JacobiContinuator( TargetJC );
 Continuator = Continuator.Configure( Config );
 Continuator.DiffCorrector = @(Orbit)myCorrector.SingleShootSolve(Orbit);
 
@@ -55,10 +55,16 @@ Continuator.DiffCorrector = @(Orbit)myCorrector.SingleShootSolve(Orbit);
 LypaunovFamily = Continuator.SingleParameterContinuation( LyapunovOrbit );
 
 %% Results
+num_orbits = length(LypaunovFamily); 
 
 if 1
     figure 
-    plot3(LissajousOrbit.State(1,:), LissajousOrbit.State(2,:), LissajousOrbit.State(3,:))
+    view(3)
+    hold on
+    for i = 1:num_orbits
+        LissajousOrbit = LypaunovFamily{i};
+        plot3(LissajousOrbit.State(1,:), LissajousOrbit.State(2,:), LissajousOrbit.State(3,:))
+    end
     grid on; 
     xlabel('$x$')
     ylabel('$y$')

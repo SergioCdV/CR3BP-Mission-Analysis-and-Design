@@ -59,7 +59,7 @@ function [FinalOrbit, Stats] = SingleShootSolve(obj, InitialGuess)
         
         % Initial Value Problem 
         s0 = [FinalOrbit.State(:,1); reshape(STM.Phi, [], 1)];
-        VarCR3BPIVP = src.DynamicalSystems.IVP( CompleteSystem, s0, FinalOrbit.t );
+        VarCR3BPIVP = src.DynamicalSystems.IVP( CompleteSystem, s0, FinalOrbit.t(1) );
         
         % Configuration 
         Solver = integrator.configure( VarCR3BPIVP );
