@@ -37,12 +37,16 @@ function [ds] = DynamicsCR3BP(obj, t, j, s, u, params)
                 rel_state = s(1:obj.StateDim,i) - [obj.LP.r; zeros(3,size(obj.LP.r,2))];
                 dist = sqrt( dot(rel_state(1:3,:), rel_state(1:3,:), 1) );
 
-                rel_state = [obj.LP.r(:, dist == min(dist)); rel_state(:, dist == min(dist))];
+                idx = dist == min(dist);
+                rel_state = [obj.LP.r(:,idx); zeros(3,1); rel_state(:,idx)];
     
                 ds(:,i) = src.Systems.CoCR3BPSystem.EnckeEquationsCoCR3BP(t, j, rel_state, u(:,i), params{2});    
             end
 
         case "OrderN"
+            % Co-orbital state
+            s = [ones(1, size(s,2)); zeros(5, size(s,2)); s];    
+
             ds = src.Systems.CoCR3BPSystem.NOrderEquationsCoCR3BP(t, j, s, u, params{2});    
 
         otherwise

@@ -95,7 +95,6 @@ classdef CR3BPSystem < src.Systems.CelestialSystem
         [s] = ComplementaryZeroSurface(mu, C, display_flag);    % Compute the ZVC associated to a given energy C
 
         [ds] = NewtonEquationsCR3BP(t, j, s, u, params);        % Newton's description of the CR3BP dynamics
-        [ds] = EnckeEquationsCR3BP(t, j, s, u, params);         % Encke's description of the CR3BP dynamics
         [J] = JacobianCR3BP(mu, s);                             % Jacobian of the absolute dynamics vector field
 
         [c] = LegendreCoefficients(mu, L, gamma, order);        % Legendre coefficients to expand the CR3BP Hamiltonian around the libration points
